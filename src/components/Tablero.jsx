@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { listaAnimales } from '../data/animales';
+import { listaAnimales } from '../data/animales.js';
 import Tarjeta from './Tarjeta';
 
+// Configuración de los niveles del juego
+const CONFIG_NIVELES = {
+    1: { parejas: 4, columnas: 'grid-cols-4' },
+    2: { parejas: 6, columnas: 'grid-cols-4 text-sm' },
+    3: { parejas: 8, columnas: 'grid-cols-4' },
+    4: { parejas: 12, columnas: 'grid-cols-4 sm:grid-cols-6' }
+};
+
 export default function Tablero() {
+    const [level, setLevel] = useState(1);
     const [cards, setCards] = useState([]);
     const [turns, setTurns] = useState(0);
     const [choiceOne, setChoiceOne] = useState(null);
@@ -10,11 +19,18 @@ export default function Tablero() {
     const [disabled, setDisabled] = useState(false);
     const [matches, setMatches] = useState(0);
 
-    // Función para inicializar y mezclar el juego
-    const iniciarJuego = () => {
-        // 1. Creamos las tarjetas de imágenes
-        const cartasImagenes = listaAnimales.map(animal => ({
-            id: `img-${animal.id}`,
+    // Cantidad de parejas requeridas para el nivel actual
+    const parejasRequeridas = CONFIG_NIVELES[level].parejas;
+
+    const iniciarJuego = (nivelActual = level) => {
+        // 1. Mezclamos TODA la base de datos completa y tomamos solo la cantidad necesaria para el nivel
+        const animalesSeleccionados = [...listaAnimales]
+            .sort(() => Math.random() - 0.5)
+            .slice(0, CONFIG_NIVELES[nivelActual].parejas);
+
+        // 2. Creamos tarjetas de imágenes
+        const cartasImagenes = animalesSeleccionados.map(animal => ({
+            id: `img-${animal.id}-${Math.random()}`, // ID único para React
             pairId: animal.id,
             type: 'image',
             content: animal.image,
@@ -22,9 +38,9 @@ export default function Tablero() {
             isMatched: false
         }));
 
-        // 2. Creamos las tarjetas de palabras en diidxazá
-        const cartasPalabras = listaAnimales.map(animal => ({
-            id: `word-${animal.id}`,
+        // 3. Creamos tarjetas de palabras en diidxazá
+        const cartasPalabras = animalesSeleccionados.map(animal => ({
+            id: `word-${animal.id}-${Math.random()}`,
             pairId: animal.id,
             type: 'word',
             content: animal.diidxaza,
@@ -32,7 +48,7 @@ export default function Tablero() {
             isMatched: false
         }));
 
-        // 3. Juntamos ambos mazos y los mezclamos al azar
+        // 4. Juntamos y mezclamos el mazo final del nivel
         const mazoMezclado = [...cartasImagenes, ...cartasPalabras]
             .sort(() => Math.random() - 0.5);
 
@@ -43,17 +59,27 @@ export default function Tablero() {
         setMatches(0);
     };
 
-    // Manejar la elección del usuario
+    // Pasar al siguiente nivel
+    const siguienteNivel = () => {
+        if (level < 4) {
+            const proximoNivel = level + 1;
+            setLevel(proximoNivel);
+            iniciarJuego(proximoNivel);
+        } else {
+            // Si termina el nivel 4, regresa al 1
+            setLevel(1);
+            iniciarJuego(1);
+        }
+    };
+
     const handleChoice = (card) => {
         choiceOne ? setChoiceTwo(card) : setChoiceOne(card);
     };
 
-    // Comparar las dos tarjetas seleccionadas
     useEffect(() => {
         if (choiceOne && choiceTwo) {
             setDisabled(true);
 
-            // Si los pairId coinciden, ¡encontró el par!
             if (choiceOne.pairId === choiceTwo.pairId) {
                 setCards(prevCards => {
                     return prevCards.map(card => {
@@ -67,13 +93,11 @@ export default function Tablero() {
                 setMatches(prev => prev + 1);
                 resetTurn();
             } else {
-                // Si no coinciden, esperamos 1 segundo y las volteamos de regreso
                 setTimeout(() => resetTurn(), 1000);
             }
         }
     }, [choiceOne, choiceTwo]);
 
-    // Resetear elecciones e incrementar turno
     const resetTurn = () => {
         setChoiceOne(null);
         setChoiceTwo(null);
@@ -81,45 +105,53 @@ export default function Tablero() {
         setDisabled(false);
     };
 
-    // Iniciar automáticamente al cargar la página
     useEffect(() => {
         iniciarJuego();
     }, []);
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col items-center">
-            <header className="text-center mb-6">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col items-center">
+            <header className="text-center mb-4">
                 <h1 className="text-3xl md:text-4xl font-extrabold text-amber-900 tracking-tight">
-                    Memorama Diidxazá
+                    Bidxaga saa
                 </h1>
-                <p className="text-sm text-gray-600 mt-1">Aprende los animales del Istmo de Tehuantepec</p>
+                <p className="text-sm text-gray-600 mt-1">Encuentros en diidxazá</p>
             </header>
 
-            {/* Marcador e indicadores */}
-            <div className="flex justify-between items-center w-full max-w-md bg-amber-50 rounded-xl p-4 mb-6 border border-amber-200 shadow-sm">
-                <div className="text-amber-950 font-medium">
-                    Turnos: <span className="font-bold text-lg text-red-600">{turns}</span>
+            {/* Barra informativa de Nivel, Turnos y Aciertos */}
+            <div className="flex flex-wrap gap-2 justify-between items-center w-full max-w-2xl bg-amber-50 rounded-xl p-3 mb-4 border border-amber-200 shadow-sm text-sm">
+                <div className="bg-amber-800 text-white font-bold px-3 py-1 rounded-full">
+                    Nivel {level}
                 </div>
                 <div className="text-amber-950 font-medium">
-                    Aciertos: <span className="font-bold text-lg text-green-600">{matches} / {listaAnimales.length}</span>
+                    Turnos: <span className="font-bold text-red-600">{turns}</span>
+                </div>
+                <div className="text-amber-950 font-medium">
+                    Aciertos: <span className="font-bold text-green-600">{matches} / {parejasRequeridas}</span>
                 </div>
                 <button
-                    onClick={iniciarJuego}
-                    className="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm shadow-md"
+                    onClick={() => iniciarJuego(level)}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-1 px-3 rounded-lg transition-colors shadow-sm"
                 >
-                    Reiniciar
+                    Reiniciar Nivel
                 </button>
             </div>
 
-            {/* Mensaje de Victoria */}
-            {matches === listaAnimales.length && (
-                <div className="bg-green-100 border-2 border-green-500 text-green-900 font-bold px-6 py-3 rounded-xl mb-6 animate-bounce text-center">
-                    ¡Sicarú! ¡Completaste el juego con éxito! 🎉
+            {/* Ventana de éxito al completar el nivel */}
+            {matches === parejasRequeridas && (
+                <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 text-green-900 rounded-xl p-4 mb-4 text-center shadow-md animate-fade-in">
+                    <p className="text-xl font-bold mb-2">¡Sicarú! 🎉 Nivel {level} Completado</p>
+                    <button
+                        onClick={siguienteNivel}
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-xl transition-all shadow transform hover:scale-105"
+                    >
+                        {level < 4 ? 'Jugar Siguiente Nivel ➡️' : '¡Volver a empezar desde el Nivel 1! 🔄'}
+                    </button>
                 </div>
             )}
 
-            {/* Rejilla de cartas (Grid responsivo) */}
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-4 w-full max-w-2xl">
+            {/* Rejilla adaptativa según las columnas del nivel configurado */}
+            <div className={`grid ${CONFIG_NIVELES[level].columnas} gap-3 w-full max-w-2xl`}>
                 {cards.map(card => (
                     <Tarjeta
                         key={card.id}
