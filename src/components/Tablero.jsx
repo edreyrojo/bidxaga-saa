@@ -181,20 +181,20 @@ export default function Tablero() {
             {/* NUEVA BARRA DE CONTROL DE SESIÓN LOCAL */}
             <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-4 shadow-sm text-sm">
                 <div className="text-amber-950 font-semibold">
-                    <span className="text-amber-800 font-bold">Respaldo local:</span> Nivel {level}
+                    <span className="text-amber-800 font-bold">ÚLIMO NIVEL:</span> Nivel {level}
                 </div>
                 <div className="flex gap-2 mt-2 sm:mt-0">
                     <button 
                         onClick={guardarProgresoLocal} 
                         className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1 rounded-lg transition-colors shadow-sm"
                     >
-                        💾 Guardar Partida
+                        Guardar
                     </button>
                     <button 
                         onClick={reiniciarProgresoLocal} 
                         className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1 rounded-lg transition-colors shadow-sm"
                     >
-                        🔄 Reiniciar Todo
+                        Reiniciar
                     </button>
                 </div>
             </div>
