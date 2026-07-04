@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { listaAnimales } from '../data/animales.js';
 import Tarjeta from './Tarjeta';
 
+// 1. IMPORTAMOS LA CONFIGURACIÓN Y FUNCIONES DE FIREBASE
+import { db } from '../firebaseConfig';
+import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
+
 const CONFIG_NIVELES = {
     1: { parejas: 4, columnas: 'grid-cols-4' },
     2: { parejas: 6, columnas: 'grid-cols-4 text-sm' },
@@ -9,7 +13,6 @@ const CONFIG_NIVELES = {
     4: { parejas: 12, columnas: 'grid-cols-4 sm:grid-cols-6' }
 };
 
-// Función auxiliar para obtener configuración (Niveles > 4 usan la del nivel 4)
 const getConfigForLevel = (lvl) => {
     return CONFIG_NIVELES[lvl] || { parejas: 12, columnas: 'grid-cols-4 sm:grid-cols-6' };
 };
@@ -26,13 +29,35 @@ export default function Tablero() {
     const [ranking, setRanking] = useState([]);
     const [playerName, setPlayerName] = useState('');
 
+    // Estado para mostrar si estamos cargando los datos de la nube
+    const [cargandoRanking, setCargandoRanking] = useState(false);
+
     const configActual = getConfigForLevel(level);
     const parejasRequeridas = configActual.parejas;
 
-    // Cargar ranking al iniciar
+    // 2. FUNCIÓN PARA LEER DESDE LA NUBE (GLOBAL)
+    const cargarRankingGlobal = async () => {
+        setCargandoRanking(true);
+        try {
+            const q = query(collection(db, "ranking"), orderBy("score", "asc"), limit(10));
+            const querySnapshot = await getDocs(q);
+
+            const datosRanking = [];
+            querySnapshot.forEach((doc) => {
+                datosRanking.push({ id: doc.id, ...doc.data() });
+            });
+
+            setRanking(datosRanking);
+        } catch (error) {
+            console.error("Error al cargar el ranking desde Firebase:", error);
+        } finally {
+            setCargandoRanking(false);
+        }
+    };
+
+    // 3. CARGA INICIAL DESDE FIREBASE
     useEffect(() => {
-        const savedRanking = JSON.parse(localStorage.getItem('rankingMemorama') || '[]');
-        setRanking(savedRanking);
+        cargarRankingGlobal();
         iniciarJuego(1);
     }, []);
 
@@ -78,11 +103,23 @@ export default function Tablero() {
         setIsGameOver(true);
     };
 
-    const guardarPuntaje = () => {
+    // 4. GUARDAR PUNTAJE EN LA NUBE (GLOBAL)
+    const guardarPuntaje = async () => {
         if (!playerName.trim()) return;
-        const nuevoRanking = [...ranking, { name: playerName, score: turns, level: level }].sort((a, b) => a.score - b.score).slice(0, 5);
-        setRanking(nuevoRanking);
-        localStorage.setItem('rankingMemorama', JSON.stringify(nuevoRanking));
+
+        try {
+            await addDoc(collection(db, "ranking"), {
+                name: playerName,
+                score: turns,
+                level: level,
+                fecha: new Date().toISOString()
+            });
+
+            await cargarRankingGlobal();
+        } catch (error) {
+            console.error("Error al guardar el puntaje en Firebase:", error);
+        }
+
         setIsGameOver(false);
         setLevel(1);
         iniciarJuego(1);
@@ -127,12 +164,12 @@ export default function Tablero() {
                         onChange={(e) => setPlayerName(e.target.value)}
                         className="border p-2 rounded w-full mb-4"
                     />
-                    <button onClick={guardarPuntaje} className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700">Guardar y Reiniciar</button>
+                    <button onClick={guardarPuntaje} className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700">Guardar en Ranking Global</button>
                 </div>
             ) : (
                 <>
                     <header className="text-center mb-4">
-                        <h1 className="text-3xl font-extrabold text-amber-900">Bidxaga saa</h1>
+                        <img src="/images/banner.png" alt="Banner Diidxaza" className="mx-auto mb-2 max-w-full h-auto" />
                         <p className="text-sm text-gray-600">Nivel {level} • Turnos: {turns}</p>
                     </header>
 
@@ -154,18 +191,22 @@ export default function Tablero() {
                 </>
             )}
 
-            {/* Tabla de Ranking */}
+            {/* Tabla de Ranking Global */}
             <div className="mt-8 w-full max-w-md">
-                <h3 className="font-bold text-center mb-2">Mejores Jugadores</h3>
-                <div className="bg-gray-100 rounded-lg p-4">
-                    {ranking.length === 0 ? <p className="text-center text-sm">Aún no hay scores.</p> :
+                <h3 className="font-bold text-center mb-2">🏆 Mejores Jugadores (Global)</h3>
+                <div className="bg-gray-100 rounded-lg p-4 shadow-inner">
+                    {cargandoRanking ? (
+                        <p className="text-center text-sm text-gray-500 py-2">Cargando puntajes globales...</p>
+                    ) : ranking.length === 0 ? (
+                        <p className="text-center text-sm text-gray-500 py-2">Aún no hay scores en la nube. ¡Sé el primero!</p>
+                    ) : (
                         ranking.map((r, i) => (
-                            <div key={i} className="flex justify-between border-b py-1 text-sm">
-                                <span>{i + 1}. {r.name} (Nivel {r.level})</span>
-                                <span className="font-bold">{r.score} turnos</span>
+                            <div key={r.id || i} className="flex justify-between border-b py-1 text-sm border-gray-200 last:border-0">
+                                <span className="font-medium text-amber-950">{i + 1}. {r.name} <span className="text-xs text-gray-500">(Nivel {r.level})</span></span>
+                                <span className="font-bold text-amber-800">{r.score} turnos</span>
                             </div>
                         ))
-                    }
+                    )}
                 </div>
             </div>
         </div>
