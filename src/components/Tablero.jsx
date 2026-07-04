@@ -193,7 +193,7 @@ export default function Tablero() {
 
             {/* Tabla de Ranking Global */}
             <div className="mt-8 w-full max-w-md">
-                <h3 className="font-bold text-center mb-2">🏆 Mejores Jugadores (Global)</h3>
+                <h3 className="font-bold text-center mb-2">Mejores Jugadores</h3>
                 <div className="bg-gray-100 rounded-lg p-4 shadow-inner">
                     {cargandoRanking ? (
                         <p className="text-center text-sm text-gray-500 py-2">Cargando puntajes globales...</p>
