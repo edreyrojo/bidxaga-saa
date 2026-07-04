@@ -43,7 +43,8 @@ export default function Tarjeta({ card, handleChoice, flipped, disabled }) {
                             {card.type === 'word' ? card.content : card.label}
                         </p>
                         {card.type === 'word' && (
-                            <span className="text-[9px] md:text-xs text-gray-400 mt-1 uppercase tracking-wider hidden md:block">
+                            /* CORREGIDO: Se cambió 'hidden md:block' por 'block' para que siempre sea visible educativo */
+                            <span className="text-[9px] md:text-xs text-black mt-1 uppercase tracking-wider block">
                                 ({card.label})
                             </span>
                         )}

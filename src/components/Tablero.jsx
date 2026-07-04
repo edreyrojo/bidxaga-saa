@@ -178,27 +178,6 @@ export default function Tablero() {
     return (
         <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col items-center">
             
-            {/* NUEVA BARRA DE CONTROL DE SESIÓN LOCAL */}
-            <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-4 shadow-sm text-sm">
-                <div className="text-amber-950 font-semibold">
-                    <span className="text-amber-800 font-bold">ÚLIMO NIVEL:</span> Nivel {level}
-                </div>
-                <div className="flex gap-2 mt-2 sm:mt-0">
-                    <button 
-                        onClick={guardarProgresoLocal} 
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1 rounded-lg transition-colors shadow-sm"
-                    >
-                        Guardar
-                    </button>
-                    <button 
-                        onClick={reiniciarProgresoLocal} 
-                        className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1 rounded-lg transition-colors shadow-sm"
-                    >
-                        Reiniciar
-                    </button>
-                </div>
-            </div>
-
             {/* Pantalla de Guardar Score */}
             {isGameOver ? (
                 <div className="bg-white p-8 rounded-xl shadow-2xl border border-amber-200 text-center">
@@ -219,6 +198,26 @@ export default function Tablero() {
                         <img src="/images/banner.png" alt="Banner Diidxaza" className="mx-auto mb-2 max-w-full h-auto" />
                         <p className="text-sm text-gray-600">Nivel {level} • Turnos: {turns}</p>
                     </header>
+                     {/* NUEVA BARRA DE CONTROL DE SESIÓN LOCAL */}
+            <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-4 shadow-sm text-sm">
+                <div className="text-amber-950 font-semibold">
+                    <span className="text-amber-800 font-bold">ÚLIMO NIVEL:</span> Nivel {level}
+                </div>
+                <div className="flex gap-2 mt-2 sm:mt-0">
+                    <button 
+                        onClick={guardarProgresoLocal} 
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1 rounded-lg transition-colors shadow-sm"
+                    >
+                        Guardar
+                    </button>
+                    <button 
+                        onClick={reiniciarProgresoLocal} 
+                        className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1 rounded-lg transition-colors shadow-sm"
+                    >
+                        Reiniciar
+                    </button>
+                </div>
+            </div>
 
                     {matches === parejasRequeridas && (
                         <div className="bg-green-50 border border-green-500 rounded-xl p-4 mb-4 text-center">
