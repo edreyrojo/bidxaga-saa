@@ -55,11 +55,31 @@ export default function Tablero() {
         }
     };
 
-    // 3. CARGA INICIAL DESDE FIREBASE
+    // 3. CARGA INICIAL DESDE FIREBASE Y RESCATE DE PROGRESO LOCAL
     useEffect(() => {
         cargarRankingGlobal();
-        iniciarJuego(1);
+        // Buscamos si la persona se quedó en un nivel superior (como el Nivel 26 de tu mamá)
+        const nivelGuardado = localStorage.getItem('memoramaNivel');
+        const nivelInicial = nivelGuardado ? parseInt(nivelGuardado, 10) : 1;
+        
+        setLevel(nivelInicial);
+        iniciarJuego(nivelInicial);
     }, []);
+
+    // NUEVO: Función para que el usuario asegure su partida localmente
+    const guardarProgresoLocal = () => {
+        localStorage.setItem('memoramaNivel', level);
+        alert(`¡Partida guardada localmente! Podrás cerrar y volver al Nivel ${level} cuando quieras.`);
+    };
+
+    // NUEVO: Función para resetear el avance local y empezar de cero voluntariamente
+    const reiniciarProgresoLocal = () => {
+        if (window.confirm("¿Estás seguro de que deseas reiniciar tu progreso local y volver al Nivel 1?")) {
+            localStorage.removeItem('memoramaNivel');
+            setLevel(1);
+            iniciarJuego(1);
+        }
+    };
 
     const iniciarJuego = (nivelActual) => {
         const animalesSeleccionados = [...listaAnimales]
@@ -95,15 +115,18 @@ export default function Tablero() {
     };
 
     const siguienteNivel = () => {
-        setLevel(prev => prev + 1);
-        iniciarJuego(level + 1);
+        const proximoNivel = level + 1;
+        setLevel(proximoNivel);
+        iniciarJuego(proximoNivel);
+        // Respaldo automático silencioso cada vez que avanza de nivel
+        localStorage.setItem('memoramaNivel', proximoNivel);
     };
 
     const finalizarPartida = () => {
         setIsGameOver(true);
     };
 
-    // 4. GUARDAR PUNTAJE EN LA NUBE (GLOBAL)
+    // 4. GUARDAR PUNTAJE EN LA NUBE (GLOBAL) Y LIMPIAR SESIÓN LOCAL
     const guardarPuntaje = async () => {
         if (!playerName.trim()) return;
 
@@ -120,6 +143,8 @@ export default function Tablero() {
             console.error("Error al guardar el puntaje en Firebase:", error);
         }
 
+        // Como ya subió su récord al mundo, limpiamos su memoria local para su próxima gran partida
+        localStorage.removeItem('memoramaNivel');
         setIsGameOver(false);
         setLevel(1);
         iniciarJuego(1);
@@ -152,6 +177,28 @@ export default function Tablero() {
 
     return (
         <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col items-center">
+            
+            {/* NUEVA BARRA DE CONTROL DE SESIÓN LOCAL */}
+            <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-4 shadow-sm text-sm">
+                <div className="text-amber-950 font-semibold">
+                    <span className="text-amber-800 font-bold">Respaldo local:</span> Nivel {level}
+                </div>
+                <div className="flex gap-2 mt-2 sm:mt-0">
+                    <button 
+                        onClick={guardarProgresoLocal} 
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1 rounded-lg transition-colors shadow-sm"
+                    >
+                        💾 Guardar Partida
+                    </button>
+                    <button 
+                        onClick={reiniciarProgresoLocal} 
+                        className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1 rounded-lg transition-colors shadow-sm"
+                    >
+                        🔄 Reiniciar Todo
+                    </button>
+                </div>
+            </div>
+
             {/* Pantalla de Guardar Score */}
             {isGameOver ? (
                 <div className="bg-white p-8 rounded-xl shadow-2xl border border-amber-200 text-center">
