@@ -35,11 +35,18 @@ export default function Tablero() {
     const configActual = getConfigForLevel(level);
     const parejasRequeridas = configActual.parejas;
 
-    // 2. FUNCIÓN PARA LEER DESDE LA NUBE (GLOBAL)
+    // 2. FUNCIÓN PARA LEER DESDE LA NUBE (GLOBAL) - OPTIMIZADA CON FILTRO DOBLE
     const cargarRankingGlobal = async () => {
         setCargandoRanking(true);
         try {
-            const q = query(collection(db, "ranking"), orderBy("score", "asc"), limit(10));
+            // CORREGIDO: Ordena primero por nivel descendente (mayor nivel primero)
+            // y luego por score/turnos ascendente (menos turnos desempata a favor)
+            const q = query(
+                collection(db, "ranking"), 
+                orderBy("level", "desc"), 
+                orderBy("score", "asc"), 
+                limit(10)
+            );
             const querySnapshot = await getDocs(q);
 
             const datosRanking = [];
@@ -66,13 +73,13 @@ export default function Tablero() {
         iniciarJuego(nivelInicial);
     }, []);
 
-    // NUEVO: Función para que el usuario asegure su partida localmente
+    // Función para que el usuario asegure su partida localmente
     const guardarProgresoLocal = () => {
         localStorage.setItem('memoramaNivel', level);
         alert(`¡Partida guardada localmente! Podrás cerrar y volver al Nivel ${level} cuando quieras.`);
     };
 
-    // NUEVO: Función para resetear el avance local y empezar de cero voluntariamente
+    // Función para resetear el avance local y empezar de cero voluntariamente
     const reiniciarProgresoLocal = () => {
         if (window.confirm("¿Estás seguro de que deseas reiniciar tu progreso local y volver al Nivel 1?")) {
             localStorage.removeItem('memoramaNivel');
@@ -178,6 +185,7 @@ export default function Tablero() {
     return (
         <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col items-center">
             
+            
             {/* Pantalla de Guardar Score */}
             {isGameOver ? (
                 <div className="bg-white p-8 rounded-xl shadow-2xl border border-amber-200 text-center">
@@ -198,15 +206,15 @@ export default function Tablero() {
                         <img src="/images/banner.png" alt="Banner Diidxaza" className="mx-auto mb-2 max-w-full h-auto" />
                         <p className="text-sm text-gray-600">Nivel {level} • Turnos: {turns}</p>
                     </header>
-                     {/* NUEVA BARRA DE CONTROL DE SESIÓN LOCAL */}
+                    {/* BARRA DE CONTROL DE SESIÓN LOCAL */}
             <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-4 shadow-sm text-sm">
                 <div className="text-amber-950 font-semibold">
-                    <span className="text-amber-800 font-bold">ÚLIMO NIVEL:</span> Nivel {level}
+                    <span className="text-amber-800 font-bold">Último nivel:</span> {level}
                 </div>
                 <div className="flex gap-2 mt-2 sm:mt-0">
                     <button 
                         onClick={guardarProgresoLocal} 
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1 rounded-lg transition-colors shadow-sm"
+                        className="bg-orange-600 hover:bg-blue-700 text-white font-semibold px-3 py-1 rounded-lg transition-colors shadow-sm"
                     >
                         Guardar
                     </button>
@@ -218,6 +226,7 @@ export default function Tablero() {
                     </button>
                 </div>
             </div>
+
 
                     {matches === parejasRequeridas && (
                         <div className="bg-green-50 border border-green-500 rounded-xl p-4 mb-4 text-center">
@@ -239,7 +248,7 @@ export default function Tablero() {
 
             {/* Tabla de Ranking Global */}
             <div className="mt-8 w-full max-w-md">
-                <h3 className="font-bold text-center mb-2">Mejores Jugadores</h3>
+                <h3 className="font-bold text-center mb-2">Tabla de Posiciones</h3>
                 <div className="bg-gray-100 rounded-lg p-4 shadow-inner">
                     {cargandoRanking ? (
                         <p className="text-center text-sm text-gray-500 py-2">Cargando puntajes globales...</p>
@@ -248,8 +257,10 @@ export default function Tablero() {
                     ) : (
                         ranking.map((r, i) => (
                             <div key={r.id || i} className="flex justify-between border-b py-1 text-sm border-gray-200 last:border-0">
-                                <span className="font-medium text-amber-950">{i + 1}. {r.name} <span className="text-xs text-gray-500">(Nivel {r.level})</span></span>
-                                <span className="font-bold text-amber-800">{r.score} turnos</span>
+                                <span className="font-medium text-amber-950">
+                                    {i + 1}. {r.name} <span className="text-xs text-amber-700 font-bold">(Nivel {r.level})</span>
+                                </span>
+                                <span className="font-bold text-amber-900">{r.score} turnos</span>
                             </div>
                         ))
                     )}
