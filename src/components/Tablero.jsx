@@ -209,7 +209,7 @@ export default function Tablero() {
                     {/* BARRA DE CONTROL DE SESIÓN LOCAL */}
             <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-4 shadow-sm text-sm">
                 <div className="text-amber-950 font-semibold">
-                    <span className="text-amber-800 font-bold">Último nivel:</span> {level}
+                    <span className="text-amber-800 font-bold">ÚNOPltimo nivel:</span> {level}
                 </div>
                 <div className="flex gap-2 mt-2 sm:mt-0">
                     <button 
@@ -233,7 +233,7 @@ export default function Tablero() {
                             <p className="text-lg font-bold mb-2">¡Nivel {level} completado!</p>
                             <div className="flex gap-2 justify-center">
                                 <button onClick={siguienteNivel} className="bg-green-600 text-white py-2 px-4 rounded-lg">Siguiente Nivel</button>
-                                <button onClick={finalizarPartida} className="bg-amber-600 text-white py-2 px-4 rounded-lg">Terminar y Guardar</button>
+                                <button onClick={finalizarPartida} className="bg-amber-600 text-white py-2 px-4 rounded-lg">GUARDAR RECORD</button>
                             </div>
                         </div>
                     )}
