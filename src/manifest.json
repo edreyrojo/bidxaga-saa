@@ -1,0 +1,15 @@
+{
+  "short_name": "Bidxaga Saa",
+  "name": "Bidxaga Saa - Aprende Diidxazá",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#fffbeb",
+  "theme_color": "#b45309",
+  "display": "standalone"
+}
