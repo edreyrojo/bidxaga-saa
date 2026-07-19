@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { listaAnimales } from '../data/animales.js';
 
 import { db } from '../firebaseConfig';
@@ -123,9 +123,12 @@ export default function Crucigrama() {
     const [respuestasUsuario, setRespuestasUsuario] = useState({});
     const [palabrasResueltas, setPalabrasResueltas] = useState([]);
 
-    // Estados para el Dial Circular
+    // Estados para el Dial Circular Táctil (Swipe / Patrón con Líneas)
     const [activePlacement, setActivePlacement] = useState(null);
     const [dialSeleccion, setDialSeleccion] = useState([]);
+    const [letrasElegidas, setLetrasElegidas] = useState([]);
+    const [isDragging, setIsDragging] = useState(false);
+    const dialRef = useRef(null);
 
     const [isGameOver, setIsGameOver] = useState(false);
     const [playerName, setPlayerName] = useState('');
@@ -165,7 +168,6 @@ export default function Crucigrama() {
         const celda = matriz[r][c];
         if (celda.empty) return;
 
-        // Buscar qué palabra pasa por esta celda y que no esté resuelta
         const palabraAsociada = placements.find(p => {
             if (palabrasResueltas.includes(p.id)) return false;
             for (let i = 0; i < p.text.length; i++) {
@@ -178,18 +180,67 @@ export default function Crucigrama() {
 
         if (palabraAsociada) {
             setActivePlacement(palabraAsociada);
-            // Mezclamos las letras para el dial circular
             const letrasMezcladas = palabraAsociada.text.split('').sort(() => Math.random() - 0.5);
             setDialSeleccion(letrasMezcladas);
+            setLetrasElegidas([]);
         }
     };
 
-    // MANEJAR LA SELECCIÓN DE LETRAS EN EL DIAL
-    const [letrasElegidas, setLetrasElegidas] = useState([]);
+    // --- CÁLCULO DE COORDENADAS DE LOS NODOS EN EL SVG (Dial w-52 h-52 -> 208x208px) ---
+    const getNodeCoords = (index) => {
+        const total = dialSeleccion.length;
+        if (total === 0) return { x: 104, y: 104 };
+        const angle = (index * 2 * Math.PI) / total - Math.PI / 2;
+        const radius = 75; // Radio del círculo de botones
+        return {
+            x: 104 + Math.cos(angle) * radius,
+            y: 104 + Math.sin(angle) * radius
+        };
+    };
 
-    const handleSelectLetter = (letra, index) => {
-        if (letrasElegidas.includes(index)) return; // Evitar repetir el mismo nodo del dial
-        setLetrasElegidas([...letrasElegidas, index]);
+    // --- MANEJO DE ARRASTRE (SWIPE / TRAYECTORIA) ---
+    const handleTouchStartNode = (index) => {
+        setIsDragging(true);
+        if (!letrasElegidas.includes(index)) {
+            setLetrasElegidas([index]);
+        }
+    };
+
+    const handleTouchEnterNode = (index) => {
+        if (isDragging && !letrasElegidas.includes(index)) {
+            setLetrasElegidas(prev => [...prev, index]);
+        }
+    };
+
+    const handleMouseUpGlobal = () => {
+        if (isDragging) {
+            setIsDragging(false);
+        }
+    };
+
+    // Detección por coordenadas para dispositivos móviles (Touch move global)
+    const handleTouchMoveGlobal = (e) => {
+        if (!isDragging || !dialRef.current) return;
+        const touch = e.touches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (target && target.dataset.nodeIndex !== undefined) {
+            const index = parseInt(target.dataset.nodeIndex, 10);
+            if (!letrasElegidas.includes(index)) {
+                setLetrasElegidas(prev => [...prev, index]);
+            }
+        }
+    };
+
+    // Detección por mouse move global (para escritorio)
+    const handleMouseMoveGlobal = (e) => {
+        if (!isDragging || !dialRef.current) return;
+        const target = document.elementFromPoint(e.clientX, e.clientY);
+        if (target && target.dataset.nodeIndex !== undefined) {
+            const index = parseInt(target.dataset.nodeIndex, 10);
+            if (!letrasElegidas.includes(index)) {
+                setLetrasElegidas(prev => [...prev, index]);
+            }
+        }
     };
 
     const limpiarDial = () => setLetrasElegidas([]);
@@ -201,7 +252,6 @@ export default function Crucigrama() {
         setIntentos(prev => prev + 1);
 
         if (palabraFormada === activePlacement.text) {
-            // Aplicar respuestas al tablero
             const nuevasRespuestas = { ...respuestasUsuario };
             for (let i = 0; i < activePlacement.text.length; i++) {
                 let pr = activePlacement.startY + (i * activePlacement.dirY);
@@ -276,7 +326,11 @@ export default function Crucigrama() {
     const nivelCompletado = palabrasResueltas.length === placements.length && placements.length > 0;
 
     return (
-        <div className="max-w-4xl mx-auto px-3 py-4 flex flex-col items-center select-none w-full pb-[env(safe-area-inset-bottom)]">
+        <div 
+            className="max-w-4xl mx-auto px-3 py-4 flex flex-col items-center select-none w-full pb-[env(safe-area-inset-bottom)]"
+            onMouseUp={handleMouseUpGlobal}
+            onTouchend={handleMouseUpGlobal}
+        >
             {isGameOver ? (
                 <div className="bg-white p-6 sm:p-8 rounded-xl shadow-2xl border border-amber-200 text-center w-full max-w-xl mt-6">
                     <h2 className="text-2xl font-bold mb-4 text-amber-900">¡Partida Finalizada!</h2>
@@ -298,7 +352,7 @@ export default function Crucigrama() {
                     {/* BARRA DE CONTROL LOCAL */}
                     <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-3 shadow-sm text-sm gap-2">
                         <div className="text-amber-950 font-semibold text-xs sm:text-sm">
-                            <span className="text-amber-800 font-bold">Instrucción:</span> Toca cualquier celda para abrir el selector de letras.
+                            <span className="text-amber-800 font-bold">Instrucción:</span> Toca una celda y arrastra sobre las letras del círculo para unirlas.
                         </div>
                         <div className="flex gap-2">
                             <button onClick={guardarProgresoLocal} className="bg-orange-600 hover:bg-orange-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs">Guardar</button>
@@ -388,7 +442,7 @@ export default function Crucigrama() {
                 </>
             )}
 
-            {/* MODAL DE DIAL CIRCULAR TÁCTIL */}
+            {/* MODAL DE DIAL CIRCULAR CON ARRASTRE TÁCTIL Y TRAYECTORIA SVG */}
             {activePlacement && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
@@ -404,12 +458,12 @@ export default function Crucigrama() {
                             <img src={activePlacement.animal.image} alt={activePlacement.animal.spanish} className="max-w-full max-h-full object-contain" />
                         </div>
                         <h3 className="font-bold text-amber-950 text-lg mb-1">{activePlacement.animal.spanish}</h3>
-                        <p className="text-xs text-amber-800 mb-6 font-medium">Toca las letras en orden para formar la palabra</p>
+                        <p className="text-xs text-amber-800 mb-4 font-medium text-center">Arrastra el dedo sobre las letras para unirlas</p>
 
                         {/* PANTALLA DE PREVISUALIZACIÓN DE LA PALABRA FORMADA */}
-                        <div className="flex gap-1.5 mb-6 min-h-[44px] items-center bg-amber-50/80 px-4 py-2 rounded-xl border border-amber-200 w-full justify-center">
+                        <div className="flex gap-1.5 mb-5 min-h-[44px] items-center bg-amber-50/80 px-4 py-2 rounded-xl border border-amber-200 w-full justify-center">
                             {letrasElegidas.length === 0 ? (
-                                <span className="text-xs text-amber-600/70 italic">Toca las letras abajo...</span>
+                                <span className="text-xs text-amber-600/70 italic">Desliza el dedo por el círculo...</span>
                             ) : (
                                 letrasElegidas.map((idx, i) => (
                                     <span key={i} className="w-8 h-8 bg-amber-600 text-white font-bold rounded-lg flex items-center justify-center text-base shadow-sm animate-pop">
@@ -419,24 +473,55 @@ export default function Crucigrama() {
                             )}
                         </div>
 
-                        {/* DIAL CIRCULAR DE LETRAS */}
-                        <div className="relative w-52 h-52 my-2 flex items-center justify-center">
+                        {/* DIAL CIRCULAR CON TRAYECTORIA SVG */}
+                        <div 
+                            ref={dialRef}
+                            onTouchMove={handleTouchMoveGlobal}
+                            onMouseMove={handleMouseMoveGlobal}
+                            className="relative w-52 h-52 my-2 flex items-center justify-center touch-none select-none"
+                        >
                             <div className="absolute inset-0 rounded-full border-4 border-dashed border-amber-200 pointer-events-none"></div>
                             
+                            {/* CAPA SVG PARA LAS LÍNEAS DE CONEXIÓN */}
+                            <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+                                {letrasElegidas.map((nodeIndex, i) => {
+                                    if (i === 0) return null;
+                                    const prevCoords = getNodeCoords(letrasElegidas[i - 1]);
+                                    const currCoords = getNodeCoords(nodeIndex);
+                                    return (
+                                        <line
+                                            key={i}
+                                            x1={prevCoords.x}
+                                            y1={prevCoords.y}
+                                            x2={currCoords.x}
+                                            y2={currCoords.y}
+                                            stroke="#b45309" // amber-700
+                                            strokeWidth="6"
+                                            strokeLinecap="round"
+                                        />
+                                    );
+                                })}
+                            </svg>
+
                             {dialSeleccion.map((letra, index) => {
-                                const angle = (index * 2 * Math.PI) / dialSeleccion.length - Math.PI / 2;
-                                const radius = 75; // Radio en pixeles
-                                const x = Math.cos(angle) * radius;
-                                const y = Math.sin(angle) * radius;
+                                const coords = getNodeCoords(index);
+                                const relX = coords.x - 104;
+                                const relY = coords.y - 104;
                                 const seleccionada = letrasElegidas.includes(index);
 
                                 return (
                                     <button
                                         key={index}
-                                        onClick={() => handleSelectLetter(letra, index)}
-                                        style={{ transform: `translate(${x}px, ${y}px)` }}
-                                        className={`absolute w-12 h-12 rounded-full font-black text-lg shadow-md transition-all flex items-center justify-center 
-                                            ${seleccionada ? 'bg-gray-300 text-gray-500 scale-90 border-2 border-gray-400 cursor-not-allowed opacity-50' : 'bg-amber-600 hover:bg-amber-500 text-white border-2 border-amber-700 active:scale-95'}
+                                        data-node-index={index}
+                                        onMouseDown={() => handleTouchStartNode(index)}
+                                        onMouseEnter={() => handleTouchEnterNode(index)}
+                                        onTouchStart={(e) => {
+                                            e.preventDefault();
+                                            handleTouchStartNode(index);
+                                        }}
+                                        style={{ transform: `translate(${relX}px, ${relY}px)` }}
+                                        className={`absolute z-20 w-12 h-12 rounded-full font-black text-lg shadow-md transition-all flex items-center justify-center select-none cursor-pointer
+                                            ${seleccionada ? 'bg-amber-700 text-white scale-95 border-2 border-amber-900 shadow-inner' : 'bg-amber-600 hover:bg-amber-500 text-white border-2 border-amber-700'}
                                         `}
                                     >
                                         {letra}
