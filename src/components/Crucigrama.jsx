@@ -14,8 +14,8 @@ const limpiarPalabra = (texto) => {
 
 // --- ALGORITMO GENERADOR DE CRUCIGRAMAS ---
 const generarTableroCrucigrama = (candidatos) => {
-    let grid = {}; // Almacena las celdas ocupadas por 'x,y'
-    let placements = []; // Almacena la info de las palabras colocadas
+    let grid = {}; 
+    let placements = []; 
     let minX = 0, maxX = 0, minY = 0, maxY = 0;
     let numberCounter = 1;
 
@@ -45,7 +45,6 @@ const generarTableroCrucigrama = (candidatos) => {
         }
 
         let placed = false;
-        // Intentar cruzar con palabras ya colocadas
         for (let p of placements) {
             if (placed) break;
             for (let i = 0; i < text.length; i++) {
@@ -89,13 +88,11 @@ const generarTableroCrucigrama = (candidatos) => {
             }
         }
 
-        // Si no pudo cruzar, la coloca debajo de todo
         if (!placed) {
             addPlacement(animal, text, minX, maxY + 2, 1, 0, numberCounter++);
         }
     });
 
-    // Traducir coordenadas a una Matriz Positiva 2D
     const width = maxX - minX + 1;
     const height = maxY - minY + 1;
     let matriz = Array(height).fill(null).map(() => Array(width).fill({ empty: true }));
@@ -117,16 +114,18 @@ const generarTableroCrucigrama = (candidatos) => {
     return { matriz, placements: translatedPlacements, width, height };
 };
 
-
 export default function Crucigrama() {
     const [nivel, setNivel] = useState(1);
     const [intentos, setIntentos] = useState(0);
     const [placements, setPlacements] = useState([]);
     const [matriz, setMatriz] = useState([]);
     
-    // Almacena las letras ingresadas: clave "r-c" (fila-columna)
     const [respuestasUsuario, setRespuestasUsuario] = useState({});
     const [palabrasResueltas, setPalabrasResueltas] = useState([]);
+
+    // Estados para el Dial Circular
+    const [activePlacement, setActivePlacement] = useState(null);
+    const [dialSeleccion, setDialSeleccion] = useState([]);
 
     const [isGameOver, setIsGameOver] = useState(false);
     const [playerName, setPlayerName] = useState('');
@@ -158,35 +157,68 @@ export default function Crucigrama() {
         setPlacements(data.placements);
         setRespuestasUsuario({});
         setPalabrasResueltas([]);
+        setActivePlacement(null);
     };
 
-    const handleInputChange = (r, c, valor) => {
-        const letraMayus = valor.toUpperCase().slice(-1);
-        const key = `${r}-${c}`;
-        
-        const nuevasRespuestas = { ...respuestasUsuario, [key]: letraMayus };
-        setRespuestasUsuario(nuevasRespuestas);
-        setIntentos(prev => prev + 1);
+    // AL HACER CLIC EN UNA CELDA, ABRIR EL DIAL CIRCULAR DE SU PALABRA
+    const handleCellClick = (r, c) => {
+        const celda = matriz[r][c];
+        if (celda.empty) return;
 
-        // Verificar automáticamente si se completó alguna palabra
-        let nuevasResueltas = [...palabrasResueltas];
-        placements.forEach(p => {
-            if (nuevasResueltas.includes(p.id)) return;
-
-            let palabraFormada = "";
+        // Buscar qué palabra pasa por esta celda y que no esté resuelta
+        const palabraAsociada = placements.find(p => {
+            if (palabrasResueltas.includes(p.id)) return false;
             for (let i = 0; i < p.text.length; i++) {
                 let pr = p.startY + (i * p.dirY);
                 let pc = p.startX + (i * p.dirX);
-                palabraFormada += (nuevasRespuestas[`${pr}-${pc}`] || "");
+                if (pr === r && pc === c) return true;
             }
-
-            if (palabraFormada === p.text) {
-                nuevasResueltas.push(p.id);
-            }
+            return false;
         });
 
-        if (nuevasResueltas.length !== palabrasResueltas.length) {
-            setPalabrasResueltas(nuevasResueltas);
+        if (palabraAsociada) {
+            setActivePlacement(palabraAsociada);
+            // Mezclamos las letras para el dial circular
+            const letrasMezcladas = palabraAsociada.text.split('').sort(() => Math.random() - 0.5);
+            setDialSeleccion(letrasMezcladas);
+        }
+    };
+
+    // MANEJAR LA SELECCIÓN DE LETRAS EN EL DIAL
+    const [letrasElegidas, setLetrasElegidas] = useState([]);
+
+    const handleSelectLetter = (letra, index) => {
+        if (letrasElegidas.includes(index)) return; // Evitar repetir el mismo nodo del dial
+        setLetrasElegidas([...letrasElegidas, index]);
+    };
+
+    const limpiarDial = () => setLetrasElegidas([]);
+
+    const verificarYAplicarPalabra = () => {
+        if (!activePlacement) return;
+        const palabraFormada = letrasElegidas.map(i => dialSeleccion[i]).join('');
+
+        setIntentos(prev => prev + 1);
+
+        if (palabraFormada === activePlacement.text) {
+            // Aplicar respuestas al tablero
+            const nuevasRespuestas = { ...respuestasUsuario };
+            for (let i = 0; i < activePlacement.text.length; i++) {
+                let pr = activePlacement.startY + (i * activePlacement.dirY);
+                let pc = activePlacement.startX + (i * activePlacement.dirX);
+                nuevasRespuestas[`${pr}-${pc}`] = activePlacement.text[i];
+            }
+            setRespuestasUsuario(nuevasRespuestas);
+
+            if (!palabrasResueltas.includes(activePlacement.id)) {
+                setPalabrasResueltas([...palabrasResueltas, activePlacement.id]);
+            }
+
+            setActivePlacement(null);
+            setLetrasElegidas([]);
+        } else {
+            alert("⚠️ La palabra no es correcta. ¡Inténtalo de nuevo!");
+            setLetrasElegidas([]);
         }
     };
 
@@ -244,12 +276,12 @@ export default function Crucigrama() {
     const nivelCompletado = palabrasResueltas.length === placements.length && placements.length > 0;
 
     return (
-        <div className="max-w-4xl mx-auto px-2 py-4 flex flex-col items-center select-none w-full">
+        <div className="max-w-4xl mx-auto px-3 py-4 flex flex-col items-center select-none w-full pb-[env(safe-area-inset-bottom)]">
             {isGameOver ? (
-                <div className="bg-white p-8 rounded-xl shadow-2xl border border-amber-200 text-center w-full max-w-xl mt-10">
+                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-2xl border border-amber-200 text-center w-full max-w-xl mt-6">
                     <h2 className="text-2xl font-bold mb-4 text-amber-900">¡Partida Finalizada!</h2>
-                    <p className="mb-4 text-amber-800">Llegaste al <strong>Nivel {nivel}</strong> con un total de <span className="font-bold text-red-600">{intentos}</span> teclas presionadas.</p>
-                    <input type="text" placeholder="Escribe tu nombre" value={playerName} onChange={(e) => setPlayerName(e.target.value)} className="border-2 border-amber-300 p-3 rounded-lg w-full mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    <p className="mb-4 text-amber-800">Llegaste al <strong>Nivel {nivel}</strong> con un total de <span className="font-bold text-red-600">{intentos}</span> intentos.</p>
+                    <input type="text" placeholder="Escribe tu nombre" value={playerName} onChange={(e) => setPlayerName(e.target.value)} className="border-2 border-amber-300 p-3 rounded-lg w-full mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500 text-[16px]" />
                     <div className="flex gap-3 justify-center">
                         <button onClick={guardarPuntaje} className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 font-bold shadow-md">Guardar Récord</button>
                         <button onClick={() => setIsGameOver(false)} className="bg-gray-400 text-white px-6 py-2 rounded-lg hover:bg-gray-500 font-bold">Cancelar</button>
@@ -257,68 +289,65 @@ export default function Crucigrama() {
                 </div>
             ) : (
                 <>
-                    <header className="text-center mb-4">
-                        <img src="/images/banner.png" alt="Banner Diidxaza" className="mx-auto mb-2 max-w-full h-auto drop-shadow-sm" />
-                        <h2 className="text-3xl font-bold text-amber-950">✏️ Crucigrama Diidxazá</h2>
-                        <p className="text-sm text-amber-800 font-medium mt-1">Nivel {nivel} • Teclas: {intentos}</p>
+                    <header className="text-center mb-3">
+                        <img src="/images/banner.png" alt="Banner Diidxaza" className="mx-auto mb-2 max-w-[240px] sm:max-w-full h-auto drop-shadow-sm" />
+                        <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">✏️ Crucigrama Diidxazá</h2>
+                        <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">Nivel {nivel} • Intentos: {intentos}</p>
                     </header>
 
-                    <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-4 shadow-sm text-sm">
-                        <div className="text-amber-950 font-semibold">
-                            <span className="text-amber-800 font-bold">Reto:</span> Rellena las casillas
+                    {/* BARRA DE CONTROL LOCAL */}
+                    <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-3 shadow-sm text-sm gap-2">
+                        <div className="text-amber-950 font-semibold text-xs sm:text-sm">
+                            <span className="text-amber-800 font-bold">Instrucción:</span> Toca cualquier celda para abrir el selector de letras.
                         </div>
-                        <div className="flex gap-2 mt-2 sm:mt-0">
-                            <button onClick={guardarProgresoLocal} className="bg-orange-600 hover:bg-orange-700 text-white font-semibold px-3 py-1 rounded-lg shadow-sm">Guardar Progreso</button>
-                            <button onClick={reiniciarProgresoLocal} className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1 rounded-lg shadow-sm">Reiniciar</button>
+                        <div className="flex gap-2">
+                            <button onClick={guardarProgresoLocal} className="bg-orange-600 hover:bg-orange-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs">Guardar</button>
+                            <button onClick={reiniciarProgresoLocal} className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs">Reiniciar</button>
                         </div>
                     </div>
 
                     {nivelCompletado && (
-                        <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-4 text-center animate-bounce">
-                            <p className="text-xl font-bold text-green-900 mb-2">🎉 ¡Excelente! Crucigrama Resuelto</p>
+                        <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce">
+                            <p className="text-lg sm:text-xl font-bold text-green-900 mb-2">🎉 ¡Excelente! Crucigrama Resuelto</p>
                             <div className="flex gap-3 justify-center">
-                                <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md">Siguiente Nivel</button>
-                                <button onClick={finalizarPartida} className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-6 rounded-lg shadow-md">Terminar y Guardar</button>
+                                <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm">Siguiente Nivel</button>
+                                <button onClick={finalizarPartida} className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm">Terminar y Guardar</button>
                             </div>
                         </div>
                     )}
 
                     {/* CONTENEDOR PRINCIPAL: TABLERO + PISTAS */}
-                    <div className="flex flex-col lg:flex-row gap-6 w-full max-w-5xl justify-center items-start mt-2">
+                    <div className="flex flex-col lg:flex-row gap-4 w-full max-w-5xl justify-center items-center lg:items-start mt-1">
                         
                         {/* TABLERO DEL CRUCIGRAMA */}
-                        <div className="overflow-x-auto w-full lg:w-auto p-4 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner flex justify-center">
+                        <div className="overflow-x-auto max-w-full w-full lg:w-auto p-3 sm:p-4 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner flex justify-center touch-pan-x">
                             <div 
-                                className="grid gap-1 p-2" 
-                                style={{ gridTemplateColumns: `repeat(${matriz[0]?.length || 1}, minmax(32px, 40px))` }}
+                                className="grid gap-1 p-1" 
+                                style={{ gridTemplateColumns: `repeat(${matriz[0]?.length || 1}, minmax(36px, 42px))` }}
                             >
                                 {matriz.map((fila, r) => 
                                     fila.map((celda, c) => {
                                         if (celda.empty) {
-                                            return <div key={`${r}-${c}`} className="w-8 h-8 sm:w-10 sm:h-10 bg-transparent"></div>;
+                                            return <div key={`${r}-${c}`} className="w-9 h-9 sm:w-[42px] sm:h-[42px] bg-transparent"></div>;
                                         }
 
-                                        // Si las palabras que cruzan aquí ya se resolvieron, pintar verde
                                         const resuelta = celda.words.some(id => palabrasResueltas.includes(id));
+                                        const letraGuardada = respuestasUsuario[`${r}-${c}`] || '';
                                         
                                         return (
-                                            <div key={`${r}-${c}`} className="relative w-8 h-8 sm:w-10 sm:h-10">
-                                                {/* Número de pista en la esquina */}
+                                            <div 
+                                                key={`${r}-${c}`} 
+                                                onClick={() => handleCellClick(r, c)}
+                                                className={`relative w-9 h-9 sm:w-[42px] sm:h-[42px] cursor-pointer flex items-center justify-center font-bold text-[16px] sm:text-xl uppercase border-2 rounded-md shadow-sm transition-all select-none
+                                                    ${resuelta ? 'bg-green-500 text-white border-green-600' : letraGuardada ? 'bg-amber-50 text-amber-950 border-amber-500' : 'bg-white border-amber-400 text-amber-950 hover:bg-amber-100'}
+                                                `}
+                                            >
                                                 {celda.number && (
-                                                    <span className="absolute top-0 left-1 text-[9px] font-black text-amber-800 z-10 pointer-events-none">
+                                                    <span className="absolute top-0.5 left-1 text-[9px] font-black text-amber-800 z-10 pointer-events-none">
                                                         {celda.number}
                                                     </span>
                                                 )}
-                                                <input
-                                                    type="text"
-                                                    maxLength={1}
-                                                    value={respuestasUsuario[`${r}-${c}`] || ''}
-                                                    onChange={(e) => handleInputChange(r, c, e.target.value)}
-                                                    disabled={resuelta}
-                                                    className={`w-full h-full text-center font-bold text-lg sm:text-xl uppercase border-2 focus:outline-none focus:ring-2 focus:ring-amber-500 rounded-md shadow-sm transition-all
-                                                        ${resuelta ? 'bg-green-500 text-white border-green-600' : 'bg-white border-amber-400 text-amber-950'}
-                                                    `}
-                                                />
+                                                <span>{letraGuardada}</span>
                                             </div>
                                         );
                                     })
@@ -327,27 +356,27 @@ export default function Crucigrama() {
                         </div>
 
                         {/* LISTA DE PISTAS LATERAL */}
-                        <div className="w-full lg:w-80 flex flex-col gap-3">
-                            <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1 text-center lg:text-left">
+                        <div className="w-full lg:w-80 flex flex-col gap-2.5">
+                            <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1 text-center lg:text-left text-sm sm:text-base">
                                 📋 Pistas del Crucigrama
                             </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 w-full">
                                 {placements.map((p) => {
                                     const resuelto = palabrasResueltas.includes(p.id);
                                     const direccion = p.dirX === 1 ? "Horizontal" : "Vertical";
 
                                     return (
-                                        <div key={p.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all shadow-sm bg-white ${resuelto ? 'border-green-400 bg-green-50/60 opacity-70' : 'border-amber-200'}`}>
-                                            <div className="w-12 h-12 bg-orange-100/50 rounded-lg overflow-hidden flex items-center justify-center border border-amber-100 flex-shrink-0 relative">
-                                                <span className="absolute top-0.5 left-1 text-[10px] font-black text-amber-700 bg-white/70 px-1 rounded">{p.number}</span>
+                                        <div key={p.id} className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all shadow-sm bg-white ${resuelto ? 'border-green-400 bg-green-50/60 opacity-75' : 'border-amber-200'}`}>
+                                            <div className="w-11 h-11 bg-orange-100/50 rounded-lg overflow-hidden flex items-center justify-center border border-amber-100 flex-shrink-0 relative">
+                                                <span className="absolute top-0.5 left-1 text-[9px] font-black text-amber-700 bg-white/80 px-1 rounded">{p.number}</span>
                                                 <img src={p.animal.image} alt={p.animal.spanish} className="max-w-[80%] max-h-[80%] object-contain" onError={(e) => { e.target.src = "🐾"; }} />
                                             </div>
-                                            <div>
-                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{direccion}</p>
-                                                <p className="text-sm font-bold text-amber-950">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{direccion}</p>
+                                                <p className="text-sm font-bold text-amber-950 truncate">
                                                     {p.animal.spanish}
                                                 </p>
-                                                {resuelto && <p className="text-xs text-green-700 font-bold mt-0.5">✅ {p.animal.diidxaza}</p>}
+                                                {resuelto && <p className="text-xs text-green-700 font-bold truncate">✅ {p.animal.diidxaza}</p>}
                                             </div>
                                         </div>
                                     );
@@ -359,22 +388,100 @@ export default function Crucigrama() {
                 </>
             )}
 
+            {/* MODAL DE DIAL CIRCULAR TÁCTIL */}
+            {activePlacement && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
+                        
+                        <button 
+                            onClick={() => { setActivePlacement(null); setLetrasElegidas([]); }}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-lg"
+                        >
+                            ✕
+                        </button>
+
+                        <div className="w-14 h-14 bg-orange-100 rounded-2xl p-1 mb-2 border border-amber-200 flex items-center justify-center shadow-inner">
+                            <img src={activePlacement.animal.image} alt={activePlacement.animal.spanish} className="max-w-full max-h-full object-contain" />
+                        </div>
+                        <h3 className="font-bold text-amber-950 text-lg mb-1">{activePlacement.animal.spanish}</h3>
+                        <p className="text-xs text-amber-800 mb-6 font-medium">Toca las letras en orden para formar la palabra</p>
+
+                        {/* PANTALLA DE PREVISUALIZACIÓN DE LA PALABRA FORMADA */}
+                        <div className="flex gap-1.5 mb-6 min-h-[44px] items-center bg-amber-50/80 px-4 py-2 rounded-xl border border-amber-200 w-full justify-center">
+                            {letrasElegidas.length === 0 ? (
+                                <span className="text-xs text-amber-600/70 italic">Toca las letras abajo...</span>
+                            ) : (
+                                letrasElegidas.map((idx, i) => (
+                                    <span key={i} className="w-8 h-8 bg-amber-600 text-white font-bold rounded-lg flex items-center justify-center text-base shadow-sm animate-pop">
+                                        {dialSeleccion[idx]}
+                                    </span>
+                                ))
+                            )}
+                        </div>
+
+                        {/* DIAL CIRCULAR DE LETRAS */}
+                        <div className="relative w-52 h-52 my-2 flex items-center justify-center">
+                            <div className="absolute inset-0 rounded-full border-4 border-dashed border-amber-200 pointer-events-none"></div>
+                            
+                            {dialSeleccion.map((letra, index) => {
+                                const angle = (index * 2 * Math.PI) / dialSeleccion.length - Math.PI / 2;
+                                const radius = 75; // Radio en pixeles
+                                const x = Math.cos(angle) * radius;
+                                const y = Math.sin(angle) * radius;
+                                const seleccionada = letrasElegidas.includes(index);
+
+                                return (
+                                    <button
+                                        key={index}
+                                        onClick={() => handleSelectLetter(letra, index)}
+                                        style={{ transform: `translate(${x}px, ${y}px)` }}
+                                        className={`absolute w-12 h-12 rounded-full font-black text-lg shadow-md transition-all flex items-center justify-center 
+                                            ${seleccionada ? 'bg-gray-300 text-gray-500 scale-90 border-2 border-gray-400 cursor-not-allowed opacity-50' : 'bg-amber-600 hover:bg-amber-500 text-white border-2 border-amber-700 active:scale-95'}
+                                        `}
+                                    >
+                                        {letra}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* BOTONES DE ACCIÓN DEL DIAL */}
+                        <div className="flex gap-3 w-full mt-6">
+                            <button 
+                                onClick={limpiarDial}
+                                className="flex-1 bg-gray-200 hover:bg-gray-300 text-amber-950 font-bold py-2.5 rounded-xl text-sm shadow-sm transition-colors"
+                            >
+                                Borrar
+                            </button>
+                            <button 
+                                onClick={verificarYAplicarPalabra}
+                                disabled={letrasElegidas.length === 0}
+                                className={`flex-1 font-bold py-2.5 rounded-xl text-sm shadow-md transition-all ${letrasElegidas.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                            >
+                                Comprobar
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            )}
+
             {!isGameOver && (
-                <div className="mt-12 w-full max-w-md">
-                    <h3 className="font-bold text-amber-900 text-center mb-3 text-xl">🏆 Ranking - Crucigrama</h3>
-                    <div className="bg-white rounded-xl p-4 shadow-md border border-amber-200">
+                <div className="mt-10 w-full max-w-md px-2">
+                    <h3 className="font-bold text-amber-900 text-center mb-2.5 text-lg">🏆 Ranking - Crucigrama</h3>
+                    <div className="bg-white rounded-xl p-3 shadow-md border border-amber-200">
                         {cargandoRanking ? (
                             <p className="text-center text-sm text-gray-500 py-2">Cargando puntajes globales...</p>
                         ) : ranking.length === 0 ? (
                             <p className="text-center text-sm text-gray-500 py-2">Aún no hay scores en la nube. ¡Sé el primero!</p>
                         ) : (
                             ranking.map((r, i) => (
-                                <div key={r.id || i} className="flex justify-between items-center border-b py-2 text-sm border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
-                                    <span className="font-medium text-amber-950">
-                                        <span className="text-orange-500 font-bold mr-2">{i + 1}.</span> {r.name} 
-                                        <span className="text-xs text-amber-700 font-bold ml-2">(Nivel {r.level})</span>
+                                <div key={r.id || i} className="flex justify-between items-center border-b py-2 text-xs sm:text-sm border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
+                                    <span className="font-medium text-amber-950 truncate pr-2">
+                                        <span className="text-orange-500 font-bold mr-1.5">{i + 1}.</span> {r.name} 
+                                        <span className="text-[11px] text-amber-700 font-bold ml-1.5">(Nivel {r.level})</span>
                                     </span>
-                                    <span className="font-bold text-amber-900">{r.intentos} teclas</span>
+                                    <span className="font-bold text-amber-900 flex-shrink-0">{r.intentos} intentos</span>
                                 </div>
                             ))
                         )}
