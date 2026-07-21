@@ -3,13 +3,17 @@ import MenuPrincipal from './components/MenuPrincipal';
 import Tablero from './components/Tablero';
 import SopaLetras from './components/SopaLetras';
 import Crucigrama from './components/Crucigrama';
-import Trivia from './components/Trivia'; // 1. Importamos el nuevo componente de Trivia
+import Trivia from './components/Trivia';
+import AudioFondo from './components/AudioFondo'; // Importamos el reproductor de música global
 
 function App() {
   const [vistaActual, setVistaActual] = useState('menu');
 
   return (
-    <div className="min-h-screen bg-orange-50/50 font-sans text-amber-950 pb-10">
+    <div className="min-h-screen bg-orange-50/50 font-sans text-amber-950 pb-10 relative">
+
+      {/* Reproductor de audio flotante (persistente en toda la app) */}
+      <AudioFondo />
 
       {/* 1. Menú Principal */}
       {vistaActual === 'menu' && (
