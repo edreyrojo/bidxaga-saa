@@ -196,17 +196,21 @@ export default function Crucigrama({ onBack }) {
         };
     };
 
+    // --- EVENTOS DEL DIAL (Anti-Duplicados) ---
     const handleTouchStartNode = (index) => {
         setIsDragging(true);
-        if (!letrasElegidas.includes(index)) {
-            setLetrasElegidas([index]);
-        }
+        setLetrasElegidas(prev => {
+            if (!prev.includes(index)) return [index];
+            return prev;
+        });
     };
 
     const handleTouchEnterNode = (index) => {
-        if (isDragging && !letrasElegidas.includes(index)) {
-            setLetrasElegidas(prev => [...prev, index]);
-        }
+        if (!isDragging) return;
+        setLetrasElegidas(prev => {
+            if (!prev.includes(index)) return [...prev, index];
+            return prev;
+        });
     };
 
     const handleMouseUpGlobal = () => {
@@ -219,9 +223,10 @@ export default function Crucigrama({ onBack }) {
         const target = document.elementFromPoint(touch.clientX, touch.clientY);
         if (target && target.dataset.nodeIndex !== undefined) {
             const index = parseInt(target.dataset.nodeIndex, 10);
-            if (!letrasElegidas.includes(index)) {
-                setLetrasElegidas(prev => [...prev, index]);
-            }
+            setLetrasElegidas(prev => {
+                if (!prev.includes(index)) return [...prev, index];
+                return prev;
+            });
         }
     };
 
@@ -230,9 +235,10 @@ export default function Crucigrama({ onBack }) {
         const target = document.elementFromPoint(e.clientX, e.clientY);
         if (target && target.dataset.nodeIndex !== undefined) {
             const index = parseInt(target.dataset.nodeIndex, 10);
-            if (!letrasElegidas.includes(index)) {
-                setLetrasElegidas(prev => [...prev, index]);
-            }
+            setLetrasElegidas(prev => {
+                if (!prev.includes(index)) return [...prev, index];
+                return prev;
+            });
         }
     };
 
@@ -380,11 +386,11 @@ export default function Crucigrama({ onBack }) {
                     <div className="flex flex-col lg:flex-row gap-4 w-full max-w-5xl justify-center items-center lg:items-start mt-1">
                         
                         {/* TABLERO DEL CRUCIGRAMA OPTIMIZADO PARA MÓVILES */}
-                        <div className="w-full lg:w-auto p-2 sm:p-4 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner overflow-x-auto custom-scrollbar">
+                        <div className="w-full lg:w-auto p-2 sm:p-4 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner overflow-x-auto custom-scrollbar flex justify-center">
                             <div className="flex justify-center min-w-max mx-auto">
                                 <div 
-                                    className="grid gap-1 p-1" 
-                                    style={{ gridTemplateColumns: `repeat(${matriz[0]?.length || 1}, minmax(28px, 42px))` }}
+                                    className="grid gap-0.5 sm:gap-1 p-1" 
+                                    style={{ gridTemplateColumns: `repeat(${matriz[0]?.length || 1}, max-content)` }}
                                 >
                                     {matriz.map((fila, r) => 
                                         fila.map((celda, c) => {
@@ -476,8 +482,8 @@ export default function Crucigrama({ onBack }) {
                         <h3 className="font-bold text-amber-950 text-lg mb-0.5 text-center leading-tight">{activePlacement.animal.spanish}</h3>
                         <p className="text-[11px] sm:text-xs text-amber-800 mb-2 font-medium text-center">Arrastra el dedo sobre las letras</p>
 
-                        {/* SLOTS DE RESPUESTA SÚPER JUNTOS Y COMPACTOS */}
-                        <div className="flex gap-0.5 mb-3 sm:mb-4 min-h-[34px] items-center bg-amber-50/80 px-2 py-1 rounded-xl border border-amber-200 w-full justify-center overflow-x-auto">
+                        {/* SLOTS DE RESPUESTA SÚPER JUNTOS Y COMPACTOS EN MÓVIL Y ESCRITORIO */}
+                        <div className="flex gap-0.5 sm:gap-1 max-w-[280px] sm:max-w-none flex-wrap mb-3 sm:mb-4 min-h-[34px] items-center bg-amber-50/80 px-2.5 py-1.5 rounded-xl border border-amber-200 w-full justify-center">
                             {letrasElegidas.length === 0 ? (
                                 <span className="text-xs text-amber-600/70 italic">Forma la palabra...</span>
                             ) : (
