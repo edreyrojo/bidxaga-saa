@@ -138,18 +138,33 @@ export default function Crucigrama({ onBack }) {
     const [isDragging, setIsDragging] = useState(false);
     const dialRef = useRef(null);
 
-    const [isGameOver, setIsGameOver] = useState(false);
+    // Estados del Ranking y Control Unificado de Guardado
     const [playerName, setPlayerName] = useState('');
     const [ranking, setRanking] = useState([]);
     const [cargandoRanking, setCargandoRanking] = useState(false);
+    const [guardadoEnNivel, setGuardadoEnNivel] = useState(false);
+    const [pendingGlobalScore, setPendingGlobalScore] = useState(null);
+
+    // Estados para las Modales Personalizadas
+    const [showGuardarModal, setShowGuardarModal] = useState(false);
+    const [inputPlayerName, setInputPlayerName] = useState('');
+    const [showMenuModal, setShowMenuModal] = useState(false);
+    const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
+    const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
     useEffect(() => {
         const nivelGuardado = localStorage.getItem('crucigramaNivel');
         const intentosGuardados = localStorage.getItem('crucigramaIntentos');
         const modoDificilGuardado = localStorage.getItem('crucigramaModoDificil');
+        const nombreGuardado = localStorage.getItem('crucigramaPlayerName');
+
         if (nivelGuardado) setNivel(parseInt(nivelGuardado, 10));
         if (intentosGuardados) setIntentos(parseInt(intentosGuardados, 10));
         if (modoDificilGuardado) setModoDificil(modoDificilGuardado === 'true');
+        if (nombreGuardado) {
+            setPlayerName(nombreGuardado);
+            setInputPlayerName(nombreGuardado);
+        }
         
         cargarRankingGlobal();
     }, []);
@@ -157,6 +172,12 @@ export default function Crucigrama({ onBack }) {
     useEffect(() => {
         generarNuevoJuego();
     }, [nivel, modoDificil]);
+
+    useEffect(() => {
+        if (palabrasResueltas.length === placements.length && placements.length > 0) {
+            setPendingGlobalScore({ level: nivel, intentos: intentos });
+        }
+    }, [palabrasResueltas, placements, nivel, intentos]);
 
     const generarNuevoJuego = () => {
         const cantidadAnimales = Math.min(2 + nivel, 6);
@@ -171,6 +192,7 @@ export default function Crucigrama({ onBack }) {
         setRespuestasUsuario({});
         setPalabrasResueltas([]);
         setActivePlacement(null);
+        setGuardadoEnNivel(false);
     };
 
     const abrirDialParaPalabra = (p) => {
@@ -196,7 +218,6 @@ export default function Crucigrama({ onBack }) {
         };
     };
 
-    // --- EVENTOS DEL DIAL (Anti-Duplicados) ---
     const handleTouchStartNode = (index) => {
         setIsDragging(true);
         setLetrasElegidas(prev => {
@@ -266,25 +287,91 @@ export default function Crucigrama({ onBack }) {
             setActivePlacement(null);
             setLetrasElegidas([]);
         } else {
-            alert("⚠️ La palabra no es correcta. ¡Inténtalo de nuevo!");
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Palabra Incorrecta",
+                message: "La palabra no es correcta. ¡Inténtalo de nuevo!"
+            });
             setLetrasElegidas([]);
         }
     };
 
-    const guardarProgresoLocal = () => {
+    // Al hacer click en Guardar: Abrir modal personalizado
+    const handleClickGuardar = () => {
         localStorage.setItem('crucigramaNivel', nivel);
         localStorage.setItem('crucigramaIntentos', intentos);
         localStorage.setItem('crucigramaModoDificil', modoDificil);
-        alert('Progreso guardado localmente.');
+
+        if (guardadoEnNivel && !pendingGlobalScore) {
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Nivel ya guardado",
+                message: `Ya guardaste tu récord global para el Nivel ${nivel}. Avanza al siguiente nivel para volver a registrar tu puntaje en el ranking.`
+            });
+            return;
+        }
+
+        setInputPlayerName(playerName);
+        setShowGuardarModal(true);
     };
 
-    const reiniciarProgresoLocal = () => {
+    // Ejecutar guardado real desde la modal personalizada
+    const confirmarGuardadoGlobal = async () => {
+        const nombreLimpio = inputPlayerName.trim();
+        if (!nombreLimpio) {
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Nombre requerido",
+                message: "Por favor escribe un nombre válido para registrarte en el ranking."
+            });
+            return;
+        }
+
+        setPlayerName(nombreLimpio);
+        localStorage.setItem('crucigramaPlayerName', nombreLimpio);
+        setShowGuardarModal(false);
+
+        const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
+
+        try {
+            await addDoc(collection(db, "ranking_crucigrama"), {
+                name: nombreLimpio,
+                intentos: scoreToSave.intentos,
+                level: scoreToSave.level,
+                fecha: new Date().toISOString()
+            });
+            await cargarRankingGlobal();
+            setGuardadoEnNivel(true);
+            setPendingGlobalScore(null);
+            setFeedbackModal({
+                show: true,
+                title: "🎉 ¡Guardado Exitoso!",
+                message: `¡Partida guardada localmente y récord registrado en el ranking para el Nivel ${scoreToSave.level} (${scoreToSave.intentos} intentos)!`
+            });
+        } catch (error) {
+            console.error("Error al guardar en Firebase:", error);
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Guardado Parcial",
+                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
+            });
+        }
+    };
+
+    const confirmarReiniciar = () => {
         localStorage.removeItem('crucigramaNivel');
         localStorage.removeItem('crucigramaIntentos');
         localStorage.removeItem('crucigramaModoDificil');
+        localStorage.removeItem('crucigramaPlayerName');
         setNivel(1);
         setIntentos(0);
         setModoDificil(false);
+        setPlayerName('');
+        setInputPlayerName('');
+        setGuardadoEnNivel(false);
+        setPendingGlobalScore(null);
+        setShowConfirmRestartModal(false);
+        generarNuevoJuego();
     };
 
     const cargarRankingGlobal = async () => {
@@ -303,27 +390,12 @@ export default function Crucigrama({ onBack }) {
         setCargandoRanking(false);
     };
 
-    const guardarPuntaje = async () => {
-        if (!playerName.trim()) return;
-        try {
-            await addDoc(collection(db, "ranking_crucigrama"), {
-                name: playerName,
-                intentos: intentos,
-                level: nivel,
-                fecha: new Date().toISOString()
-            });
-            await cargarRankingGlobal();
-        } catch (error) {
-            console.error("Error al guardar:", error);
-        }
-        
-        reiniciarProgresoLocal();
-        setIsGameOver(false);
-        setPlayerName('');
+    const siguienteNivel = () => {
+        const proximoNivel = nivel + 1;
+        setNivel(proximoNivel);
+        localStorage.setItem('crucigramaNivel', proximoNivel);
+        setGuardadoEnNivel(false);
     };
-
-    const finalizarPartida = () => setIsGameOver(true);
-    const siguienteNivel = () => setNivel(prev => prev + 1);
 
     const nivelCompletado = palabrasResueltas.length === placements.length && placements.length > 0;
 
@@ -333,135 +405,123 @@ export default function Crucigrama({ onBack }) {
             onMouseUp={handleMouseUpGlobal}
             onTouchEnd={handleMouseUpGlobal}
         >
-            {isGameOver ? (
-                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-2xl border border-amber-200 text-center w-full max-w-xl mt-6">
-                    <h2 className="text-2xl font-bold mb-4 text-amber-900">¡Partida Finalizada!</h2>
-                    <p className="mb-4 text-amber-800">Llegaste al <strong>Nivel {nivel}</strong> con un total de <span className="font-bold text-red-600">{intentos}</span> intentos.</p>
-                    <input type="text" placeholder="Escribe tu nombre" value={playerName} onChange={(e) => setPlayerName(e.target.value)} className="border-2 border-amber-300 p-3 rounded-lg w-full mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500 text-[16px]" />
+            <header className="text-center mb-3">
+                <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">✏️ Crucigrama Diidxazá</h2>
+                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">Nivel {nivel} • Intentos: {intentos}</p>
+            </header>
+
+            {/* BARRA DE CONTROL LOCAL Y GLOBAL UNIFICADA */}
+            <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-3 shadow-sm text-sm gap-2">
+                <div className="text-amber-950 font-semibold text-xs sm:text-sm">
+                    <span className="text-amber-800 font-bold">Instrucción:</span> Toca una pista para resolver.
+                </div>
+                <div className="flex gap-2 flex-wrap items-center">
+                    {onBack && (
+                        <button onClick={() => setShowMenuModal(true)} className="bg-amber-800 hover:bg-amber-900 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Menú</button>
+                    )}
+                    <button onClick={handleClickGuardar} className="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Guardar</button>
+                    <button onClick={() => setShowConfirmRestartModal(true)} className="bg-amber-950 hover:bg-black text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Reiniciar</button>
+                    <button 
+                        onClick={() => {
+                            const nuevoModo = !modoDificil;
+                            setModoDificil(nuevoModo);
+                            localStorage.setItem('crucigramaModoDificil', nuevoModo);
+                        }} 
+                        className={`font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors ${modoDificil ? 'bg-green-600 text-white' : 'bg-red-600 text-white underline decoration-white'}`}
+                    >
+                        {modoDificil ? 'Difícil ON' : 'Difícil OFF'}
+                    </button>
+                </div>
+            </div>
+
+            {/* AVISO DE NIVEL COMPLETADO */}
+            {nivelCompletado && (
+                <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce">
+                    <p className="text-lg sm:text-xl font-bold text-green-900 mb-2">🎉 ¡Excelente! Crucigrama Resuelto</p>
                     <div className="flex gap-3 justify-center">
-                        <button onClick={guardarPuntaje} className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 font-bold shadow-md">Guardar Récord</button>
-                        <button onClick={() => setIsGameOver(false)} className="bg-amber-800 text-white px-6 py-2 rounded-lg hover:bg-amber-900 font-bold">Cancelar</button>
+                        <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm">Siguiente Nivel</button>
                     </div>
                 </div>
-            ) : (
-                <>
-                    <header className="text-center mb-3">
-                        <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">✏️ Crucigrama Diidxazá</h2>
-                        <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">Nivel {nivel} • Intentos: {intentos}</p>
-                    </header>
+            )}
 
-                    {/* BARRA DE CONTROL */}
-                    <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-3 shadow-sm text-sm gap-2">
-                        <div className="text-amber-950 font-semibold text-xs sm:text-sm">
-                            <span className="text-amber-800 font-bold">Instrucción:</span> Toca una pista para resolver.
-                        </div>
-                        <div className="flex gap-2 flex-wrap items-center">
-                            <button onClick={onBack} className="bg-amber-800 hover:bg-amber-900 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Menú Principal</button>
-                            <button onClick={guardarProgresoLocal} className="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Guardar</button>
-                            <button onClick={reiniciarProgresoLocal} className="bg-amber-950 hover:bg-black text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Reiniciar</button>
-                            <button 
-                                onClick={() => {
-                                    const nuevoModo = !modoDificil;
-                                    setModoDificil(nuevoModo);
-                                    localStorage.setItem('crucigramaModoDificil', nuevoModo);
-                                }} 
-                                className={`font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors ${modoDificil ? 'bg-green-600 text-white' : 'bg-red-600 text-white underline decoration-white'}`}
-                            >
-                                {modoDificil ? 'Difícil ON' : 'Difícil OFF'}
-                            </button>
-                        </div>
-                    </div>
+            {/* CONTENEDOR PRINCIPAL: TABLERO + PISTAS */}
+            <div className="flex flex-col lg:flex-row gap-4 w-full max-w-5xl justify-center items-center lg:items-start mt-1">
+                
+                {/* TABLERO DEL CRUCIGRAMA OPTIMIZADO PARA MÓVILES */}
+                <div className="w-full lg:w-auto p-2 sm:p-4 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner overflow-x-auto custom-scrollbar flex justify-center">
+                    <div className="flex justify-center min-w-max mx-auto">
+                        <div 
+                            className="grid gap-0.5 sm:gap-1 p-1" 
+                            style={{ gridTemplateColumns: `repeat(${matriz[0]?.length || 1}, max-content)` }}
+                        >
+                            {matriz.map((fila, r) => 
+                                fila.map((celda, c) => {
+                                    if (celda.empty) {
+                                        return <div key={`${r}-${c}`} className="w-7 h-7 sm:w-9 sm:h-9 md:w-[42px] md:h-[42px] bg-transparent"></div>;
+                                    }
 
-                    {nivelCompletado && (
-                        <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce">
-                            <p className="text-lg sm:text-xl font-bold text-green-900 mb-2">🎉 ¡Excelente! Crucigrama Resuelto</p>
-                            <div className="flex gap-3 justify-center">
-                                <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm">Siguiente Nivel</button>
-                                <button onClick={finalizarPartida} className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm">Terminar y Guardar</button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* CONTENEDOR PRINCIPAL: TABLERO + PISTAS */}
-                    <div className="flex flex-col lg:flex-row gap-4 w-full max-w-5xl justify-center items-center lg:items-start mt-1">
-                        
-                        {/* TABLERO DEL CRUCIGRAMA OPTIMIZADO PARA MÓVILES */}
-                        <div className="w-full lg:w-auto p-2 sm:p-4 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner overflow-x-auto custom-scrollbar flex justify-center">
-                            <div className="flex justify-center min-w-max mx-auto">
-                                <div 
-                                    className="grid gap-0.5 sm:gap-1 p-1" 
-                                    style={{ gridTemplateColumns: `repeat(${matriz[0]?.length || 1}, max-content)` }}
-                                >
-                                    {matriz.map((fila, r) => 
-                                        fila.map((celda, c) => {
-                                            if (celda.empty) {
-                                                return <div key={`${r}-${c}`} className="w-7 h-7 sm:w-9 sm:h-9 md:w-[42px] md:h-[42px] bg-transparent"></div>;
-                                            }
-
-                                            const resuelta = celda.words.some(id => palabrasResueltas.includes(id));
-                                            const letraGuardada = respuestasUsuario[`${r}-${c}`] || '';
-                                            
-                                            return (
-                                                <div 
-                                                    key={`${r}-${c}`} 
-                                                    className={`relative w-7 h-7 sm:w-9 sm:h-9 md:w-[42px] md:h-[42px] flex items-center justify-center font-bold text-[12px] sm:text-[16px] md:text-xl uppercase border-2 rounded-md shadow-sm transition-all select-none
-                                                        ${resuelta ? 'bg-green-500 text-white border-green-600' : letraGuardada ? 'bg-amber-50 text-amber-950 border-amber-500' : 'bg-white border-amber-400 text-amber-950'}
-                                                    `}
-                                                >
-                                                    {celda.number && (
-                                                        <span className="absolute top-0.5 left-0.5 sm:top-0.5 sm:left-1 text-[8px] sm:text-[9px] font-black text-amber-800 z-10 pointer-events-none">
-                                                            {celda.number}
-                                                        </span>
-                                                    )}
-                                                    <span>{letraGuardada}</span>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* LISTA DE PISTAS LATERAL */}
-                        <div className="w-full lg:w-80 flex flex-col gap-2.5">
-                            <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1 text-center lg:text-left text-sm sm:text-base">
-                                📋 Pistas del Crucigrama
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 w-full">
-                                {placements.map((p) => {
-                                    const resuelto = palabrasResueltas.includes(p.id);
-                                    const direccion = p.dirX === 1 ? "Horizontal" : "Vertical";
-
+                                    const resuelta = celda.words.some(id => palabrasResueltas.includes(id));
+                                    const letraGuardada = respuestasUsuario[`${r}-${c}`] || '';
+                                    
                                     return (
                                         <div 
-                                            key={p.id} 
-                                            onClick={() => abrirDialParaPalabra(p)}
-                                            className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all shadow-sm bg-white cursor-pointer hover:border-amber-400 hover:shadow-md ${resuelto ? 'border-green-400 bg-green-50/60 opacity-75 cursor-default' : 'border-amber-200'}`}
+                                            key={`${r}-${c}`} 
+                                            className={`relative w-7 h-7 sm:w-9 sm:h-9 md:w-[42px] md:h-[42px] flex items-center justify-center font-bold text-[12px] sm:text-[16px] md:text-xl uppercase border-2 rounded-md shadow-sm transition-all select-none
+                                                ${resuelta ? 'bg-green-500 text-white border-green-600' : letraGuardada ? 'bg-amber-50 text-amber-950 border-amber-500' : 'bg-white border-amber-400 text-amber-950'}
+                                            `}
                                         >
-                                            <div className="w-11 h-11 bg-orange-100/50 rounded-lg overflow-hidden flex items-center justify-center border border-amber-100 flex-shrink-0 relative">
-                                                <span className="absolute top-0.5 left-1 text-[9px] font-black text-amber-700 bg-white/80 px-1 rounded">{p.number}</span>
-                                                <img src={p.animal.image} alt={p.animal.spanish} className="max-w-[80%] max-h-[80%] object-contain" onError={(e) => { e.target.src = "🐾"; }} />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{direccion}</p>
-                                                <p className="text-sm font-bold text-amber-950 truncate">
-                                                    {p.animal.spanish}
-                                                </p>
-                                                {resuelto ? (
-                                                    <p className="text-xs text-green-700 font-bold truncate">✅ {p.animal.diidxaza}</p>
-                                                ) : (
-                                                    <p className="text-[11px] text-amber-600 font-medium">Click aquí</p>
-                                                )}
-                                            </div>
+                                            {celda.number && (
+                                                <span className="absolute top-0.5 left-0.5 sm:top-0.5 sm:left-1 text-[8px] sm:text-[9px] font-black text-amber-800 z-10 pointer-events-none">
+                                                    {celda.number}
+                                                </span>
+                                            )}
+                                            <span>{letraGuardada}</span>
                                         </div>
                                     );
-                                })}
-                            </div>
+                                })
+                            )}
                         </div>
-
                     </div>
-                </>
-            )}
+                </div>
+
+                {/* LISTA DE PISTAS LATERAL */}
+                <div className="w-full lg:w-80 flex flex-col gap-2.5">
+                    <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1 text-center lg:text-left text-sm sm:text-base">
+                        📋 Pistas del Crucigrama
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 w-full">
+                        {placements.map((p) => {
+                            const resuelto = palabrasResueltas.includes(p.id);
+                            const direccion = p.dirX === 1 ? "Horizontal" : "Vertical";
+
+                            return (
+                                <div 
+                                    key={p.id} 
+                                    onClick={() => abrirDialParaPalabra(p)}
+                                    className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all shadow-sm bg-white cursor-pointer hover:border-amber-400 hover:shadow-md ${resuelto ? 'border-green-400 bg-green-50/60 opacity-75 cursor-default' : 'border-amber-200'}`}
+                                >
+                                    <div className="w-11 h-11 bg-orange-100/50 rounded-lg overflow-hidden flex items-center justify-center border border-amber-100 flex-shrink-0 relative">
+                                        <span className="absolute top-0.5 left-1 text-[9px] font-black text-amber-700 bg-white/80 px-1 rounded">{p.number}</span>
+                                        <img src={p.animal.image} alt={p.animal.spanish} className="max-w-[80%] max-h-[80%] object-contain" onError={(e) => { e.target.src = "🐾"; }} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{direccion}</p>
+                                        <p className="text-sm font-bold text-amber-950 truncate">
+                                            {p.animal.spanish}
+                                        </p>
+                                        {resuelto ? (
+                                            <p className="text-xs text-green-700 font-bold truncate">✅ {p.animal.diidxaza}</p>
+                                        ) : (
+                                            <p className="text-[11px] text-amber-600 font-medium">Click aquí</p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+            </div>
 
             {/* MODAL DE DIAL CIRCULAR OPTIMIZADO */}
             {activePlacement && (
@@ -475,14 +535,12 @@ export default function Crucigrama({ onBack }) {
                             ✕
                         </button>
 
-                        {/* IMAGEN DEL ANIMAL AMPLIADA */}
                         <div className="w-28 h-28 sm:w-32 sm:h-32 bg-orange-100 rounded-2xl p-2.5 mb-2 border border-amber-200 flex items-center justify-center shadow-inner mt-2">
                             <img src={activePlacement.animal.image} alt={activePlacement.animal.spanish} className="max-w-full max-h-full object-contain drop-shadow-md" />
                         </div>
                         <h3 className="font-bold text-amber-950 text-lg mb-0.5 text-center leading-tight">{activePlacement.animal.spanish}</h3>
                         <p className="text-[11px] sm:text-xs text-amber-800 mb-2 font-medium text-center">Arrastra el dedo sobre las letras</p>
 
-                        {/* SLOTS DE RESPUESTA SÚPER JUNTOS Y COMPACTOS EN MÓVIL Y ESCRITORIO */}
                         <div className="flex gap-0.5 sm:gap-1 max-w-[280px] sm:max-w-none flex-wrap mb-3 sm:mb-4 min-h-[34px] items-center bg-amber-50/80 px-2.5 py-1.5 rounded-xl border border-amber-200 w-full justify-center">
                             {letrasElegidas.length === 0 ? (
                                 <span className="text-xs text-amber-600/70 italic">Forma la palabra...</span>
@@ -570,30 +628,132 @@ export default function Crucigrama({ onBack }) {
                 </div>
             )}
 
-            {!isGameOver && (
-                <div className="mt-10 w-full max-w-md px-2">
-                    <h3 className="font-bold text-amber-900 text-center mb-2.5 text-lg">🏆 Ranking - Crucigrama</h3>
-                    <div className="bg-white rounded-xl p-3 shadow-md border border-amber-200">
-                        {cargandoRanking ? (
-                            <p className="text-center text-sm text-gray-500 py-2">Cargando puntajes globales...</p>
-                        ) : ranking.length === 0 ? (
-                            <p className="text-center text-sm text-gray-500 py-2">Aún no hay scores en la nube. ¡Sé el primero!</p>
-                        ) : (
-                            <div>
-                                {ranking.map((r, i) => (
-                                    <div key={r.id || i} className="flex justify-between items-center border-b py-2 text-xs sm:text-sm border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
-                                        <span className="font-medium text-amber-950 truncate pr-2">
-                                            <span className="text-orange-500 font-bold mr-1.5">{i + 1}.</span> {r.name} 
-                                            <span className="text-[11px] text-amber-700 font-bold ml-1.5">(Nivel {r.level})</span>
-                                        </span>
-                                        <span className="font-bold text-amber-900 flex-shrink-0">{r.intentos} int.</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+            {/* MODAL PERSONALIZADA PARA GUARDAR PROGRESO */}
+            {showGuardarModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Récord</h3>
+                        <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para guardar tu puntaje en el ranking global.</p>
+                        
+                        <input 
+                            type="text" 
+                            placeholder="Escribe tu nombre" 
+                            value={inputPlayerName} 
+                            onChange={(e) => setInputPlayerName(e.target.value)} 
+                            className="border-2 border-amber-300 p-3 rounded-lg w-full mb-5 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm font-medium" 
+                            autoFocus
+                        />
+                        
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={() => setShowGuardarModal(false)} 
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={confirmarGuardadoGlobal} 
+                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                            >
+                                Guardar
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
+
+            {/* MODAL DE CONFIRMACIÓN PARA VOLVER AL MENÚ */}
+            {showMenuModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
+                        <div className="text-3xl mb-2">⚠️</div>
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
+                        <p className="text-xs text-amber-800 mb-5">Asegúrate de haber guardado tu progreso antes de salir para evitar perder tus avances.</p>
+                        
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={() => setShowMenuModal(false)} 
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={() => { setShowMenuModal(false); if (onBack) onBack(); }} 
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                            >
+                                Sí, salir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE CONFIRMACIÓN PARA REINICIAR */}
+            {showConfirmRestartModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
+                        <div className="text-3xl mb-2">🔄</div>
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">¿Reiniciar Progreso?</h3>
+                        <p className="text-xs text-amber-800 mb-5">Se borrará tu nivel actual, intentos y volverás al Nivel 1. ¿Estás seguro?</p>
+                        
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={() => setShowConfirmRestartModal(false)} 
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={confirmarReiniciar} 
+                                className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                            >
+                                Sí, reiniciar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE MENSAJES / FEEDBACK GENERAL (REEMPLAZO DE ALERT) */}
+            {feedbackModal.show && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">{feedbackModal.title}</h3>
+                        <p className="text-xs text-amber-800 mb-5">{feedbackModal.message}</p>
+                        
+                        <button 
+                            onClick={() => setFeedbackModal({ show: false, title: '', message: '' })} 
+                            className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                        >
+                            Aceptar
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* TABLA DE RANKING GLOBAL */}
+            <div className="mt-10 w-full max-w-md px-2">
+                <h3 className="font-bold text-amber-900 text-center mb-2.5 text-lg">🏆 Ranking - Crucigrama</h3>
+                <div className="bg-white rounded-xl p-3 shadow-md border border-amber-200">
+                    {cargandoRanking ? (
+                        <p className="text-center text-sm text-gray-500 py-2">Cargando puntajes globales...</p>
+                    ) : ranking.length === 0 ? (
+                        <p className="text-center text-sm text-gray-500 py-2">Aún no hay scores en la nube. ¡Sé el primero!</p>
+                    ) : (
+                        <div>
+                            {ranking.map((r, i) => (
+                                <div key={r.id || i} className="flex justify-between items-center border-b py-2 text-xs sm:text-sm border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
+                                    <span className="font-medium text-amber-950 truncate pr-2">
+                                        <span className="text-orange-500 font-bold mr-1.5">{i + 1}.</span> {r.name} 
+                                        <span className="text-[11px] text-amber-700 font-bold ml-1.5">(Nivel {r.level})</span>
+                                    </span>
+                                    <span className="font-bold text-amber-900 flex-shrink-0">{r.intentos} int.</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
