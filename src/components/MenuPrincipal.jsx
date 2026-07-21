@@ -34,9 +34,6 @@ export default function MenuPrincipal({ setVistaActual }) {
 
             {/* Encabezado Textual Descriptivo */}
             <div className="text-center mb-8 w-full">
-                <div className="inline-block px-3 py-1 bg-amber-100/80 border border-amber-300/60 rounded-full mb-2.5">
-                    <p className="text-[11px] font-extrabold tracking-widest text-amber-900 uppercase">Portal Educativo</p>
-                </div>
                 <h1 className="text-xl sm:text-2xl font-black text-amber-950 tracking-tight leading-snug">
                     Elige cómo quieres aprender <span className="text-amber-700 underline decoration-amber-400 decoration-wavy decoration-2">diidxazá</span> hoy
                 </h1>
@@ -95,6 +92,24 @@ export default function MenuPrincipal({ setVistaActual }) {
                         </div>
                     </div>
                     <div className="w-9 h-9 rounded-full bg-orange-100/60 flex items-center justify-center text-orange-800 group-hover:bg-orange-600 group-hover:text-white transition-all duration-300 mr-1 shadow-xs">
+                        <span className="text-sm font-bold">→</span>
+                    </div>
+                </button>
+
+                {/* 4. Tarjeta Botón Trivia (Nuevo) */}
+                <button
+                    onClick={() => setVistaActual('trivia')}
+                    className="group relative bg-white hover:bg-amber-50/80 active:scale-98 text-amber-950 p-4 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border-2 border-amber-300/80 hover:border-amber-500 flex items-center justify-between overflow-hidden"
+                >
+                    <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-amber-600 to-yellow-600"></div>
+                    <div className="flex items-center gap-4 pl-2">
+                        <span className="text-3xl p-3 bg-yellow-100/80 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">⚡</span>
+                        <div className="text-left">
+                            <span className="text-lg sm:text-xl block font-black text-amber-950 tracking-tight">Reto Trivia</span>
+                            <span className="text-xs font-medium text-amber-800/80">Pon a prueba tu velocidad mental</span>
+                        </div>
+                    </div>
+                    <div className="w-9 h-9 rounded-full bg-yellow-100/60 flex items-center justify-center text-amber-800 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300 mr-1 shadow-xs">
                         <span className="text-sm font-bold">→</span>
                     </div>
                 </button>

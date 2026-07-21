@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import MenuPrincipal from './components/MenuPrincipal';
 import Tablero from './components/Tablero';
 import SopaLetras from './components/SopaLetras';
-import Crucigrama from './components/Crucigrama'; // Importamos el crucigrama
+import Crucigrama from './components/Crucigrama';
+import Trivia from './components/Trivia'; // 1. Importamos el nuevo componente de Trivia
 
 function App() {
   const [vistaActual, setVistaActual] = useState('menu');
@@ -15,7 +16,7 @@ function App() {
         <MenuPrincipal setVistaActual={setVistaActual} />
       )}
 
-      {/* 2. Memorama (Con su botón integrado en su propia barra de control) */}
+      {/* 2. Memorama */}
       {vistaActual === 'memorama' && (
         <Tablero onBack={() => setVistaActual('menu')} />
       )}
@@ -28,6 +29,11 @@ function App() {
       {/* 4. Crucigrama */}
       {vistaActual === 'crucigrama' && (
         <Crucigrama onBack={() => setVistaActual('menu')} />
+      )}
+
+      {/* 5. Trivia (Reto Rápido) */}
+      {vistaActual === 'trivia' && (
+        <Trivia onBack={() => setVistaActual('menu')} />
       )}
 
     </div>
