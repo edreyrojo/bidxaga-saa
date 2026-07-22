@@ -1,5 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth"; // <--- 1. Importamos getAuth
+
 // Your web app's Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyClV_LoLEjLFxvmp7KlDirY6DUdgDp-v4w",
@@ -9,7 +11,9 @@ const firebaseConfig = {
     messagingSenderId: "928544193414",
     appId: "1:928544193414:web:3b09460529d9aba5234a07"
 };
+
 const app = initializeApp(firebaseConfig);
 
-// ¡AQUÍ ESTÁ LA CLAVE! Debe llevar "export" y llamarse exactamente "db"
+// Exportamos la base de datos y la autenticación
 export const db = getFirestore(app);
+export const auth = getAuth(app); // <--- 2. Exportamos auth

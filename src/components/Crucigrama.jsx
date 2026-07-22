@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { listaAnimales } from '../data/animales.js';
+import { auth, db } from '../firebaseConfig';
+import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
-import { db } from '../firebaseConfig';
-import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
+// Recompensas de totopos por nivel completado en Crucigrama
+const RECOMPENSAS_CRUCIGRAMA = {
+    1: 15,
+    2: 30,
+    3: 50,
+    4: 70,
+    5: 90
+};
 
 const limpiarPalabra = (texto, modoDificil = false) => {
     if (modoDificil) {
@@ -121,7 +129,7 @@ const generarTableroCrucigrama = (candidatos, modoDificil = false) => {
     return { matriz, placements: translatedPlacements, width, height };
 };
 
-export default function Crucigrama({ onBack }) {
+export default function Crucigrama({ onBack, user }) {
     const [nivel, setNivel] = useState(1);
     const [intentos, setIntentos] = useState(0);
     const [placements, setPlacements] = useState([]);
@@ -130,6 +138,7 @@ export default function Crucigrama({ onBack }) {
     const [respuestasUsuario, setRespuestasUsuario] = useState({});
     const [palabrasResueltas, setPalabrasResueltas] = useState([]);
     const [modoDificil, setModoDificil] = useState(false);
+    const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
 
     // Estados para el Dial Circular Táctil
     const [activePlacement, setActivePlacement] = useState(null);
@@ -152,11 +161,14 @@ export default function Crucigrama({ onBack }) {
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
+    const recompensaActual = RECOMPENSAS_CRUCIGRAMA[nivel] || (20 * nivel);
+
     useEffect(() => {
         const nivelGuardado = localStorage.getItem('crucigramaNivel');
         const intentosGuardados = localStorage.getItem('crucigramaIntentos');
         const modoDificilGuardado = localStorage.getItem('crucigramaModoDificil');
         const nombreGuardado = localStorage.getItem('crucigramaPlayerName');
+        const totoposGuardados = localStorage.getItem('totopos');
 
         if (nivelGuardado) setNivel(parseInt(nivelGuardado, 10));
         if (intentosGuardados) setIntentos(parseInt(intentosGuardados, 10));
@@ -165,19 +177,101 @@ export default function Crucigrama({ onBack }) {
             setPlayerName(nombreGuardado);
             setInputPlayerName(nombreGuardado);
         }
+        if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
+
+        // Sincronizar totopos del perfil en Firestore si el usuario está logueado
+        const cargarTotoposNube = async () => {
+            const currentUser = user || auth.currentUser;
+            if (currentUser) {
+                try {
+                    const userDocRef = doc(db, 'usuarios', currentUser.uid);
+                    const userSnap = await getDoc(userDocRef);
+                    if (userSnap.exists()) {
+                        const data = userSnap.data();
+                        if (data.totopos !== undefined) {
+                            setTotopos(data.totopos);
+                            localStorage.setItem('totopos', data.totopos);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error al cargar totopos de la nube:", e);
+                }
+            }
+        };
+        cargarTotoposNube();
         
         cargarRankingGlobal();
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         generarNuevoJuego();
     }, [nivel, modoDificil]);
 
+    // Vincular touchmove de forma no pasiva para evitar la advertencia
     useEffect(() => {
-        if (palabrasResueltas.length === placements.length && placements.length > 0) {
+        const dialElement = dialRef.current;
+        if (!dialElement) return;
+
+        const handleTouchMoveNonPassive = (e) => {
+            if (!isDragging) return;
+            e.preventDefault(); 
+            const touch = e.touches[0];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (target && target.dataset.nodeIndex !== undefined) {
+                const index = parseInt(target.dataset.nodeIndex, 10);
+                setLetrasElegidas(prev => {
+                    if (!prev.includes(index)) return [...prev, index];
+                    return prev;
+                });
+            }
+        };
+
+        dialElement.addEventListener('touchmove', handleTouchMoveNonPassive, { passive: false });
+        return () => {
+            dialElement.removeEventListener('touchmove', handleTouchMoveNonPassive);
+        };
+    }, [isDragging]);
+
+    // Efecto de nivel completado con guarda anti-bucle (!pendingGlobalScore)
+    useEffect(() => {
+        if (palabrasResueltas.length === placements.length && placements.length > 0 && !pendingGlobalScore) {
             setPendingGlobalScore({ level: nivel, intentos: intentos });
+
+            // Sumar y guardar totopos localmente de forma segura
+            setTotopos(prevTotopos => {
+                const nuevosTotopos = prevTotopos + recompensaActual;
+                localStorage.setItem('totopos', nuevosTotopos);
+
+                const currentUser = user || auth.currentUser;
+                if (currentUser) {
+                    const abonarTotopos = async () => {
+                        try {
+                            const userRef = doc(db, 'usuarios', currentUser.uid);
+                            const userSnap = await getDoc(userRef);
+                            
+                            if (userSnap.exists()) {
+                                await updateDoc(userRef, {
+                                    totopos: increment(recompensaActual)
+                                });
+                            } else {
+                                await setDoc(userRef, {
+                                    email: currentUser.email,
+                                    totopos: nuevosTotopos,
+                                    avatar: 'default',
+                                    avataresDesbloqueados: ['default']
+                                }, { merge: true });
+                            }
+                        } catch (err) {
+                            console.error("Error al abonar totopos:", err);
+                        }
+                    };
+                    abonarTotopos();
+                }
+
+                return nuevosTotopos;
+            });
         }
-    }, [palabrasResueltas, placements, nivel, intentos]);
+    }, [palabrasResueltas, placements, nivel, intentos, user, recompensaActual, pendingGlobalScore]);
 
     const generarNuevoJuego = () => {
         const cantidadAnimales = Math.min(2 + nivel, 6);
@@ -238,19 +332,6 @@ export default function Crucigrama({ onBack }) {
         if (isDragging) setIsDragging(false);
     };
 
-    const handleTouchMoveGlobal = (e) => {
-        if (!isDragging || !dialRef.current) return;
-        const touch = e.touches[0];
-        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-        if (target && target.dataset.nodeIndex !== undefined) {
-            const index = parseInt(target.dataset.nodeIndex, 10);
-            setLetrasElegidas(prev => {
-                if (!prev.includes(index)) return [...prev, index];
-                return prev;
-            });
-        }
-    };
-
     const handleMouseMoveGlobal = (e) => {
         if (!isDragging || !dialRef.current) return;
         const target = document.elementFromPoint(e.clientX, e.clientY);
@@ -296,11 +377,11 @@ export default function Crucigrama({ onBack }) {
         }
     };
 
-    // Al hacer click en Guardar: Abrir modal personalizado
     const handleClickGuardar = () => {
         localStorage.setItem('crucigramaNivel', nivel);
         localStorage.setItem('crucigramaIntentos', intentos);
         localStorage.setItem('crucigramaModoDificil', modoDificil);
+        localStorage.setItem('totopos', totopos);
 
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
@@ -315,7 +396,6 @@ export default function Crucigrama({ onBack }) {
         setShowGuardarModal(true);
     };
 
-    // Ejecutar guardado real desde la modal personalizada
     const confirmarGuardadoGlobal = async () => {
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
@@ -395,6 +475,7 @@ export default function Crucigrama({ onBack }) {
         setNivel(proximoNivel);
         localStorage.setItem('crucigramaNivel', proximoNivel);
         setGuardadoEnNivel(false);
+        setPendingGlobalScore(null);
     };
 
     const nivelCompletado = palabrasResueltas.length === placements.length && placements.length > 0;
@@ -407,7 +488,9 @@ export default function Crucigrama({ onBack }) {
         >
             <header className="text-center mb-3">
                 <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">✏️ Crucigrama Diidxazá</h2>
-                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">Nivel {nivel} • Intentos: {intentos}</p>
+                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">
+                    Nivel {nivel} • Intentos: {intentos} • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
+                </p>
             </header>
 
             {/* BARRA DE CONTROL LOCAL Y GLOBAL UNIFICADA */}
@@ -437,7 +520,10 @@ export default function Crucigrama({ onBack }) {
             {/* AVISO DE NIVEL COMPLETADO */}
             {nivelCompletado && (
                 <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce">
-                    <p className="text-lg sm:text-xl font-bold text-green-900 mb-2">🎉 ¡Excelente! Crucigrama Resuelto</p>
+                    <p className="text-lg sm:text-xl font-bold text-green-900 mb-1">🎉 ¡Excelente! Crucigrama Resuelto</p>
+                    <p className="text-xs font-bold text-amber-700 mb-2">
+                        +{recompensaActual} 🌽 Totopos añadidos a tu morral (Total: {totopos})
+                    </p>
                     <div className="flex gap-3 justify-center">
                         <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm">Siguiente Nivel</button>
                     </div>
@@ -555,7 +641,6 @@ export default function Crucigrama({ onBack }) {
 
                         <div 
                             ref={dialRef}
-                            onTouchMove={handleTouchMoveGlobal}
                             onMouseMove={handleMouseMoveGlobal}
                             className={`relative ${dialSize} my-1 flex items-center justify-center touch-none select-none`}
                         >
@@ -593,10 +678,7 @@ export default function Crucigrama({ onBack }) {
                                         data-node-index={index}
                                         onMouseDown={() => handleTouchStartNode(index)}
                                         onMouseEnter={() => handleTouchEnterNode(index)}
-                                        onTouchStart={(e) => {
-                                            e.preventDefault();
-                                            handleTouchStartNode(index);
-                                        }}
+                                        onTouchStart={() => handleTouchStartNode(index)}
                                         style={{ transform: `translate(${relX}px, ${relY}px)` }}
                                         className={`absolute z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full font-black text-lg shadow-md transition-all flex items-center justify-center select-none cursor-pointer
                                             ${seleccionada ? 'bg-amber-700 text-white scale-95 border-2 border-amber-900 shadow-inner' : 'bg-amber-600 hover:bg-amber-500 text-white border-2 border-amber-700'}
@@ -714,7 +796,7 @@ export default function Crucigrama({ onBack }) {
                 </div>
             )}
 
-            {/* MODAL DE MENSAJES / FEEDBACK GENERAL (REEMPLAZO DE ALERT) */}
+            {/* MODAL DE MENSAJES / FEEDBACK GENERAL */}
             {feedbackModal.show && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">

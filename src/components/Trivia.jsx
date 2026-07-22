@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { listaAnimales } from '../data/animales.js';
 
-import { db } from '../firebaseConfig';
-import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { auth, db } from '../firebaseConfig';
+import { collection, addDoc, getDocs, doc, getDoc, updateDoc, increment, query, orderBy, limit } from 'firebase/firestore';
 
 export default function Trivia({ onBack }) {
     // Estados principales del juego
@@ -10,6 +10,7 @@ export default function Trivia({ onBack }) {
     const [errores, setErrores] = useState(0);
     const [aciertosNivel, setAciertosNivel] = useState(0);
     const [modoDificil, setModoDificil] = useState(false);
+    const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
     
     // Estados de la pregunta actual
     const [preguntaActual, setPreguntaActual] = useState(null);
@@ -32,13 +33,15 @@ export default function Trivia({ onBack }) {
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
     const PREGUNTAS_POR_NIVEL = 5;
+    const TOTOPOS_POR_NIVEL = 15; // Recompensa de totopos al completar nivel
 
-    // Cargar datos locales al iniciar
+    // Cargar datos locales y sincronizar con Firebase si hay sesión activa
     useEffect(() => {
         const nivelGuardado = localStorage.getItem('triviaNivel');
         const erroresGuardados = localStorage.getItem('triviaErrores');
         const modoDificilGuardado = localStorage.getItem('triviaModoDificil');
         const nombreGuardado = localStorage.getItem('triviaPlayerName');
+        const totoposGuardados = localStorage.getItem('totopos');
         
         if (nivelGuardado) setNivel(parseInt(nivelGuardado, 10));
         if (erroresGuardados) setErrores(parseInt(erroresGuardados, 10));
@@ -47,11 +50,32 @@ export default function Trivia({ onBack }) {
             setPlayerName(nombreGuardado);
             setInputPlayerName(nombreGuardado);
         }
+        if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
+
+        // Sincronizar totopos del perfil en Firestore si el usuario está logueado
+        const cargarTotoposNube = async () => {
+            if (auth.currentUser) {
+                try {
+                    const userDocRef = doc(db, 'usuarios', auth.currentUser.uid);
+                    const userSnap = await getDoc(userDocRef);
+                    if (userSnap.exists()) {
+                        const data = userSnap.data();
+                        if (data.totopos !== undefined) {
+                            setTotopos(data.totopos);
+                            localStorage.setItem('totopos', data.totopos);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error al cargar totopos de la nube:", e);
+                }
+            }
+        };
+        cargarTotoposNube();
         
         cargarRankingGlobal();
     }, []);
 
-    // Generar pregunta cuando cambia el nivel o los aciertos (si no hemos terminado el nivel)
+    // Generar pregunta cuando cambia el nivel o los aciertos
     useEffect(() => {
         if (aciertosNivel < PREGUNTAS_POR_NIVEL) {
             generarNuevaPregunta();
@@ -64,16 +88,13 @@ export default function Trivia({ onBack }) {
         setEstadoRespuesta(null);
         setOpcionSeleccionada(null);
 
-        // Elegir un animal al azar como respuesta correcta
         const animalCorrecto = listaAnimales[Math.floor(Math.random() * listaAnimales.length)];
         
-        // Obtener 3 distractores aleatorios que no sean la respuesta correcta
         const distractores = [...listaAnimales]
             .filter(a => a.id !== animalCorrecto.id)
             .sort(() => Math.random() - 0.5)
             .slice(0, 3);
 
-        // Combinar y mezclar opciones
         const opcionesMezcladas = [animalCorrecto, ...distractores]
             .sort(() => Math.random() - 0.5);
 
@@ -82,7 +103,7 @@ export default function Trivia({ onBack }) {
     };
 
     const manejarRespuesta = (opcionElegida) => {
-        if (estadoRespuesta !== null) return; // Evitar multiples clicks
+        if (estadoRespuesta !== null) return;
 
         setOpcionSeleccionada(opcionElegida.id);
 
@@ -97,30 +118,56 @@ export default function Trivia({ onBack }) {
             setTimeout(() => {
                 setEstadoRespuesta(null);
                 setOpcionSeleccionada(null);
-            }, 1200); // Dar tiempo para ver el error y volver a intentar
+            }, 1200);
         }
     };
 
-    const siguienteNivel = () => {
+    const siguienteNivel = async () => {
         const proximoNivel = nivel + 1;
+        
+        // Sumar y guardar totopos localmente
+        const nuevosTotopos = totopos + TOTOPOS_POR_NIVEL;
+        setTotopos(nuevosTotopos);
+        localStorage.setItem('totopos', nuevosTotopos);
+
+        // Si hay un usuario con sesión iniciada, actualizar en Firestore
+        if (auth.currentUser) {
+            try {
+                const userDocRef = doc(db, 'usuarios', auth.currentUser.uid);
+                await updateDoc(userDocRef, {
+                    totopos: increment(TOTOPOS_POR_NIVEL)
+                });
+            } catch (error) {
+                console.error("Error al actualizar totopos en Firestore:", error);
+            }
+        }
+
         setNivel(proximoNivel);
         setAciertosNivel(0);
         localStorage.setItem('triviaNivel', proximoNivel);
         localStorage.setItem('triviaErrores', errores);
         setGuardadoEnNivel(false);
+        setPendingGlobalScore(null);
+
+        setFeedbackModal({
+            show: true,
+            title: "🌽 ¡Nivel Superado!",
+            message: `Ganaste +${TOTOPOS_POR_NIVEL} totopos. Tienes un total de ${nuevosTotopos} totopos en tu morral.`
+        });
     };
 
-    // --- FUNCIONES DE GUARDADO Y MODALES (Reutilizadas de SopaLetras) ---
-    const handleClickGuardar = () => {
+    const handleClickGuardar = (e) => {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
         localStorage.setItem('triviaNivel', nivel);
         localStorage.setItem('triviaErrores', errores);
         localStorage.setItem('triviaModoDificil', modoDificil);
+        localStorage.setItem('totopos', totopos);
 
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
                 show: true,
                 title: "⚠️ Récord ya guardado",
-                message: `Ya guardaste tu récord global para el Nivel ${nivel}. Avanza al siguiente nivel para volver a registrar tu puntaje.`
+                message: `Ya guardaste tu récord global para el Nivel ${nivel}. Avanza de nivel para volver a registrar puntaje.`
             });
             return;
         }
@@ -129,7 +176,9 @@ export default function Trivia({ onBack }) {
         setShowGuardarModal(true);
     };
 
-    const confirmarGuardadoGlobal = async () => {
+    const confirmarGuardadoGlobal = async (e) => {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+        
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
             setFeedbackModal({
@@ -166,7 +215,8 @@ export default function Trivia({ onBack }) {
         }
     };
 
-    const confirmarReiniciar = () => {
+    const confirmarReiniciar = (e) => {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
         localStorage.removeItem('triviaNivel');
         localStorage.removeItem('triviaErrores');
         localStorage.removeItem('triviaModoDificil');
@@ -183,7 +233,6 @@ export default function Trivia({ onBack }) {
     const cargarRankingGlobal = async () => {
         setCargandoRanking(true);
         try {
-            // Ordena por Nivel más alto, luego por Menos errores
             const q = query(collection(db, "ranking_trivia"), orderBy("level", "desc"), orderBy("errores", "asc"), limit(10));
             const querySnapshot = await getDocs(q);
             const docs = [];
@@ -199,7 +248,9 @@ export default function Trivia({ onBack }) {
         <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col items-center select-none pb-[env(safe-area-inset-bottom)]">
             <header className="text-center mb-3">
                 <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">⚡ Reto Trivia</h2>
-                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">Nivel {nivel} • Errores: {errores}</p>
+                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">
+                    Nivel {nivel} • Errores: {errores} • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
+                </p>
             </header>
 
             {/* BARRA DE CONTROL */}
@@ -209,13 +260,14 @@ export default function Trivia({ onBack }) {
                 </div>
                 <div className="flex gap-2 flex-wrap items-center">
                     {onBack && (
-                        <button onClick={() => setShowMenuModal(true)} className="bg-amber-800 hover:bg-amber-900 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">
+                        <button type="button" onClick={(e) => { e?.preventDefault?.(); setShowMenuModal(true); }} className="bg-amber-800 hover:bg-amber-900 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">
                             Menú
                         </button>
                     )}
-                    <button onClick={handleClickGuardar} className="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Guardar</button>
-                    <button onClick={() => setShowConfirmRestartModal(true)} className="bg-amber-950 hover:bg-black text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Reiniciar</button>
+                    <button type="button" onClick={handleClickGuardar} className="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Guardar</button>
+                    <button type="button" onClick={() => setShowConfirmRestartModal(true)} className="bg-amber-950 hover:bg-black text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Reiniciar</button>
                     <button 
+                        type="button"
                         onClick={() => {
                             const nuevoModo = !modoDificil;
                             setModoDificil(nuevoModo);
@@ -233,16 +285,14 @@ export default function Trivia({ onBack }) {
                 {aciertosNivel === PREGUNTAS_POR_NIVEL ? (
                     <div className="w-full bg-green-50 border-2 border-green-500 rounded-xl p-6 text-center animate-bounce mt-4 shadow-lg">
                         <h3 className="text-2xl font-bold text-green-900 mb-2">🎉 ¡Nivel Completado!</h3>
-                        <p className="text-green-800 mb-4 font-medium">Has superado las 5 preguntas.</p>
-                        <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-md text-lg transition-transform active:scale-95">
+                        <p className="text-green-800 mb-4 font-medium">Has superado las 5 preguntas y ganado +{TOTOPOS_POR_NIVEL} totopos.</p>
+                        <button type="button" onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-md text-lg transition-transform active:scale-95">
                             Siguiente Nivel ➡️
                         </button>
                     </div>
                 ) : (
                     preguntaActual && (
                         <div className="w-full flex flex-col items-center bg-white p-6 rounded-3xl shadow-xl border-2 border-amber-100">
-                            
-                            {/* Tarjeta de la Pregunta */}
                             {!modoDificil && (
                                 <div className="w-48 h-48 sm:w-56 sm:h-56 bg-orange-50 rounded-2xl overflow-hidden flex items-center justify-center border-4 border-amber-200 mb-4 shadow-inner">
                                     <img src={preguntaActual.image} alt={preguntaActual.spanish} className="max-w-[80%] max-h-[80%] object-contain drop-shadow-md" onError={(e) => { e.target.src = "❓"; }} />
@@ -252,20 +302,20 @@ export default function Trivia({ onBack }) {
                                 {preguntaActual.spanish}
                             </h3>
 
-                            {/* Opciones */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                                 {opciones.map((opcion) => {
                                     let estiloBoton = "bg-amber-50 hover:bg-amber-100 border-2 border-amber-200 text-amber-950";
                                     
                                     if (estadoRespuesta && opcion.id === preguntaActual.id) {
-                                        estiloBoton = "bg-green-500 border-green-600 text-white scale-105 shadow-lg"; // La correcta siempre se ilumina
+                                        estiloBoton = "bg-green-500 border-green-600 text-white scale-105 shadow-lg";
                                     } else if (estadoRespuesta === 'incorrecta' && opcionSeleccionada === opcion.id) {
-                                        estiloBoton = "bg-red-500 border-red-600 text-white scale-95 opacity-80"; // La equivocada se marca en rojo
+                                        estiloBoton = "bg-red-500 border-red-600 text-white scale-95 opacity-80";
                                     }
 
                                     return (
                                         <button
                                             key={opcion.id}
+                                            type="button"
                                             onClick={() => manejarRespuesta(opcion)}
                                             disabled={estadoRespuesta !== null}
                                             className={`py-4 px-4 rounded-xl font-bold text-lg sm:text-xl transition-all duration-200 active:scale-95 ${estiloBoton}`}
@@ -280,7 +330,7 @@ export default function Trivia({ onBack }) {
                 )}
             </div>
 
-            {/* TABLA DE RANKING GLOBAL */}
+            {/* RANKING GLOBAL */}
             <div className="mt-12 w-full max-w-md">
                 <h3 className="font-bold text-amber-900 text-center mb-3 text-xl">🏆 Ranking - Trivia</h3>
                 <div className="bg-white rounded-xl p-4 shadow-md border border-amber-200">
@@ -302,21 +352,29 @@ export default function Trivia({ onBack }) {
                 </div>
             </div>
 
-            {/* MODALES (Idénticas a SopaLetras) */}
+            {/* MODAL GUARDAR */}
             {showGuardarModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
+                    <form onSubmit={confirmarGuardadoGlobal} className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Récord</h3>
                         <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para el ranking global.</p>
-                        <input type="text" placeholder="Escribe tu nombre" value={inputPlayerName} onChange={(e) => setInputPlayerName(e.target.value)} className="border-2 border-amber-300 p-3 rounded-lg w-full mb-5 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm font-medium" autoFocus />
+                        <input 
+                            type="text" 
+                            placeholder="Escribe tu nombre" 
+                            value={inputPlayerName} 
+                            onChange={(e) => setInputPlayerName(e.target.value)} 
+                            className="border-2 border-amber-300 p-3 rounded-lg w-full mb-5 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm font-medium" 
+                            autoFocus 
+                        />
                         <div className="flex gap-3 w-full">
-                            <button onClick={() => setShowGuardarModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300">Cancelar</button>
-                            <button onClick={confirmarGuardadoGlobal} className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Guardar</button>
+                            <button type="button" onClick={() => setShowGuardarModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300">Cancelar</button>
+                            <button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Guardar</button>
                         </div>
-                    </div>
+                    </form>
                 </div>
             )}
 
+            {/* MODAL MENÚ */}
             {showMenuModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
@@ -324,13 +382,14 @@ export default function Trivia({ onBack }) {
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menú?</h3>
                         <p className="text-xs text-amber-800 mb-5">Guarda tu progreso antes de salir.</p>
                         <div className="flex gap-3 w-full">
-                            <button onClick={() => setShowMenuModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300">Cancelar</button>
-                            <button onClick={() => { setShowMenuModal(false); if (onBack) onBack(); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Sí, salir</button>
+                            <button type="button" onClick={() => setShowMenuModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300">Cancelar</button>
+                            <button type="button" onClick={() => { setShowMenuModal(false); if (onBack) onBack(); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Sí, salir</button>
                         </div>
                     </div>
                 </div>
             )}
 
+            {/* MODAL REINICIAR */}
             {showConfirmRestartModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
@@ -338,19 +397,20 @@ export default function Trivia({ onBack }) {
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Reiniciar?</h3>
                         <p className="text-xs text-amber-800 mb-5">Volverás al Nivel 1. ¿Estás seguro?</p>
                         <div className="flex gap-3 w-full">
-                            <button onClick={() => setShowConfirmRestartModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300">Cancelar</button>
-                            <button onClick={confirmarReiniciar} className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Sí, reiniciar</button>
+                            <button type="button" onClick={() => setShowConfirmRestartModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300">Cancelar</button>
+                            <button type="button" onClick={confirmarReiniciar} className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Sí, reiniciar</button>
                         </div>
                     </div>
                 </div>
             )}
 
+            {/* MODAL FEEDBACK */}
             {feedbackModal.show && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">{feedbackModal.title}</h3>
                         <p className="text-xs text-amber-800 mb-5">{feedbackModal.message}</p>
-                        <button onClick={() => setFeedbackModal({ show: false, title: '', message: '' })} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Aceptar</button>
+                        <button type="button" onClick={() => setFeedbackModal({ show: false, title: '', message: '' })} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Aceptar</button>
                     </div>
                 </div>
             )}

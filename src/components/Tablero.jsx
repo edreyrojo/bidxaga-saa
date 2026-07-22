@@ -3,21 +3,21 @@ import { listaAnimales } from '../data/animales.js';
 import Tarjeta from './Tarjeta';
 
 // 1. IMPORTAMOS LA CONFIGURACIÓN Y FUNCIONES DE FIREBASE
-import { db } from '../firebaseConfig';
-import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { auth, db } from '../firebaseConfig';
+import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
 const CONFIG_NIVELES = {
-    1: { parejas: 4, columnas: 'grid-cols-4' },
-    2: { parejas: 6, columnas: 'grid-cols-4 text-sm' },
-    3: { parejas: 8, columnas: 'grid-cols-4' },
-    4: { parejas: 12, columnas: 'grid-cols-4 sm:grid-cols-6' }
+    1: { parejas: 4, columnas: 'grid-cols-4', recompensa: 10 },
+    2: { parejas: 6, columnas: 'grid-cols-4 text-sm', recompensa: 20 },
+    3: { parejas: 8, columnas: 'grid-cols-4', recompensa: 35 },
+    4: { parejas: 12, columnas: 'grid-cols-4 sm:grid-cols-6', recompensa: 50 }
 };
 
 const getConfigForLevel = (lvl) => {
-    return CONFIG_NIVELES[lvl] || { parejas: 12, columnas: 'grid-cols-4 sm:grid-cols-6' };
+    return CONFIG_NIVELES[lvl] || { parejas: 12, columnas: 'grid-cols-4 sm:grid-cols-6', recompensa: 50 };
 };
 
-export default function Tablero({ onBack }) {
+export default function Tablero({ onBack, user }) { // <--- Recibimos `user` como prop
     const [level, setLevel] = useState(1);
     const [cards, setCards] = useState([]);
     const [turns, setTurns] = useState(0);
@@ -29,6 +29,7 @@ export default function Tablero({ onBack }) {
     const [playerName, setPlayerName] = useState('');
     const [modoDificil, setModoDificil] = useState(false);
     const [guardadoEnNivel, setGuardadoEnNivel] = useState(false);
+    const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
     
     // Memoria temporal para guardar el récord del nivel anterior completado
     const [pendingGlobalScore, setPendingGlobalScore] = useState(null);
@@ -77,6 +78,7 @@ export default function Tablero({ onBack }) {
         const nivelGuardado = localStorage.getItem('memoramaNivel');
         const modoDificilGuardado = localStorage.getItem('memoramaModoDificil');
         const nombreGuardado = localStorage.getItem('memoramaPlayerName');
+        const totoposGuardados = localStorage.getItem('totopos');
         const nivelInicial = nivelGuardado ? parseInt(nivelGuardado, 10) : 1;
         
         if (modoDificilGuardado) setModoDificil(modoDificilGuardado === 'true');
@@ -84,24 +86,79 @@ export default function Tablero({ onBack }) {
             setPlayerName(nombreGuardado);
             setInputPlayerName(nombreGuardado);
         }
+        if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
         setLevel(nivelInicial);
-    }, []);
+
+        // Sincronizar totopos del perfil en Firestore si el usuario está logueado
+        const cargarTotoposNube = async () => {
+            const currentUser = user || auth.currentUser;
+            if (currentUser) {
+                try {
+                    const userDocRef = doc(db, 'usuarios', currentUser.uid);
+                    const userSnap = await getDoc(userDocRef);
+                    if (userSnap.exists()) {
+                        const data = userSnap.data();
+                        if (data.totopos !== undefined) {
+                            setTotopos(data.totopos);
+                            localStorage.setItem('totopos', data.totopos);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error al cargar totopos de la nube:", e);
+                }
+            }
+        };
+        cargarTotoposNube();
+    }, [user]);
 
     useEffect(() => {
         iniciarJuego(level);
     }, [level, modoDificil]);
 
-    // Detectar automáticamente cuando se completa un nivel para congelar su puntaje
+    // Detectar automáticamente cuando se completa un nivel para congelar su puntaje y abonar Totopos si está logueado
     useEffect(() => {
         if (matches === parejasRequeridas && parejasRequeridas > 0) {
             setPendingGlobalScore({ level: level, turns: turns });
+            
+            // Sumar y guardar totopos localmente
+            const nuevosTotopos = totopos + configActual.recompensa;
+            setTotopos(nuevosTotopos);
+            localStorage.setItem('totopos', nuevosTotopos);
+
+            // Si el usuario inició sesión, abonar sus totopos automáticamente en Firestore
+            const currentUser = user || auth.currentUser;
+            if (currentUser) {
+                const abonarTotopos = async () => {
+                    try {
+                        const userRef = doc(db, 'usuarios', currentUser.uid);
+                        const userSnap = await getDoc(userRef);
+                        
+                        if (userSnap.exists()) {
+                            await updateDoc(userRef, {
+                                totopos: increment(configActual.recompensa)
+                            });
+                        } else {
+                            await setDoc(userRef, {
+                                email: currentUser.email,
+                                totopos: nuevosTotopos,
+                                avatar: 'default',
+                                avataresDesbloqueados: ['default']
+                            }, { merge: true });
+                        }
+                    } catch (err) {
+                        console.error("Error al abonar totopos:", err);
+                    }
+                };
+                abonarTotopos();
+            }
         }
-    }, [matches, parejasRequeridas, level, turns]);
+    }, [matches, parejasRequeridas, level, turns, user, configActual.recompensa, totopos]);
 
     // Al hacer click en Guardar: Abrir modal personalizada
     const handleClickGuardar = () => {
         localStorage.setItem('memoramaNivel', level);
         localStorage.setItem('memoramaModoDificil', modoDificil);
+        localStorage.setItem('totopos', totopos);
 
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
@@ -242,7 +299,9 @@ export default function Tablero({ onBack }) {
             
             <header className="text-center mb-3">
                 <img src="/images/banner.png" alt="Banner Diidxaza" className="mx-auto mb-2 max-w-full h-auto" />
-                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">Nivel {level} • Turnos: {turns}</p>
+                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">
+                    Nivel {level} • Turnos: {turns} • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
+                </p>
             </header>
 
             {/* BARRA DE CONTROL LOCAL Y GLOBAL UNIFICADA */}
@@ -276,7 +335,10 @@ export default function Tablero({ onBack }) {
 
             {matches === parejasRequeridas && (
                 <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce">
-                    <p className="text-lg sm:text-xl font-bold text-green-900 mb-2">🎉 ¡Nivel {level} completado!</p>
+                    <p className="text-lg sm:text-xl font-bold text-green-900 mb-1">🎉 ¡Nivel {level} completado!</p>
+                    <p className="text-xs font-bold text-amber-700 mb-2">
+                        +{configActual.recompensa} 🌽 Totopos añadidos a tu morral (Total: {totopos})
+                    </p>
                     <div className="flex gap-3 justify-center">
                         <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm">Siguiente Nivel</button>
                     </div>
@@ -401,14 +463,16 @@ export default function Tablero({ onBack }) {
                     ) : ranking.length === 0 ? (
                         <p className="text-center text-sm text-gray-500 py-2">Aún no hay scores en la nube. ¡Sé el primero!</p>
                     ) : (
-                        ranking.map((r, i) => (
-                            <div key={r.id || i} className="flex justify-between items-center border-b py-2 text-sm border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
-                                <span className="font-medium text-amber-950">
-                                    <span className="text-orange-500 font-bold mr-2">{i + 1}.</span> {r.name} <span className="text-xs text-amber-700 font-bold ml-2">(Nivel {r.level})</span>
-                                </span>
-                                <span className="font-bold text-amber-900">{r.score} turnos</span>
-                            </div>
-                        ))
+                        <div>
+                            {ranking.map((r, i) => (
+                                <div key={r.id || i} className="flex justify-between items-center border-b py-2 text-sm border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
+                                    <span className="font-medium text-amber-950">
+                                        <span className="text-orange-500 font-bold mr-2">{i + 1}.</span> {r.name} <span className="text-xs text-amber-700 font-bold ml-2">(Nivel {r.level})</span>
+                                    </span>
+                                    <span className="font-bold text-amber-900">{r.score} turnos</span>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
             </div>
