@@ -115,44 +115,47 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
         iniciarJuego(level);
     }, [level, modoDificil]);
 
-    // Detectar automáticamente cuando se completa un nivel para congelar su puntaje y abonar Totopos si está logueado
+    // Detectar automáticamente cuando se completa un nivel con la guarda anti-bucle (!pendingGlobalScore)
     useEffect(() => {
-        if (matches === parejasRequeridas && parejasRequeridas > 0) {
+        if (matches === parejasRequeridas && parejasRequeridas > 0 && !pendingGlobalScore) {
             setPendingGlobalScore({ level: level, turns: turns });
             
-            // Sumar y guardar totopos localmente
-            const nuevosTotopos = totopos + configActual.recompensa;
-            setTotopos(nuevosTotopos);
-            localStorage.setItem('totopos', nuevosTotopos);
+            // Sumar y guardar totopos localmente de forma segura
+            setTotopos(prevTotopos => {
+                const nuevosTotopos = prevTotopos + configActual.recompensa;
+                localStorage.setItem('totopos', nuevosTotopos);
 
-            // Si el usuario inició sesión, abonar sus totopos automáticamente en Firestore
-            const currentUser = user || auth.currentUser;
-            if (currentUser) {
-                const abonarTotopos = async () => {
-                    try {
-                        const userRef = doc(db, 'usuarios', currentUser.uid);
-                        const userSnap = await getDoc(userRef);
-                        
-                        if (userSnap.exists()) {
-                            await updateDoc(userRef, {
-                                totopos: increment(configActual.recompensa)
-                            });
-                        } else {
-                            await setDoc(userRef, {
-                                email: currentUser.email,
-                                totopos: nuevosTotopos,
-                                avatar: 'default',
-                                avataresDesbloqueados: ['default']
-                            }, { merge: true });
+                // Si el usuario inició sesión, abonar sus totopos automáticamente en Firestore
+                const currentUser = user || auth.currentUser;
+                if (currentUser) {
+                    const abonarTotopos = async () => {
+                        try {
+                            const userRef = doc(db, 'usuarios', currentUser.uid);
+                            const userSnap = await getDoc(userRef);
+                            
+                            if (userSnap.exists()) {
+                                await updateDoc(userRef, {
+                                    totopos: increment(configActual.recompensa)
+                                });
+                            } else {
+                                await setDoc(userRef, {
+                                    email: currentUser.email,
+                                    totopos: nuevosTotopos,
+                                    avatar: 'default',
+                                    avataresDesbloqueados: ['default']
+                                }, { merge: true });
+                            }
+                        } catch (err) {
+                            console.error("Error al abonar totopos:", err);
                         }
-                    } catch (err) {
-                        console.error("Error al abonar totopos:", err);
-                    }
-                };
-                abonarTotopos();
-            }
+                    };
+                    abonarTotopos();
+                }
+
+                return nuevosTotopos;
+            });
         }
-    }, [matches, parejasRequeridas, level, turns, user, configActual.recompensa, totopos]);
+    }, [matches, parejasRequeridas, level, turns, user, configActual.recompensa, pendingGlobalScore]);
 
     // Al hacer click en Guardar: Abrir modal personalizada
     const handleClickGuardar = () => {
@@ -268,6 +271,7 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
         setLevel(proximoNivel);
         localStorage.setItem('memoramaNivel', proximoNivel);
         setGuardadoEnNivel(false);
+        setPendingGlobalScore(null);
     };
 
     const handleChoice = (card) => {
