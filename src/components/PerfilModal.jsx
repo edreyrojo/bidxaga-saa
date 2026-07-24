@@ -39,7 +39,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     const [mensaje, setMensaje] = useState('');
     const [showConfirmLogout, setShowConfirmLogout] = useState(false);
 
-    // Cargar datos del usuario desde Firestore
+    // Cargar datos del usuario desde Firestore (CORREGIDO: Solo depende de 'user')
     useEffect(() => {
         const fetchUserData = async () => {
             if (!user) return;
@@ -76,7 +76,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
             }
         };
         fetchUserData();
-    }, [user, onProfileUpdate]);
+    }, [user]); // 👈 Quitamos onProfileUpdate para evitar el bucle infinito de requests
 
     // Guardar el nombre editado
     const handleActualizarNombre = async (e) => {

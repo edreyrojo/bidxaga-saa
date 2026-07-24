@@ -4,7 +4,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 import MenuPrincipal from './components/MenuPrincipal';
-import Memorama from './components/Memorama'; // 👈 Actualizado el nombre del componente y archivo
+import Memorama from './components/Memorama';
 import SopaLetras from './components/SopaLetras';
 import Crucigrama from './components/Crucigrama';
 import Trivia from './components/Trivia';
@@ -108,8 +108,8 @@ function App() {
         onPlayStateChange={setIsPlayingMusic} 
       />
 
-      {/* PANEL SUPERIOR IZQUIERDO: Perfil + Nickname + Nivel + Engrane de Configuración */}
-      <div className="absolute top-4 left-4 z-40 flex items-center gap-2">
+      {/* 🚀 PANEL SUPERIOR FLOTANTE (Fixed para no mover el DOM ni distorsionar los juegos) */}
+      <div className="fixed top-3 left-3 sm:top-4 sm:left-4 z-40 flex items-center gap-2">
         
         {/* Botón / Tarjeta de Perfil */}
         <button
@@ -133,7 +133,7 @@ function App() {
           </div>
         </button>
 
-        {/* Botón de Configuración (Engrane ⚙️) que abre el Modal */}
+        {/* Botón de Configuración (Engrane ⚙️) */}
         <button
           onClick={() => setShowConfigModal(true)}
           className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-lg shadow-md transition-transform transform active:scale-95 border-2 cursor-pointer ${
@@ -148,65 +148,68 @@ function App() {
 
       </div>
 
-      {/* 1. Menú Principal */}
-      {vistaActual === 'menu' && (
-        <MenuPrincipal setVistaActual={(vista) => {
-          setControlesJuegoActivo(null); // Limpiamos controles al volver al menú
-          setVistaActual(vista);
-        }} />
-      )}
+      {/* 🎮 CONTENEDOR DE VISTAS CON MARGEN SUPERIOR PARA EVITAR TAPAR TÍTULOS */}
+      <main className="pt-16 sm:pt-20">
+        {/* 1. Menú Principal */}
+        {vistaActual === 'menu' && (
+          <MenuPrincipal setVistaActual={(vista) => {
+            setControlesJuegoActivo(null); // Limpiamos controles al volver al menú
+            setVistaActual(vista);
+          }} />
+        )}
 
-      {/* 2. Memorama */}
-      {vistaActual === 'memorama' && (
-        <Memorama 
-          user={user} 
-          onSetControles={setControlesJuegoActivo}
-          onBack={() => { 
-            setControlesJuegoActivo(null); 
-            setShowConfigModal(false); 
-            setVistaActual('menu'); 
-          }} 
-        />
-      )}
+        {/* 2. Memorama */}
+        {vistaActual === 'memorama' && (
+          <Memorama 
+            user={user} 
+            onSetControles={setControlesJuegoActivo}
+            onBack={() => { 
+              setControlesJuegoActivo(null); 
+              setShowConfigModal(false); 
+              setVistaActual('menu'); 
+            }} 
+          />
+        )}
 
-      {/* 3. Sopa de Letras */}
-      {vistaActual === 'sopa' && (
-        <SopaLetras 
-          user={user} 
-          onSetControles={setControlesJuegoActivo}
-          onBack={() => { 
-            setControlesJuegoActivo(null); 
-            setShowConfigModal(false); 
-            setVistaActual('menu'); 
-          }} 
-        />
-      )}
+        {/* 3. Sopa de Letras */}
+        {vistaActual === 'sopa' && (
+          <SopaLetras 
+            user={user} 
+            onSetControles={setControlesJuegoActivo}
+            onBack={() => { 
+              setControlesJuegoActivo(null); 
+              setShowConfigModal(false); 
+              setVistaActual('menu'); 
+            }} 
+          />
+        )}
 
-      {/* 4. Crucigrama */}
-      {vistaActual === 'crucigrama' && (
-        <Crucigrama 
-          user={user} 
-          onSetControles={setControlesJuegoActivo}
-          onBack={() => { 
-            setControlesJuegoActivo(null); 
-            setShowConfigModal(false); 
-            setVistaActual('menu'); 
-          }} 
-        />
-      )}
+        {/* 4. Crucigrama */}
+        {vistaActual === 'crucigrama' && (
+          <Crucigrama 
+            user={user} 
+            onSetControles={setControlesJuegoActivo}
+            onBack={() => { 
+              setControlesJuegoActivo(null); 
+              setShowConfigModal(false); 
+              setVistaActual('menu'); 
+            }} 
+          />
+        )}
 
-      {/* 5. Trivia */}
-      {vistaActual === 'trivia' && (
-        <Trivia 
-          user={user} 
-          onSetControles={setControlesJuegoActivo}
-          onBack={() => { 
-            setControlesJuegoActivo(null); 
-            setShowConfigModal(false); 
-            setVistaActual('menu'); 
-          }} 
-        />
-      )}
+        {/* 5. Trivia */}
+        {vistaActual === 'trivia' && (
+          <Trivia 
+            user={user} 
+            onSetControles={setControlesJuegoActivo}
+            onBack={() => { 
+              setControlesJuegoActivo(null); 
+              setShowConfigModal(false); 
+              setVistaActual('menu'); 
+            }} 
+          />
+        )}
+      </main>
 
       {/* Modal de Inicio de Sesión / Registro */}
       {showLoginModal && (
