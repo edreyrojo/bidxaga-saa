@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { listaAnimales } from '../data/animales.js';
+import ConfiguracionModal from './ConfiguracionModal';
 
-import { db } from '../firebaseConfig';
+import { db, auth } from '../firebaseConfig';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
 const LETRAS_RELLENO = ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'L', 'M', 'N', 'O', 'R', 'S', 'T', 'U', 'X', 'Y', 'Z'];
@@ -29,7 +30,14 @@ const limpiarPalabra = (texto, modoDificil = false) => {
         .replace(/[^A-Z]/g, "");        
 };
 
-export default function SopaLetras({ onBack, user }) {
+export default function SopaLetras({ 
+    onBack, 
+    user, 
+    isOpenConfig, 
+    onCloseConfig,
+    onSetControles,
+    setControlesJuegoActivo 
+}) {
     const [nivel, setNivel] = useState(1);
     const [intentos, setIntentos] = useState(0); 
     const [matriz, setMatriz] = useState([]);
@@ -59,19 +67,69 @@ export default function SopaLetras({ onBack, user }) {
     const [guardadoEnNivel, setGuardadoEnNivel] = useState(false);
     const [pendingGlobalScore, setPendingGlobalScore] = useState(null);
 
-    // Estados para las Modales Personalizadas
+    // Estados para las Modales Personalizadas (con z-[70] para prioridad visual absoluta)
     const [showGuardarModal, setShowGuardarModal] = useState(false);
     const [inputPlayerName, setInputPlayerName] = useState('');
     const [showMenuModal, setShowMenuModal] = useState(false);
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
+    // Soporte para control externo o interno del modal de configuración
+    const [internalConfigOpen, setInternalConfigOpen] = useState(false);
+    const isConfigOpen = isOpenConfig !== undefined ? isOpenConfig : internalConfigOpen;
+    const handleCloseConfig = onCloseConfig || (() => setInternalConfigOpen(false));
+
     const gridRef = useRef(null);
 
-    // Tamaño dinámico de la cuadrícula
+    // Tamaño dinámico y progresivo de la cuadrícula
     const tamanoActual = Math.min(5 + nivel, 12); 
     const cantidadPalabras = Math.min(3 + nivel, 8); 
     const recompensaActual = RECOMPENSAS_SOPA[nivel] || 50;
+
+    // Al hacer click en Guardar
+    const handleClickGuardar = () => {
+        localStorage.setItem('sopaLetrasNivel', nivel);
+        localStorage.setItem('sopaLetrasIntentos', intentos);
+        localStorage.setItem('sopaLetrasModoDificil', modoDificil);
+        localStorage.setItem('totopos', totopos);
+
+        if (guardadoEnNivel && !pendingGlobalScore) {
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Récord ya guardado",
+                message: `Ya guardaste tu récord global para el Nivel ${nivel}. Avanza al siguiente nivel para volver a registrar tu puntaje en el ranking.`
+            });
+            return;
+        }
+
+        setInputPlayerName(playerName);
+        setShowGuardarModal(true);
+    };
+
+    // Sincronizar controles globales con App.jsx y ConfiguracionModal
+    useEffect(() => {
+        const registrarControles = onSetControles || setControlesJuegoActivo;
+        if (registrarControles) {
+            registrarControles({
+                level: nivel,
+                onMenuClick: () => setShowMenuModal(true),
+                onGuardarClick: handleClickGuardar,
+                onReiniciarClick: () => setShowConfirmRestartModal(true),
+                modoDificil: modoDificil,
+                onToggleModoDificil: () => {
+                    const nuevoModo = !modoDificil;
+                    setModoDificil(nuevoModo);
+                    localStorage.setItem('sopaLetrasModoDificil', nuevoModo);
+                }
+            });
+        }
+
+        return () => {
+            if (registrarControles) {
+                registrarControles(null);
+            }
+        };
+    }, [nivel, modoDificil, intentos, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
     // Cargar datos locales y sincronizar totopos de la nube si hay sesión activa
     useEffect(() => {
@@ -90,11 +148,11 @@ export default function SopaLetras({ onBack, user }) {
         }
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
 
-        // Sincronizar con Firestore si el usuario está autenticado
         const cargarTotoposNube = async () => {
-            if (user) {
+            const currentUser = user || auth.currentUser;
+            if (currentUser) {
                 try {
-                    const userDocRef = doc(db, 'usuarios', user.uid);
+                    const userDocRef = doc(db, 'usuarios', currentUser.uid);
                     const userSnap = await getDoc(userDocRef);
                     if (userSnap.exists()) {
                         const data = userSnap.data();
@@ -156,23 +214,22 @@ export default function SopaLetras({ onBack, user }) {
         };
     }, []);
 
-    // Detectar cuando se completa el nivel de forma segura (evita bucles)
+    // Detectar cuando se completa el nivel de forma segura
     useEffect(() => {
         if (palabrasEncontradas.length === animalesObjetivo.length && animalesObjetivo.length > 0) {
-            if (pendingGlobalScore) return; // Ya procesado para este nivel
+            if (pendingGlobalScore) return;
 
             setPendingGlobalScore({ level: nivel, intentos: intentos });
 
-            // Sumar totopos localmente
             const nuevosTotopos = totopos + recompensaActual;
             setTotopos(nuevosTotopos);
             localStorage.setItem('totopos', nuevosTotopos);
 
-            // Si el usuario inició sesión, abonar sus totopos automáticamente en Firestore
-            if (user) {
+            const currentUser = user || auth.currentUser;
+            if (currentUser) {
                 const abonarTotopos = async () => {
                     try {
-                        const userRef = doc(db, 'usuarios', user.uid);
+                        const userRef = doc(db, 'usuarios', currentUser.uid);
                         const userSnap = await getDoc(userRef);
                         
                         if (userSnap.exists()) {
@@ -181,7 +238,7 @@ export default function SopaLetras({ onBack, user }) {
                             });
                         } else {
                             await setDoc(userRef, {
-                                email: user.email,
+                                email: currentUser.email,
                                 totopos: recompensaActual,
                                 avatar: 'default',
                                 avataresDesbloqueados: ['default']
@@ -378,25 +435,6 @@ export default function SopaLetras({ onBack, user }) {
         setCeldasSeleccionadas([]);
     };
 
-    const handleClickGuardar = () => {
-        localStorage.setItem('sopaLetrasNivel', nivel);
-        localStorage.setItem('sopaLetrasIntentos', intentos);
-        localStorage.setItem('sopaLetrasModoDificil', modoDificil);
-        localStorage.setItem('totopos', totopos);
-
-        if (guardadoEnNivel && !pendingGlobalScore) {
-            setFeedbackModal({
-                show: true,
-                title: "⚠️ Récord ya guardado",
-                message: `Ya guardaste tu récord global para el Nivel ${nivel}. Avanza al siguiente nivel para volver a registrar tu puntaje en el ranking.`
-            });
-            return;
-        }
-
-        setInputPlayerName(playerName);
-        setShowGuardarModal(true);
-    };
-
     const confirmarGuardadoGlobal = async () => {
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
@@ -461,8 +499,8 @@ export default function SopaLetras({ onBack, user }) {
             const q = query(collection(db, "ranking_sopa"), orderBy("level", "desc"), orderBy("intentos", "asc"), limit(10));
             const querySnapshot = await getDocs(q);
             const docs = [];
-            querySnapshot.forEach((doc) => {
-                docs.push({ id: doc.id, ...doc.data() });
+            querySnapshot.forEach((docSnap) => {
+                docs.push({ id: docSnap.id, ...docSnap.data() });
             });
             setRanking(docs);
         } catch (error) {
@@ -491,36 +529,21 @@ export default function SopaLetras({ onBack, user }) {
                 </p>
             </header>
 
-            {/* BARRA DE CONTROL LOCAL Y GLOBAL UNIFICADA */}
-            <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-3 shadow-sm text-sm gap-2">
-                <div className="text-amber-950 font-semibold text-xs sm:text-sm">
-                    <span className="text-amber-800 font-bold">Cuadrícula:</span> {tamanoActual}x{tamanoActual}
-                </div>
-                <div className="flex gap-2 flex-wrap items-center">
-                    {onBack && (
-                        <button 
-                            type="button"
-                            onClick={() => setShowMenuModal(true)} 
-                            className="bg-amber-800 hover:bg-amber-900 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors"
-                        >
-                            Menú
-                        </button>
-                    )}
-                    <button type="button" onClick={handleClickGuardar} className="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Guardar</button>
-                    <button type="button" onClick={() => setShowConfirmRestartModal(true)} className="bg-amber-950 hover:bg-black text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Reiniciar</button>
-                    <button 
-                        type="button"
-                        onClick={() => {
-                            const nuevoModo = !modoDificil;
-                            setModoDificil(nuevoModo);
-                            localStorage.setItem('sopaLetrasModoDificil', nuevoModo);
-                        }} 
-                        className={`font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors ${modoDificil ? 'bg-green-600 text-white' : 'bg-red-100 hover:bg-red-200 text-red-700 underline border border-red-300'}`}
-                    >
-                        {modoDificil ? 'Difícil ON' : 'Difícil OFF'}
-                    </button>
-                </div>
-            </div>
+            {/* MODAL DE CONFIGURACIÓN UNIFICADO */}
+            <ConfiguracionModal
+                isOpen={isConfigOpen}
+                onClose={handleCloseConfig}
+                level={nivel}
+                onMenuClick={onBack ? () => setShowMenuModal(true) : null}
+                onGuardarClick={handleClickGuardar}
+                onReiniciarClick={() => setShowConfirmRestartModal(true)}
+                modoDificil={modoDificil}
+                onToggleModoDificil={() => {
+                    const nuevoModo = !modoDificil;
+                    setModoDificil(nuevoModo);
+                    localStorage.setItem('sopaLetrasModoDificil', nuevoModo);
+                }}
+            />
 
             {/* AVISO DE NIVEL COMPLETADO */}
             {palabrasEncontradas.length === animalesObjetivo.length && animalesObjetivo.length > 0 && (
@@ -530,7 +553,7 @@ export default function SopaLetras({ onBack, user }) {
                         +{recompensaActual} 🌽 Totopos añadidos a tu morral
                     </p>
                     <div className="flex gap-3 justify-center">
-                        <button type="button" onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm transition-transform active:scale-95">
+                        <button type="button" onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm transition-transform active:scale-95 cursor-pointer">
                             Siguiente Nivel ➡️
                         </button>
                     </div>
@@ -599,9 +622,9 @@ export default function SopaLetras({ onBack, user }) {
                 </div>
             </div>
 
-            {/* MODAL PERSONALIZADA PARA GUARDAR PROGRESO */}
+            {/* MODAL PERSONALIZADA PARA GUARDAR PROGRESO (z-[70]) */}
             {showGuardarModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Récord</h3>
                         <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para guardar tu puntaje en el ranking global.</p>
@@ -619,14 +642,14 @@ export default function SopaLetras({ onBack, user }) {
                             <button 
                                 type="button"
                                 onClick={() => setShowGuardarModal(false)} 
-                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 type="button"
                                 onClick={confirmarGuardadoGlobal} 
-                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
                                 Guardar
                             </button>
@@ -635,9 +658,9 @@ export default function SopaLetras({ onBack, user }) {
                 </div>
             )}
 
-            {/* MODAL DE CONFIRMACIÓN PARA VOLVER AL MENÚ */}
+            {/* MODAL DE CONFIRMACIÓN PARA VOLVER AL MENÚ (z-[70]) */}
             {showMenuModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <div className="text-3xl mb-2">⚠️</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
@@ -647,14 +670,14 @@ export default function SopaLetras({ onBack, user }) {
                             <button 
                                 type="button"
                                 onClick={() => setShowMenuModal(false)} 
-                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 type="button"
                                 onClick={() => { setShowMenuModal(false); if (onBack) onBack(); }} 
-                                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
                                 Sí, salir
                             </button>
@@ -663,9 +686,9 @@ export default function SopaLetras({ onBack, user }) {
                 </div>
             )}
 
-            {/* MODAL DE CONFIRMACIÓN PARA REINICIAR */}
+            {/* MODAL DE CONFIRMACIÓN PARA REINICIAR (z-[70]) */}
             {showConfirmRestartModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <div className="text-3xl mb-2">🔄</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Reiniciar Progreso?</h3>
@@ -675,14 +698,14 @@ export default function SopaLetras({ onBack, user }) {
                             <button 
                                 type="button"
                                 onClick={() => setShowConfirmRestartModal(false)} 
-                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 type="button"
                                 onClick={confirmarReiniciar} 
-                                className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                                className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
                                 Sí, reiniciar
                             </button>
@@ -691,9 +714,9 @@ export default function SopaLetras({ onBack, user }) {
                 </div>
             )}
 
-            {/* MODAL DE MENSAJES / FEEDBACK GENERAL */}
+            {/* MODAL DE MENSAJES / FEEDBACK GENERAL (z-[70]) */}
             {feedbackModal.show && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">{feedbackModal.title}</h3>
                         <p className="text-xs text-amber-800 mb-5">{feedbackModal.message}</p>
@@ -701,7 +724,7 @@ export default function SopaLetras({ onBack, user }) {
                         <button 
                             type="button"
                             onClick={() => setFeedbackModal({ show: false, title: '', message: '' })} 
-                            className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                            className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                         >
                             Aceptar
                         </button>

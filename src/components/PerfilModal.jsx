@@ -56,14 +56,16 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     
                     // Sincronizar totopos históricos
                     let historico = data.totoposHistoricos || data.totopos || 0;
-                    if (data.totopos > historico) historico = data.totopos; // Auto-corrección si faltaba el dato
+                    if (data.totopos > historico) historico = data.totopos;
                     setTotoposHistoricos(historico);
                     
-                    // Avisar al componente padre (Menú Flotante) de los datos actuales
+                    // Avisar al componente padre de los datos actualizados incluyendo el nivel
                     if (onProfileUpdate) {
+                        const calc = calcularNivelYTitulo(historico);
                         onProfileUpdate({
                             nombre: data.nombre || '',
-                            avatar: data.avatar || 'default'
+                            avatar: data.avatar || 'default',
+                            nivel: calc.nivel
                         });
                     }
                 }
@@ -85,8 +87,10 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
             await updateDoc(docRef, { nombre: nombreLimpio });
             setMensaje('¡Nombre actualizado con éxito!');
             
-            // Actualizar la burbuja flotante del padre en tiempo real
-            if (onProfileUpdate) onProfileUpdate({ nombre: nombreLimpio, avatar: avatarActual });
+            const calc = calcularNivelYTitulo(totoposHistoricos);
+            if (onProfileUpdate) {
+                onProfileUpdate({ nombre: nombreLimpio, avatar: avatarActual, nivel: calc.nivel });
+            }
             
             setTimeout(() => setMensaje(''), 3000);
         } catch (error) {
@@ -125,6 +129,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     // Comprar o equipar un avatar
     const handleComprarOEquipar = async (avatarItem) => {
         const yaDesbloqueado = avataresDesbloqueados.includes(avatarItem.id);
+        const calc = calcularNivelYTitulo(totoposHistoricos);
 
         if (!yaDesbloqueado) {
             if (totopos < avatarItem.costo) {
@@ -147,7 +152,9 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                 setAvataresDesbloqueados(nuevosDesbloqueados);
                 setAvatarActual(avatarItem.id);
                 setMensaje(`¡Has comprado y equipado ${avatarItem.nombre}! 🎉`);
-                if (onProfileUpdate) onProfileUpdate({ nombre, avatar: avatarItem.id });
+                if (onProfileUpdate) {
+                    onProfileUpdate({ nombre, avatar: avatarItem.id, nivel: calc.nivel });
+                }
                 setTimeout(() => setMensaje(''), 3000);
             } catch (error) {
                 console.error("Error en compra:", error);
@@ -158,7 +165,9 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                 await updateDoc(docRef, { avatar: avatarItem.id });
                 setAvatarActual(avatarItem.id);
                 setMensaje(`Avatar cambiado a ${avatarItem.nombre} 👍`);
-                if (onProfileUpdate) onProfileUpdate({ nombre, avatar: avatarItem.id });
+                if (onProfileUpdate) {
+                    onProfileUpdate({ nombre, avatar: avatarItem.id, nivel: calc.nivel });
+                }
                 setTimeout(() => setMensaje(''), 3000);
             } catch (error) {
                 console.error("Error equipando avatar:", error);
@@ -191,10 +200,8 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-            {/* Modal Principal (Scrollable para no desbordar pantallas pequeñas) */}
             <div className="bg-amber-50 rounded-3xl shadow-2xl border-4 border-amber-600 w-full max-w-lg relative overflow-hidden flex flex-col max-h-[95vh] animate-fade-in">
                 
-                {/* Botón Cerrar (Sticky top) */}
                 <div className="absolute top-3 right-3 z-20">
                     <button
                         onClick={onClose}
@@ -204,7 +211,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     </button>
                 </div>
 
-                {/* Confirmación de Cierre de Sesión (Overlay interno) */}
                 {showConfirmLogout && (
                     <div className="absolute inset-0 bg-white/95 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
                         <div className="text-5xl mb-3">⚠️</div>
@@ -217,14 +223,11 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     </div>
                 )}
 
-                {/* Contenido Scrolleable */}
                 <div className="overflow-y-auto custom-scrollbar p-5 pb-6">
                     
-                    {/* Cabecera del Perfil */}
                     <div className="text-center mb-6 mt-2 relative">
                         <div className="w-24 h-24 bg-amber-600 rounded-full mx-auto flex items-center justify-center text-white text-5xl shadow-lg border-4 border-white relative">
                             {avatarSeleccionadoObj ? avatarSeleccionadoObj.emoji : '🌽'}
-                            {/* Medalla de Nivel */}
                             <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-1 rounded-full border-2 border-white shadow-sm">
                                 Lvl {nivel}
                             </div>
@@ -233,7 +236,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         <h2 className="text-2xl font-black text-amber-950 mt-3">
                             {nombre ? nombre : 'Mi Perfil Istmeño'}
                         </h2>
-                        {/* Si no tiene nombre registrado, mostrar su correo, de lo contrario mostrar su título */}
                         <p className="text-amber-700 text-sm font-medium mb-1">
                             {!nombre ? user.email : titulo}
                         </p>
@@ -256,7 +258,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     )}
 
-                    {/* Sección: Editar Nombre */}
                     <form onSubmit={handleActualizarNombre} className="mb-6 bg-white p-4 rounded-2xl border border-amber-200 shadow-sm">
                         <label className="block text-amber-900 font-bold text-sm mb-2">Nombre de usuario o apodo</label>
                         <div className="flex gap-2">
@@ -273,7 +274,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     </form>
 
-                    {/* Sección: Tienda de Vidas */}
                     <div className="mb-6">
                         <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">
                             <span>❤️</span> Comprar Vidas Extras
@@ -295,7 +295,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     </div>
 
-                    {/* Sección: Tienda de Avatares */}
                     <div className="mb-6">
                         <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">
                             <span>🛍️</span> Tienda de Avatares
@@ -334,7 +333,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     </div>
 
-                    {/* Botón Cerrar Sesión Falso (dispara overlay) */}
                     <button
                         onClick={() => setShowConfirmLogout(true)}
                         className="w-full bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 font-bold py-3 px-4 rounded-2xl shadow-sm transition-transform transform active:scale-95 text-sm"

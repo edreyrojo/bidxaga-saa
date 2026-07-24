@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { listaAnimales } from '../data/animales.js';
-
 import { auth, db } from '../firebaseConfig';
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, increment, query, orderBy, limit } from 'firebase/firestore';
 
-export default function Trivia({ onBack }) {
+export default function Trivia({ onBack, user, onSetControles, setControlesJuegoActivo }) {
     // Estados principales del juego
     const [nivel, setNivel] = useState(1);
     const [errores, setErrores] = useState(0);
@@ -25,15 +24,38 @@ export default function Trivia({ onBack }) {
     const [guardadoEnNivel, setGuardadoEnNivel] = useState(false);
     const [pendingGlobalScore, setPendingGlobalScore] = useState(null);
 
-    // Estados para las Modales Personalizadas
+    // Estados para las Modales Personalizadas del Juego
     const [showGuardarModal, setShowGuardarModal] = useState(false);
     const [inputPlayerName, setInputPlayerName] = useState('');
-    const [showMenuModal, setShowMenuModal] = useState(false);
+    const [showMenuModal, setShowMenuModal] = useState(false); // ⚠️ Estado para la advertencia del menú
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
     const PREGUNTAS_POR_NIVEL = 5;
     const TOTOPOS_POR_NIVEL = 15; // Recompensa de totopos al completar nivel
+
+    // Sincronizar controles globales con App.jsx y ConfiguracionModal
+    useEffect(() => {
+        const registrarControles = onSetControles || setControlesJuegoActivo;
+        if (registrarControles) {
+            registrarControles({
+                level: nivel,
+                onMenuClick: () => {
+                    setShowMenuModal(true); // ⚠️ Muestra la advertencia antes de salir
+                },
+                onGuardarClick: () => handleClickGuardar(),
+                onReiniciarClick: () => setShowConfirmRestartModal(true),
+                modoDificil: modoDificil,
+                onToggleModoDificil: () => setModoDificil(prev => !prev)
+            });
+        }
+
+        return () => {
+            if (registrarControles) {
+                registrarControles(null);
+            }
+        };
+    }, [nivel, modoDificil, errores, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
     // Cargar datos locales y sincronizar con Firebase si hay sesión activa
     useEffect(() => {
@@ -54,9 +76,10 @@ export default function Trivia({ onBack }) {
 
         // Sincronizar totopos del perfil en Firestore si el usuario está logueado
         const cargarTotoposNube = async () => {
-            if (auth.currentUser) {
+            const currentUser = user || auth.currentUser;
+            if (currentUser) {
                 try {
-                    const userDocRef = doc(db, 'usuarios', auth.currentUser.uid);
+                    const userDocRef = doc(db, 'usuarios', currentUser.uid);
                     const userSnap = await getDoc(userDocRef);
                     if (userSnap.exists()) {
                         const data = userSnap.data();
@@ -71,9 +94,15 @@ export default function Trivia({ onBack }) {
             }
         };
         cargarTotoposNube();
-        
         cargarRankingGlobal();
-    }, []);
+    }, [user]);
+
+    // Guardar en localStorage los cambios de nivel o modo difícil
+    useEffect(() => {
+        localStorage.setItem('triviaNivel', nivel);
+        localStorage.setItem('triviaErrores', errores);
+        localStorage.setItem('triviaModoDificil', modoDificil);
+    }, [nivel, errores, modoDificil]);
 
     // Generar pregunta cuando cambia el nivel o los aciertos
     useEffect(() => {
@@ -131,9 +160,10 @@ export default function Trivia({ onBack }) {
         localStorage.setItem('totopos', nuevosTotopos);
 
         // Si hay un usuario con sesión iniciada, actualizar en Firestore
-        if (auth.currentUser) {
+        const currentUser = user || auth.currentUser;
+        if (currentUser) {
             try {
-                const userDocRef = doc(db, 'usuarios', auth.currentUser.uid);
+                const userDocRef = doc(db, 'usuarios', currentUser.uid);
                 await updateDoc(userDocRef, {
                     totopos: increment(TOTOPOS_POR_NIVEL)
                 });
@@ -144,8 +174,6 @@ export default function Trivia({ onBack }) {
 
         setNivel(proximoNivel);
         setAciertosNivel(0);
-        localStorage.setItem('triviaNivel', proximoNivel);
-        localStorage.setItem('triviaErrores', errores);
         setGuardadoEnNivel(false);
         setPendingGlobalScore(null);
 
@@ -156,8 +184,7 @@ export default function Trivia({ onBack }) {
         });
     };
 
-    const handleClickGuardar = (e) => {
-        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const handleClickGuardar = () => {
         localStorage.setItem('triviaNivel', nivel);
         localStorage.setItem('triviaErrores', errores);
         localStorage.setItem('triviaModoDificil', modoDificil);
@@ -177,7 +204,7 @@ export default function Trivia({ onBack }) {
     };
 
     const confirmarGuardadoGlobal = async (e) => {
-        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+        if (e?.preventDefault) e.preventDefault();
         
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
@@ -216,7 +243,7 @@ export default function Trivia({ onBack }) {
     };
 
     const confirmarReiniciar = (e) => {
-        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+        if (e?.preventDefault) e.preventDefault();
         localStorage.removeItem('triviaNivel');
         localStorage.removeItem('triviaErrores');
         localStorage.removeItem('triviaModoDificil');
@@ -236,7 +263,7 @@ export default function Trivia({ onBack }) {
             const q = query(collection(db, "ranking_trivia"), orderBy("level", "desc"), orderBy("errores", "asc"), limit(10));
             const querySnapshot = await getDocs(q);
             const docs = [];
-            querySnapshot.forEach((doc) => docs.push({ id: doc.id, ...doc.data() }));
+            querySnapshot.forEach((docSnap) => docs.push({ id: docSnap.id, ...docSnap.data() }));
             setRanking(docs);
         } catch (error) {
             console.error("Error al cargar ranking:", error);
@@ -247,67 +274,45 @@ export default function Trivia({ onBack }) {
     return (
         <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col items-center select-none pb-[env(safe-area-inset-bottom)]">
             <header className="text-center mb-3">
-                <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">⚡ Reto Trivia</h2>
+                <h2 className="text-2xl sm:text-3xl font-black text-amber-950">⚡ Reto Trivia Diidxazá</h2>
                 <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">
                     Nivel {nivel} • Errores: {errores} • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
                 </p>
             </header>
 
-            {/* BARRA DE CONTROL */}
-            <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-3 shadow-sm text-sm gap-2">
-                <div className="text-amber-950 font-semibold text-xs sm:text-sm">
-                    <span className="text-amber-800 font-bold">Progreso:</span> {aciertosNivel} / {PREGUNTAS_POR_NIVEL}
-                </div>
-                <div className="flex gap-2 flex-wrap items-center">
-                    {onBack && (
-                        <button type="button" onClick={(e) => { e?.preventDefault?.(); setShowMenuModal(true); }} className="bg-amber-800 hover:bg-amber-900 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">
-                            Menú
-                        </button>
-                    )}
-                    <button type="button" onClick={handleClickGuardar} className="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Guardar</button>
-                    <button type="button" onClick={() => setShowConfirmRestartModal(true)} className="bg-amber-950 hover:bg-black text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Reiniciar</button>
-                    <button 
-                        type="button"
-                        onClick={() => {
-                            const nuevoModo = !modoDificil;
-                            setModoDificil(nuevoModo);
-                            localStorage.setItem('triviaModoDificil', nuevoModo);
-                        }} 
-                        className={`font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors ${modoDificil ? 'bg-red-600 text-white' : 'bg-red-100 hover:bg-red-200 text-red-700 underline border border-red-300'}`}
-                    >
-                        {modoDificil ? 'Sin Imágenes' : 'Con Imágenes'}
-                    </button>
-                </div>
+            {/* INDICADOR DE PROGRESO DE PREGUNTAS DEL NIVEL */}
+            <div className="w-full max-w-2xl text-center mb-3 text-xs sm:text-sm font-bold text-amber-900 bg-amber-100/50 py-1.5 px-3 rounded-xl border border-amber-200 shadow-sm">
+                Progreso del Nivel: {aciertosNivel} / {PREGUNTAS_POR_NIVEL} aciertos
             </div>
 
             {/* ZONA DE JUEGO */}
-            <div className="w-full max-w-lg mt-4 flex flex-col items-center">
+            <div className="w-full max-w-lg mt-2 flex flex-col items-center">
                 {aciertosNivel === PREGUNTAS_POR_NIVEL ? (
-                    <div className="w-full bg-green-50 border-2 border-green-500 rounded-xl p-6 text-center animate-bounce mt-4 shadow-lg">
-                        <h3 className="text-2xl font-bold text-green-900 mb-2">🎉 ¡Nivel Completado!</h3>
-                        <p className="text-green-800 mb-4 font-medium">Has superado las 5 preguntas y ganado +{TOTOPOS_POR_NIVEL} totopos.</p>
-                        <button type="button" onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-md text-lg transition-transform active:scale-95">
+                    <div className="w-full bg-amber-50 border-4 border-amber-600 rounded-3xl p-6 text-center animate-fade-in mt-4 shadow-xl">
+                        <h3 className="text-2xl font-black text-amber-950 mb-2">🎉 ¡Nivel Superado!</h3>
+                        <p className="text-amber-800 mb-6 font-medium text-sm">Has superado las 5 preguntas y ganado +{TOTOPOS_POR_NIVEL} totopos.</p>
+                        <button type="button" onClick={siguienteNivel} className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-8 rounded-2xl shadow-md text-sm transition-transform active:scale-95 cursor-pointer">
                             Siguiente Nivel ➡️
                         </button>
                     </div>
                 ) : (
                     preguntaActual && (
-                        <div className="w-full flex flex-col items-center bg-white p-6 rounded-3xl shadow-xl border-2 border-amber-100">
+                        <div className="w-full flex flex-col items-center bg-white p-6 rounded-3xl shadow-xl border-2 border-amber-200">
                             {!modoDificil && (
                                 <div className="w-48 h-48 sm:w-56 sm:h-56 bg-orange-50 rounded-2xl overflow-hidden flex items-center justify-center border-4 border-amber-200 mb-4 shadow-inner">
                                     <img src={preguntaActual.image} alt={preguntaActual.spanish} className="max-w-[80%] max-h-[80%] object-contain drop-shadow-md" onError={(e) => { e.target.src = "❓"; }} />
                                 </div>
                             )}
-                            <h3 className="text-2xl sm:text-3xl font-bold text-amber-950 uppercase tracking-wide mb-6">
+                            <h3 className="text-2xl sm:text-3xl font-black text-amber-950 uppercase tracking-wide mb-6 text-center">
                                 {preguntaActual.spanish}
                             </h3>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                                 {opciones.map((opcion) => {
-                                    let estiloBoton = "bg-amber-50 hover:bg-amber-100 border-2 border-amber-200 text-amber-950";
+                                    let estiloBoton = "bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-amber-950 cursor-pointer";
                                     
                                     if (estadoRespuesta && opcion.id === preguntaActual.id) {
-                                        estiloBoton = "bg-green-500 border-green-600 text-white scale-105 shadow-lg";
+                                        estiloBoton = "bg-emerald-600 border-emerald-700 text-white scale-105 shadow-lg";
                                     } else if (estadoRespuesta === 'incorrecta' && opcionSeleccionada === opcion.id) {
                                         estiloBoton = "bg-red-500 border-red-600 text-white scale-95 opacity-80";
                                     }
@@ -318,7 +323,7 @@ export default function Trivia({ onBack }) {
                                             type="button"
                                             onClick={() => manejarRespuesta(opcion)}
                                             disabled={estadoRespuesta !== null}
-                                            className={`py-4 px-4 rounded-xl font-bold text-lg sm:text-xl transition-all duration-200 active:scale-95 ${estiloBoton}`}
+                                            className={`py-4 px-4 rounded-2xl font-bold text-lg sm:text-xl transition-all duration-200 active:scale-95 shadow-sm ${estiloBoton}`}
                                         >
                                             {opcion.diidxaza}
                                         </button>
@@ -332,18 +337,20 @@ export default function Trivia({ onBack }) {
 
             {/* RANKING GLOBAL */}
             <div className="mt-12 w-full max-w-md">
-                <h3 className="font-bold text-amber-900 text-center mb-3 text-xl">🏆 Ranking - Trivia</h3>
-                <div className="bg-white rounded-xl p-4 shadow-md border border-amber-200">
+                <h3 className="font-black text-amber-900 text-center mb-3 text-lg flex items-center justify-center gap-2">
+                    <span>🏆</span> Ranking Global - Trivia
+                </h3>
+                <div className="bg-white rounded-2xl p-4 shadow-md border border-amber-200">
                     {cargandoRanking ? (
-                        <p className="text-center text-sm text-gray-500 py-2">Cargando puntajes globales...</p>
+                        <p className="text-center text-xs text-amber-700 py-3 font-medium">Cargando puntajes globales...</p>
                     ) : ranking.length === 0 ? (
-                        <p className="text-center text-sm text-gray-500 py-2">Aún no hay scores en la nube. ¡Sé el primero!</p>
+                        <p className="text-center text-xs text-amber-700 py-3 font-medium">Aún no hay scores en la nube. ¡Sé el primero!</p>
                     ) : (
                         ranking.map((r, i) => (
-                            <div key={r.id || i} className="flex justify-between items-center border-b py-2 text-sm border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
-                                <span className="font-medium text-amber-950">
-                                    <span className="text-orange-500 font-bold mr-2">{i + 1}.</span> {r.name} 
-                                    <span className="text-xs text-amber-700 font-bold ml-2">(Nivel {r.level})</span>
+                            <div key={r.id || i} className="flex justify-between items-center border-b py-2.5 text-xs sm:text-sm border-amber-100 last:border-0 hover:bg-amber-50 rounded-xl px-2 transition-colors">
+                                <span className="font-bold text-amber-950 flex items-center gap-2">
+                                    <span className="text-orange-600 font-black">{i + 1}.</span> {r.name} 
+                                    <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Nivel {r.level}</span>
                                 </span>
                                 <span className="font-bold text-red-700">{r.errores} errores</span>
                             </div>
@@ -354,36 +361,48 @@ export default function Trivia({ onBack }) {
 
             {/* MODAL GUARDAR */}
             {showGuardarModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <form onSubmit={confirmarGuardadoGlobal} className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Récord</h3>
-                        <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para el ranking global.</p>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <form onSubmit={confirmarGuardadoGlobal} className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
+                        <div className="w-12 h-12 bg-amber-600 rounded-full flex items-center justify-center text-white text-xl shadow-md border-2 border-white mb-3">
+                            💾
+                        </div>
+                        <h3 className="text-xl font-black text-amber-950 mb-1">Guardar Récord</h3>
+                        <p className="text-xs text-amber-700 text-center mb-4 font-medium">Ingresa tu nombre para el ranking global.</p>
                         <input 
                             type="text" 
                             placeholder="Escribe tu nombre" 
                             value={inputPlayerName} 
                             onChange={(e) => setInputPlayerName(e.target.value)} 
-                            className="border-2 border-amber-300 p-3 rounded-lg w-full mb-5 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm font-medium" 
+                            className="bg-white border-2 border-amber-300 p-3 rounded-xl w-full mb-5 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm font-bold text-amber-950" 
                             autoFocus 
                         />
                         <div className="flex gap-3 w-full">
-                            <button type="button" onClick={() => setShowGuardarModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300">Cancelar</button>
-                            <button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Guardar</button>
+                            <button type="button" onClick={() => setShowGuardarModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-3 rounded-2xl font-bold text-xs border border-amber-300 cursor-pointer">Cancelar</button>
+                            <button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer">Guardar</button>
                         </div>
                     </form>
                 </div>
             )}
 
-            {/* MODAL MENÚ */}
+            {/* ⚠️ MODAL DE ADVERTENCIA PARA VOLVER AL MENÚ */}
             {showMenuModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center animate-fade-in">
                         <div className="text-3xl mb-2">⚠️</div>
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menú?</h3>
-                        <p className="text-xs text-amber-800 mb-5">Guarda tu progreso antes de salir.</p>
+                        <h3 className="text-xl font-black text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
+                        <p className="text-xs text-amber-700 mb-5 font-medium">Si sales ahora, asegúrate de haber guardado tu progreso. ¿Estás seguro?</p>
                         <div className="flex gap-3 w-full">
-                            <button type="button" onClick={() => setShowMenuModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300">Cancelar</button>
-                            <button type="button" onClick={() => { setShowMenuModal(false); if (onBack) onBack(); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Sí, salir</button>
+                            <button type="button" onClick={() => setShowMenuModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-3 rounded-2xl font-bold text-xs border border-amber-300 cursor-pointer">Cancelar</button>
+                            <button 
+                                type="button" 
+                                onClick={() => {
+                                    setShowMenuModal(false);
+                                    if (onBack) onBack();
+                                }} 
+                                className="flex-1 bg-amber-950 hover:bg-black text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer"
+                            >
+                                Sí, salir
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -391,14 +410,16 @@ export default function Trivia({ onBack }) {
 
             {/* MODAL REINICIAR */}
             {showConfirmRestartModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
-                        <div className="text-3xl mb-2">🔄</div>
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">¿Reiniciar?</h3>
-                        <p className="text-xs text-amber-800 mb-5">Volverás al Nivel 1. ¿Estás seguro?</p>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center">
+                        <div className="w-12 h-12 bg-amber-600 rounded-full flex items-center justify-center text-white text-xl shadow-md border-2 border-white mb-3">
+                            🔄
+                        </div>
+                        <h3 className="text-xl font-black text-amber-950 mb-1">¿Reiniciar Partida?</h3>
+                        <p className="text-xs text-amber-700 mb-5 font-medium">Volverás al Nivel 1. ¿Estás seguro?</p>
                         <div className="flex gap-3 w-full">
-                            <button type="button" onClick={() => setShowConfirmRestartModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300">Cancelar</button>
-                            <button type="button" onClick={confirmarReiniciar} className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Sí, reiniciar</button>
+                            <button type="button" onClick={() => setShowConfirmRestartModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-3 rounded-2xl font-bold text-xs border border-amber-300 cursor-pointer">Cancelar</button>
+                            <button type="button" onClick={confirmarReiniciar} className="flex-1 bg-amber-950 hover:bg-black text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer">Sí, reiniciar</button>
                         </div>
                     </div>
                 </div>
@@ -406,11 +427,11 @@ export default function Trivia({ onBack }) {
 
             {/* MODAL FEEDBACK */}
             {feedbackModal.show && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">{feedbackModal.title}</h3>
-                        <p className="text-xs text-amber-800 mb-5">{feedbackModal.message}</p>
-                        <button type="button" onClick={() => setFeedbackModal({ show: false, title: '', message: '' })} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md">Aceptar</button>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center">
+                        <h3 className="text-xl font-black text-amber-950 mb-2">{feedbackModal.title}</h3>
+                        <p className="text-xs text-amber-700 mb-5 font-medium">{feedbackModal.message}</p>
+                        <button type="button" onClick={() => setFeedbackModal({ show: false, title: '', message: '' })} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer">Aceptar</button>
                     </div>
                 </div>
             )}

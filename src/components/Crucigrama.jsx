@@ -129,7 +129,12 @@ const generarTableroCrucigrama = (candidatos, modoDificil = false) => {
     return { matriz, placements: translatedPlacements, width, height };
 };
 
-export default function Crucigrama({ onBack, user }) {
+export default function Crucigrama({ 
+    onBack, 
+    user, 
+    setControlesJuegoActivo,
+    onSetControles 
+}) {
     const [nivel, setNivel] = useState(1);
     const [intentos, setIntentos] = useState(0);
     const [placements, setPlacements] = useState([]);
@@ -159,9 +164,66 @@ export default function Crucigrama({ onBack, user }) {
     const [inputPlayerName, setInputPlayerName] = useState('');
     const [showMenuModal, setShowMenuModal] = useState(false);
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
+    
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
     const recompensaActual = RECOMPENSAS_CRUCIGRAMA[nivel] || (20 * nivel);
+
+    // Función para manejar el guardado
+    const handleClickGuardar = () => {
+        localStorage.setItem('crucigramaNivel', nivel);
+        localStorage.setItem('crucigramaIntentos', intentos);
+        localStorage.setItem('crucigramaModoDificil', modoDificil);
+        localStorage.setItem('totopos', totopos);
+
+        if (guardadoEnNivel && !pendingGlobalScore) {
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Nivel ya guardado",
+                message: `Ya guardaste tu récord global para el Nivel ${nivel}. Avanza al siguiente nivel para volver a registrar tu puntaje en el ranking.`
+            });
+            return;
+        }
+
+        setInputPlayerName(playerName);
+        setShowGuardarModal(true);
+    };
+
+    // Registrar controles activos en App.jsx para la barra global de configuración
+    useEffect(() => {
+        const registrarControles = setControlesJuegoActivo || onSetControles;
+        if (registrarControles) {
+            registrarControles({
+                level: nivel,
+                onGuardarClick: handleClickGuardar,
+                onReiniciarClick: () => setShowConfirmRestartModal(true),
+                onMenuClick: () => {
+                    setShowMenuModal(true); // Abre la modal de confirmación antes de salir al menú
+                },
+                modoDificil: modoDificil,
+                onToggleModoDificil: () => {
+                    const nuevoModo = !modoDificil;
+                    setModoDificil(nuevoModo);
+                    localStorage.setItem('crucigramaModoDificil', nuevoModo);
+                }
+            });
+        }
+
+        // Limpieza al desmontar el juego
+        return () => {
+            if (registrarControles) {
+                registrarControles(null);
+            }
+        };
+    }, [nivel, intentos, modoDificil, totopos, guardadoEnNivel, pendingGlobalScore, playerName, setControlesJuegoActivo, onSetControles]);
+
+    // Función para confirmar la salida al menú principal desde la modal unificada
+    const confirmarSalidaMenu = () => {
+        setShowMenuModal(false);
+        if (onBack) {
+            onBack(); // Limpia los controles y vuelve a la vista de menú en App.jsx
+        }
+    };
 
     useEffect(() => {
         const nivelGuardado = localStorage.getItem('crucigramaNivel');
@@ -237,7 +299,6 @@ export default function Crucigrama({ onBack, user }) {
         if (palabrasResueltas.length === placements.length && placements.length > 0 && !pendingGlobalScore) {
             setPendingGlobalScore({ level: nivel, intentos: intentos });
 
-            // Sumar y guardar totopos localmente de forma segura
             setTotopos(prevTotopos => {
                 const nuevosTotopos = prevTotopos + recompensaActual;
                 localStorage.setItem('totopos', nuevosTotopos);
@@ -377,25 +438,6 @@ export default function Crucigrama({ onBack, user }) {
         }
     };
 
-    const handleClickGuardar = () => {
-        localStorage.setItem('crucigramaNivel', nivel);
-        localStorage.setItem('crucigramaIntentos', intentos);
-        localStorage.setItem('crucigramaModoDificil', modoDificil);
-        localStorage.setItem('totopos', totopos);
-
-        if (guardadoEnNivel && !pendingGlobalScore) {
-            setFeedbackModal({
-                show: true,
-                title: "⚠️ Nivel ya guardado",
-                message: `Ya guardaste tu récord global para el Nivel ${nivel}. Avanza al siguiente nivel para volver a registrar tu puntaje en el ranking.`
-            });
-            return;
-        }
-
-        setInputPlayerName(playerName);
-        setShowGuardarModal(true);
-    };
-
     const confirmarGuardadoGlobal = async () => {
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
@@ -493,30 +535,6 @@ export default function Crucigrama({ onBack, user }) {
                 </p>
             </header>
 
-            {/* BARRA DE CONTROL LOCAL Y GLOBAL UNIFICADA */}
-            <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-3 shadow-sm text-sm gap-2">
-                <div className="text-amber-950 font-semibold text-xs sm:text-sm">
-                    <span className="text-amber-800 font-bold">Instrucción:</span> Toca una pista para resolver.
-                </div>
-                <div className="flex gap-2 flex-wrap items-center">
-                    {onBack && (
-                        <button onClick={() => setShowMenuModal(true)} className="bg-amber-800 hover:bg-amber-900 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Menú</button>
-                    )}
-                    <button onClick={handleClickGuardar} className="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Guardar</button>
-                    <button onClick={() => setShowConfirmRestartModal(true)} className="bg-amber-950 hover:bg-black text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Reiniciar</button>
-                    <button 
-                        onClick={() => {
-                            const nuevoModo = !modoDificil;
-                            setModoDificil(nuevoModo);
-                            localStorage.setItem('crucigramaModoDificil', nuevoModo);
-                        }} 
-                        className={`font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors ${modoDificil ? 'bg-green-600 text-white' : 'bg-red-600 text-white underline decoration-white'}`}
-                    >
-                        {modoDificil ? 'Difícil ON' : 'Difícil OFF'}
-                    </button>
-                </div>
-            </div>
-
             {/* AVISO DE NIVEL COMPLETADO */}
             {nivelCompletado && (
                 <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce">
@@ -525,7 +543,7 @@ export default function Crucigrama({ onBack, user }) {
                         +{recompensaActual} 🌽 Totopos añadidos a tu morral (Total: {totopos})
                     </p>
                     <div className="flex gap-3 justify-center">
-                        <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm">Siguiente Nivel</button>
+                        <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm cursor-pointer">Siguiente Nivel</button>
                     </div>
                 </div>
             )}
@@ -611,12 +629,12 @@ export default function Crucigrama({ onBack, user }) {
 
             {/* MODAL DE DIAL CIRCULAR OPTIMIZADO */}
             {activePlacement && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-2 sm:p-4">
                     <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative max-h-[95vh] overflow-y-auto custom-scrollbar">
                         
                         <button 
                             onClick={() => { setActivePlacement(null); setLetrasElegidas([]); }}
-                            className="absolute top-3 right-4 sm:top-4 sm:right-5 text-gray-400 hover:text-gray-700 font-bold text-xl"
+                            className="absolute top-3 right-4 sm:top-4 sm:right-5 text-gray-400 hover:text-gray-700 font-bold text-xl cursor-pointer"
                         >
                             ✕
                         </button>
@@ -693,14 +711,14 @@ export default function Crucigrama({ onBack, user }) {
                         <div className="flex gap-3 w-full mt-3 sm:mt-4">
                             <button 
                                 onClick={limpiarDial}
-                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold py-2 rounded-xl text-sm shadow-sm transition-colors border border-amber-300"
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold py-2 rounded-xl text-sm shadow-sm transition-colors border border-amber-300 cursor-pointer"
                             >
                                 Borrar
                             </button>
                             <button 
                                 onClick={verificarYAplicarPalabra}
                                 disabled={letrasElegidas.length === 0}
-                                className={`flex-1 font-bold py-2 rounded-xl text-sm shadow-md transition-all ${letrasElegidas.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                                className={`flex-1 font-bold py-2 rounded-xl text-sm shadow-md transition-all cursor-pointer ${letrasElegidas.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}`}
                             >
                                 Comprobar
                             </button>
@@ -712,7 +730,7 @@ export default function Crucigrama({ onBack, user }) {
 
             {/* MODAL PERSONALIZADA PARA GUARDAR PROGRESO */}
             {showGuardarModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Récord</h3>
                         <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para guardar tu puntaje en el ranking global.</p>
@@ -729,13 +747,13 @@ export default function Crucigrama({ onBack, user }) {
                         <div className="flex gap-3 w-full">
                             <button 
                                 onClick={() => setShowGuardarModal(false)} 
-                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 onClick={confirmarGuardadoGlobal} 
-                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
                                 Guardar
                             </button>
@@ -744,35 +762,9 @@ export default function Crucigrama({ onBack, user }) {
                 </div>
             )}
 
-            {/* MODAL DE CONFIRMACIÓN PARA VOLVER AL MENÚ */}
-            {showMenuModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
-                        <div className="text-3xl mb-2">⚠️</div>
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
-                        <p className="text-xs text-amber-800 mb-5">Asegúrate de haber guardado tu progreso antes de salir para evitar perder tus avances.</p>
-                        
-                        <div className="flex gap-3 w-full">
-                            <button 
-                                onClick={() => setShowMenuModal(false)} 
-                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button 
-                                onClick={() => { setShowMenuModal(false); if (onBack) onBack(); }} 
-                                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
-                            >
-                                Sí, salir
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* MODAL DE CONFIRMACIÓN PARA REINICIAR */}
             {showConfirmRestartModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <div className="text-3xl mb-2">🔄</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Reiniciar Progreso?</h3>
@@ -781,13 +773,13 @@ export default function Crucigrama({ onBack, user }) {
                         <div className="flex gap-3 w-full">
                             <button 
                                 onClick={() => setShowConfirmRestartModal(false)} 
-                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 onClick={confirmarReiniciar} 
-                                className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                                className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
                                 Sí, reiniciar
                             </button>
@@ -796,16 +788,42 @@ export default function Crucigrama({ onBack, user }) {
                 </div>
             )}
 
+            {/* MODAL DE CONFIRMACIÓN PARA SALIR AL MENÚ PRINCIPAL */}
+            {showMenuModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
+                        <div className="text-3xl mb-2">🏠</div>
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
+                        <p className="text-xs text-amber-800 mb-5">Si sales ahora, asegúrate de haber guardado tu progreso en esta partida.</p>
+                        
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={() => setShowMenuModal(false)} 
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={confirmarSalidaMenu} 
+                                className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
+                            >
+                                Sí, salir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* MODAL DE MENSAJES / FEEDBACK GENERAL */}
             {feedbackModal.show && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">{feedbackModal.title}</h3>
                         <p className="text-xs text-amber-800 mb-5">{feedbackModal.message}</p>
                         
                         <button 
                             onClick={() => setFeedbackModal({ show: false, title: '', message: '' })} 
-                            className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                            className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                         >
                             Aceptar
                         </button>

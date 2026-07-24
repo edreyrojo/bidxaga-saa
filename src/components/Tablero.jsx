@@ -17,7 +17,12 @@ const getConfigForLevel = (lvl) => {
     return CONFIG_NIVELES[lvl] || { parejas: 12, columnas: 'grid-cols-4 sm:grid-cols-6', recompensa: 50 };
 };
 
-export default function Tablero({ onBack, user }) { // <--- Recibimos `user` como prop
+export default function Tablero({ 
+    onBack, 
+    user, 
+    onSetControles, 
+    setControlesJuegoActivo 
+}) {
     const [level, setLevel] = useState(1);
     const [cards, setCards] = useState([]);
     const [turns, setTurns] = useState(0);
@@ -40,12 +45,58 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
     // Estados para las Modales Personalizadas
     const [showGuardarModal, setShowGuardarModal] = useState(false);
     const [inputPlayerName, setInputPlayerName] = useState('');
-    const [showMenuModal, setShowMenuModal] = useState(false);
+    const [showMenuModal, setShowMenuModal] = useState(false); // ⚠️ Estado restaurado para la advertencia del menú
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
     const configActual = getConfigForLevel(level);
     const parejasRequeridas = configActual.parejas;
+
+    // Al hacer click en Guardar
+    const handleClickGuardar = () => {
+        localStorage.setItem('memoramaNivel', level);
+        localStorage.setItem('memoramaModoDificil', modoDificil);
+        localStorage.setItem('totopos', totopos);
+
+        if (guardadoEnNivel && !pendingGlobalScore) {
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Récord ya guardado",
+                message: "Ya guardaste tu récord global. Avanza o completa un nivel para volver a registrar tu puntaje."
+            });
+            return;
+        }
+
+        setInputPlayerName(playerName);
+        setShowGuardarModal(true);
+    };
+
+    // Sincronizar controles globales con App.jsx y ConfiguracionModal
+    useEffect(() => {
+        const registrarControles = onSetControles || setControlesJuegoActivo;
+        if (registrarControles) {
+            registrarControles({
+                level: level,
+                onMenuClick: () => {
+                    setShowMenuModal(true); // ⚠️ Muestra la advertencia antes de salir
+                },
+                onGuardarClick: handleClickGuardar,
+                onReiniciarClick: () => setShowConfirmRestartModal(true),
+                modoDificil: modoDificil,
+                onToggleModoDificil: () => {
+                    const nuevoModo = !modoDificil;
+                    setModoDificil(nuevoModo);
+                    localStorage.setItem('memoramaModoDificil', nuevoModo);
+                }
+            });
+        }
+
+        return () => {
+            if (registrarControles) {
+                registrarControles(null);
+            }
+        };
+    }, [level, modoDificil, turns, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
     // 2. FUNCIÓN PARA LEER DESDE LA NUBE (GLOBAL)
     const cargarRankingGlobal = async () => {
@@ -115,17 +166,15 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
         iniciarJuego(level);
     }, [level, modoDificil]);
 
-    // Detectar automáticamente cuando se completa un nivel con la guarda anti-bucle (!pendingGlobalScore)
+    // Detectar automáticamente cuando se completa un nivel
     useEffect(() => {
         if (matches === parejasRequeridas && parejasRequeridas > 0 && !pendingGlobalScore) {
             setPendingGlobalScore({ level: level, turns: turns });
             
-            // Sumar y guardar totopos localmente de forma segura
             setTotopos(prevTotopos => {
                 const nuevosTotopos = prevTotopos + configActual.recompensa;
                 localStorage.setItem('totopos', nuevosTotopos);
 
-                // Si el usuario inició sesión, abonar sus totopos automáticamente en Firestore
                 const currentUser = user || auth.currentUser;
                 if (currentUser) {
                     const abonarTotopos = async () => {
@@ -157,26 +206,6 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
         }
     }, [matches, parejasRequeridas, level, turns, user, configActual.recompensa, pendingGlobalScore]);
 
-    // Al hacer click en Guardar: Abrir modal personalizada
-    const handleClickGuardar = () => {
-        localStorage.setItem('memoramaNivel', level);
-        localStorage.setItem('memoramaModoDificil', modoDificil);
-        localStorage.setItem('totopos', totopos);
-
-        if (guardadoEnNivel && !pendingGlobalScore) {
-            setFeedbackModal({
-                show: true,
-                title: "⚠️ Récord ya guardado",
-                message: "Ya guardaste tu récord global. Avanza o completa un nivel para volver a registrar tu puntaje."
-            });
-            return;
-        }
-
-        setInputPlayerName(playerName);
-        setShowGuardarModal(true);
-    };
-
-    // Ejecutar guardado real desde la modal personalizada
     const confirmarGuardadoGlobal = async () => {
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
@@ -308,35 +337,6 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
                 </p>
             </header>
 
-            {/* BARRA DE CONTROL LOCAL Y GLOBAL UNIFICADA */}
-            <div className="w-full max-w-2xl flex flex-wrap justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-xl mb-3 shadow-sm text-sm gap-2">
-                <div className="text-amber-950 font-semibold text-xs sm:text-sm">
-                    <span className="text-amber-800 font-bold">Nivel:</span> {level}
-                </div>
-                <div className="flex gap-2 flex-wrap items-center">
-                    {onBack && (
-                        <button 
-                            onClick={() => setShowMenuModal(true)} 
-                            className="bg-amber-800 hover:bg-amber-900 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors"
-                        >
-                            Menú
-                        </button>
-                    )}
-                    <button onClick={handleClickGuardar} className="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Guardar</button>
-                    <button onClick={() => setShowConfirmRestartModal(true)} className="bg-amber-950 hover:bg-black text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors">Reiniciar</button>
-                    <button 
-                        onClick={() => {
-                            const nuevoModo = !modoDificil;
-                            setModoDificil(nuevoModo);
-                            localStorage.setItem('memoramaModoDificil', nuevoModo);
-                        }} 
-                        className={`font-semibold px-3 py-1.5 rounded-lg shadow-sm text-xs transition-colors ${modoDificil ? 'bg-green-600 text-white' : 'bg-red-100 hover:bg-red-200 text-red-700 underline border border-red-300'}`}
-                    >
-                        {modoDificil ? 'Difícil ON' : 'Difícil OFF'}
-                    </button>
-                </div>
-            </div>
-
             {matches === parejasRequeridas && (
                 <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce">
                     <p className="text-lg sm:text-xl font-bold text-green-900 mb-1">🎉 ¡Nivel {level} completado!</p>
@@ -344,7 +344,7 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
                         +{configActual.recompensa} 🌽 Totopos añadidos a tu morral (Total: {totopos})
                     </p>
                     <div className="flex gap-3 justify-center">
-                        <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm">Siguiente Nivel</button>
+                        <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm cursor-pointer">Siguiente Nivel</button>
                     </div>
                 </div>
             )}
@@ -357,7 +357,7 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
 
             {/* MODAL PERSONALIZADA PARA GUARDAR PROGRESO */}
             {showGuardarModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Récord</h3>
                         <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para guardar tu puntaje en el ranking global.</p>
@@ -374,13 +374,13 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
                         <div className="flex gap-3 w-full">
                             <button 
                                 onClick={() => setShowGuardarModal(false)} 
-                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 onClick={confirmarGuardadoGlobal} 
-                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
                                 Guardar
                             </button>
@@ -389,24 +389,27 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
                 </div>
             )}
 
-            {/* MODAL DE CONFIRMACIÓN PARA VOLVER AL MENÚ */}
+            {/* ⚠️ MODAL DE CONFIRMACIÓN PARA VOLVER AL MENÚ */}
             {showMenuModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <div className="text-3xl mb-2">⚠️</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
-                        <p className="text-xs text-amber-800 mb-5">Asegúrate de haber guardado tu progreso antes de salir para evitar perder tus avances.</p>
+                        <p className="text-xs text-amber-800 mb-5">Si sales ahora, asegúrate de haber guardado tu progreso. ¿Estás seguro?</p>
                         
                         <div className="flex gap-3 w-full">
                             <button 
                                 onClick={() => setShowMenuModal(false)} 
-                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button 
-                                onClick={() => { setShowMenuModal(false); if (onBack) onBack(); }} 
-                                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                                onClick={() => {
+                                    setShowMenuModal(false);
+                                    if (onBack) onBack();
+                                }} 
+                                className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
                                 Sí, salir
                             </button>
@@ -417,7 +420,7 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
 
             {/* MODAL DE CONFIRMACIÓN PARA REINICIAR */}
             {showConfirmRestartModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <div className="text-3xl mb-2">🔄</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Reiniciar Progreso?</h3>
@@ -426,13 +429,13 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
                         <div className="flex gap-3 w-full">
                             <button 
                                 onClick={() => setShowConfirmRestartModal(false)} 
-                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors"
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 onClick={confirmarReiniciar} 
-                                className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                                className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
                                 Sí, reiniciar
                             </button>
@@ -441,16 +444,16 @@ export default function Tablero({ onBack, user }) { // <--- Recibimos `user` com
                 </div>
             )}
 
-            {/* MODAL DE MENSAJES / FEEDBACK GENERAL (REEMPLAZO DE ALERT) */}
+            {/* MODAL DE MENSAJES / FEEDBACK GENERAL */}
             {feedbackModal.show && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">{feedbackModal.title}</h3>
                         <p className="text-xs text-amber-800 mb-5">{feedbackModal.message}</p>
                         
                         <button 
                             onClick={() => setFeedbackModal({ show: false, title: '', message: '' })} 
-                            className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors"
+                            className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                         >
                             Aceptar
                         </button>
