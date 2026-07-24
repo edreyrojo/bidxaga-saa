@@ -169,7 +169,36 @@ export default function Crucigrama({
 
     const recompensaActual = RECOMPENSAS_CRUCIGRAMA[nivel] || (20 * nivel);
 
-    // Función para manejar el guardado
+    // Función auxiliar para guardar automáticamente si hay sesión activa
+    const confirmarGuardadoAutomatico = async (nombreLimpio) => {
+        const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
+
+        try {
+            await addDoc(collection(db, "ranking_crucigrama"), {
+                name: nombreLimpio,
+                intentos: scoreToSave.intentos,
+                level: scoreToSave.level,
+                fecha: new Date().toISOString()
+            });
+            await cargarRankingGlobal();
+            setGuardadoEnNivel(true);
+            setPendingGlobalScore(null);
+            setFeedbackModal({
+                show: true,
+                title: "🎉 ¡Guardado Exitoso!",
+                message: `¡Hola ${nombreLimpio}! Récord registrado automáticamente en el ranking global para el Nivel ${scoreToSave.level} (${scoreToSave.intentos} intentos).`
+            });
+        } catch (error) {
+            console.error("Error al guardar en Firebase:", error);
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Guardado Parcial",
+                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
+            });
+        }
+    };
+
+    // Función para manejar el guardado con detección de sesión activa
     const handleClickGuardar = () => {
         localStorage.setItem('crucigramaNivel', nivel);
         localStorage.setItem('crucigramaIntentos', intentos);
@@ -185,6 +214,15 @@ export default function Crucigrama({
             return;
         }
 
+        // 🚀 Validación de sesión activa para saltar el modal de texto
+        const currentUser = user || auth.currentUser;
+        if (currentUser) {
+            const nombreAutomatico = currentUser.displayName || currentUser.email.split('@')[0];
+            confirmarGuardadoAutomatico(nombreAutomatico);
+            return;
+        }
+
+        // Si no está logueado, se abre el modal de texto normalmente
         setInputPlayerName(playerName);
         setShowGuardarModal(true);
     };
@@ -198,7 +236,7 @@ export default function Crucigrama({
                 onGuardarClick: handleClickGuardar,
                 onReiniciarClick: () => setShowConfirmRestartModal(true),
                 onMenuClick: () => {
-                    setShowMenuModal(true); // Abre la modal de confirmación antes de salir al menú
+                    setShowMenuModal(true); // Abre la modal de advertencia antes de salir al menú
                 },
                 modoDificil: modoDificil,
                 onToggleModoDificil: () => {
@@ -215,7 +253,7 @@ export default function Crucigrama({
                 registrarControles(null);
             }
         };
-    }, [nivel, intentos, modoDificil, totopos, guardadoEnNivel, pendingGlobalScore, playerName, setControlesJuegoActivo, onSetControles]);
+    }, [nivel, intentos, modoDificil, totopos, guardadoEnNivel, pendingGlobalScore, playerName, setControlesJuegoActivo, onSetControles, user]);
 
     // Función para confirmar la salida al menú principal desde la modal unificada
     const confirmarSalidaMenu = () => {

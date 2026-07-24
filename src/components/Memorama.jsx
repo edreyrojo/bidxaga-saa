@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { listaAnimales } from '../data/animales.js';
-import Tarjeta from './Tarjeta';
 
 // 1. IMPORTAMOS LA CONFIGURACIÓN Y FUNCIONES DE FIREBASE
-import { auth, db } from '../firebaseConfig';
+import { auth, db } from '../firebaseConfig.js';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
 const CONFIG_NIVELES = {
@@ -17,6 +16,68 @@ const getConfigForLevel = (lvl) => {
     return CONFIG_NIVELES[lvl] || { parejas: 12, columnas: 'grid-cols-4 sm:grid-cols-6', recompensa: 50 };
 };
 
+// ==========================================
+// SUBCOMPONENTE INTEGRADO: TARJETA
+// ==========================================
+function Tarjeta({ card, handleChoice, flipped, disabled }) {
+    const handleClick = () => {
+        if (!disabled && !flipped && !card.isMatched) {
+            handleChoice(card);
+        }
+    };
+
+    const textLength = card.content ? card.content.length : 0;
+
+    const responsiveTextClass = () => {
+        if (textLength > 12) return "text-[10px] md:text-sm"; // Palabras muy largas
+        if (textLength > 8) return "text-xs md:text-base";    // Palabras medianas
+        return "text-sm md:text-xl font-bold";                // Palabras cortas (Ideal)
+    };
+
+    return (
+        <div className="relative aspect-square cursor-pointer perspective group" onClick={handleClick}>
+            <div className={`w-full h-full duration-500 transform-style preserve-3d relative ${flipped ? 'rotate-y-180' : ''}`}>
+
+                {/* PARTE FRONTAL (Contenido) */}
+                <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-white border-2 border-amber-300 rounded-xl flex flex-col items-center justify-center p-2 shadow-inner hover:border-amber-400 transition-colors">
+                    {card.type === 'image' ? (
+                        <img
+                            src={card.content}
+                            alt={card.label}
+                            className="w-full h-full object-contain p-1 rounded-lg"
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                            }}
+                        />
+                    ) : null}
+
+                    {/* Contenedor de texto con clases responsivas */}
+                    <div className={`${card.type === 'image' ? 'hidden' : 'flex'} flex-col items-center justify-center h-full w-full text-center p-1`}>
+                        <p className={`${responsiveTextClass()} text-amber-950 uppercase tracking-tight leading-tight break-words`}>
+                            {card.type === 'word' ? card.content : card.label}
+                        </p>
+                        {card.type === 'word' && (
+                            <span className="text-[9px] md:text-xs text-black mt-1 uppercase tracking-wider block">
+                                ({card.label})
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* PARTE TRASERA (Ficha oculta) */}
+                <div className="absolute inset-0 w-full h-full backface-hidden bg-amber-600 border-2 border-white rounded-xl flex items-center justify-center shadow-lg transition-all group-hover:bg-amber-500 group-hover:scale-[1.02]">
+                    <span className="text-white/40 font-black text-3xl md:text-5xl select-none">?</span>
+                </div>
+
+            </div>
+        </div>
+    );
+}
+
+// ==========================================
+// COMPONENTE PRINCIPAL: TABLERO
+// ==========================================
 export default function Tablero({ 
     onBack, 
     user, 
@@ -53,7 +114,7 @@ export default function Tablero({
     const parejasRequeridas = configActual.parejas;
 
     // Al hacer click en Guardar
-    const handleClickGuardar = () => {
+    const handleClickGuardar = async () => {
         localStorage.setItem('memoramaNivel', level);
         localStorage.setItem('memoramaModoDificil', modoDificil);
         localStorage.setItem('totopos', totopos);
@@ -67,8 +128,59 @@ export default function Tablero({
             return;
         }
 
-        setInputPlayerName(playerName);
-        setShowGuardarModal(true);
+        const currentUser = user || auth.currentUser;
+        let nombreAUsar = playerName;
+
+        // Si está logueado, verificamos y aseguramos tener el nickname más reciente de la nube
+        if (currentUser) {
+            try {
+                const userDocRef = doc(db, 'usuarios', currentUser.uid);
+                const userSnap = await getDoc(userDocRef);
+                if (userSnap.exists()) {
+                    const data = userSnap.data();
+                    const nickNube = data.nickname || data.nombre || data.name;
+                    if (nickNube) {
+                        nombreAUsar = nickNube;
+                        setPlayerName(nickNube);
+                        setInputPlayerName(nickNube);
+                        localStorage.setItem('memoramaPlayerName', nickNube);
+                    }
+                }
+            } catch (e) {
+                console.error("Error al verificar nickname en la nube:", e);
+            }
+        }
+
+        // Si está logueado y tiene un nickname configurado, guarda directamente sin mostrar la modal
+        if (currentUser && nombreAUsar.trim()) {
+            const scoreToSave = pendingGlobalScore || { level: level, turns: turns };
+            try {
+                await addDoc(collection(db, "ranking"), {
+                    name: nombreAUsar.trim(),
+                    score: scoreToSave.turns,
+                    level: scoreToSave.level,
+                    fecha: new Date().toISOString()
+                });
+                await cargarRankingGlobal();
+                setGuardadoEnNivel(true);
+                setPendingGlobalScore(null);
+                setFeedbackModal({
+                    show: true,
+                    title: "🎉 ¡Guardado Exitoso!",
+                    message: `¡Partida guardada localmente (Nivel ${level}) y récord global registrado para el Nivel ${scoreToSave.level} con ${scoreToSave.turns} turnos!`
+                });
+            } catch (error) {
+                console.error("Error al guardar el puntaje en Firebase:", error);
+                setFeedbackModal({
+                    show: true,
+                    title: "⚠️ Guardado Parcial",
+                    message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
+                });
+            }
+        } else {
+            setInputPlayerName(nombreAUsar);
+            setShowGuardarModal(true);
+        }
     };
 
     // Sincronizar controles globales con App.jsx y ConfiguracionModal
@@ -140,8 +252,8 @@ export default function Tablero({
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
         setLevel(nivelInicial);
 
-        // Sincronizar totopos del perfil en Firestore si el usuario está logueado
-        const cargarTotoposNube = async () => {
+        // Sincronizar datos (totopos y nickname) del perfil en Firestore si el usuario está logueado
+        const cargarDatosNube = async () => {
             const currentUser = user || auth.currentUser;
             if (currentUser) {
                 try {
@@ -153,13 +265,19 @@ export default function Tablero({
                             setTotopos(data.totopos);
                             localStorage.setItem('totopos', data.totopos);
                         }
+                        const nickNube = data.nickname || data.nombre || data.name;
+                        if (nickNube) {
+                            setPlayerName(nickNube);
+                            setInputPlayerName(nickNube);
+                            localStorage.setItem('memoramaPlayerName', nickNube);
+                        }
                     }
                 } catch (e) {
-                    console.error("Error al cargar totopos de la nube:", e);
+                    console.error("Error al cargar datos de la nube:", e);
                 }
             }
         };
-        cargarTotoposNube();
+        cargarDatosNube();
     }, [user]);
 
     useEffect(() => {
@@ -351,7 +469,13 @@ export default function Tablero({
 
             <div className={`grid ${configActual.columnas} gap-3 w-full max-w-2xl mt-2`}>
                 {cards.map(card => (
-                    <Tarjeta key={card.id} card={card} handleChoice={handleChoice} flipped={card === choiceOne || card === choiceTwo || card.isMatched} disabled={disabled} />
+                    <Tarjeta 
+                        key={card.id} 
+                        card={card} 
+                        handleChoice={handleChoice} 
+                        flipped={card === choiceOne || card === choiceTwo || card.isMatched} 
+                        disabled={disabled} 
+                    />
                 ))}
             </div>
 

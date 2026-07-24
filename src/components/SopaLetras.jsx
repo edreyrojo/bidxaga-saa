@@ -86,8 +86,37 @@ export default function SopaLetras({
     const cantidadPalabras = Math.min(3 + nivel, 8); 
     const recompensaActual = RECOMPENSAS_SOPA[nivel] || 50;
 
-    // Al hacer click en Guardar
-    const handleClickGuardar = () => {
+    // Función auxiliar para guardar automáticamente si hay sesión activa y nickname configurado
+    const confirmarGuardadoAutomatico = async (nombreLimpio) => {
+        const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
+
+        try {
+            await addDoc(collection(db, "ranking_sopa"), {
+                name: nombreLimpio,
+                intentos: scoreToSave.intentos,
+                level: scoreToSave.level,
+                fecha: new Date().toISOString()
+            });
+            await cargarRankingGlobal();
+            setGuardadoEnNivel(true);
+            setPendingGlobalScore(null);
+            setFeedbackModal({
+                show: true,
+                title: "🎉 ¡Guardado Exitoso!",
+                message: `¡Hola ${nombreLimpio}! Récord registrado automáticamente en el ranking global para el Nivel ${scoreToSave.level} (${scoreToSave.intentos} intentos).`
+            });
+        } catch (error) {
+            console.error("Error al guardar el puntaje en Firebase:", error);
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Guardado Parcial",
+                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
+            });
+        }
+    };
+
+    // Al hacer click en Guardar con verificación de sesión y nickname
+    const handleClickGuardar = async () => {
         localStorage.setItem('sopaLetrasNivel', nivel);
         localStorage.setItem('sopaLetrasIntentos', intentos);
         localStorage.setItem('sopaLetrasModoDificil', modoDificil);
@@ -102,8 +131,34 @@ export default function SopaLetras({
             return;
         }
 
-        setInputPlayerName(playerName);
-        setShowGuardarModal(true);
+        const currentUser = user || auth.currentUser;
+        let nombreAUsar = playerName;
+
+        if (currentUser) {
+            try {
+                const userDocRef = doc(db, 'usuarios', currentUser.uid);
+                const userSnap = await getDoc(userDocRef);
+                if (userSnap.exists()) {
+                    const data = userSnap.data();
+                    const nickNube = data.nickname || data.nombre || data.name;
+                    if (nickNube) {
+                        nombreAUsar = nickNube;
+                        setPlayerName(nickNube);
+                        setInputPlayerName(nickNube);
+                        localStorage.setItem('sopaLetrasPlayerName', nickNube);
+                    }
+                }
+            } catch (e) {
+                console.error("Error al verificar nickname en la nube:", e);
+            }
+        }
+
+        if (currentUser && nombreAUsar.trim()) {
+            confirmarGuardadoAutomatico(nombreAUsar.trim());
+        } else {
+            setInputPlayerName(nombreAUsar);
+            setShowGuardarModal(true);
+        }
     };
 
     // Sincronizar controles globales con App.jsx y ConfiguracionModal
@@ -131,7 +186,7 @@ export default function SopaLetras({
         };
     }, [nivel, modoDificil, intentos, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
-    // Cargar datos locales y sincronizar totopos de la nube si hay sesión activa
+    // Cargar datos locales y sincronizar totopos y nickname de la nube si hay sesión activa
     useEffect(() => {
         const nivelGuardado = localStorage.getItem('sopaLetrasNivel');
         const intentosGuardados = localStorage.getItem('sopaLetrasIntentos');
@@ -148,7 +203,7 @@ export default function SopaLetras({
         }
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
 
-        const cargarTotoposNube = async () => {
+        const cargarDatosNube = async () => {
             const currentUser = user || auth.currentUser;
             if (currentUser) {
                 try {
@@ -160,13 +215,19 @@ export default function SopaLetras({
                             setTotopos(data.totopos);
                             localStorage.setItem('totopos', data.totopos);
                         }
+                        const nickNube = data.nickname || data.nombre || data.name;
+                        if (nickNube) {
+                            setPlayerName(nickNube);
+                            setInputPlayerName(nickNube);
+                            localStorage.setItem('sopaLetrasPlayerName', nickNube);
+                        }
                     }
                 } catch (e) {
-                    console.error("Error al cargar totopos de la nube:", e);
+                    console.error("Error al cargar datos de la nube:", e);
                 }
             }
         };
-        cargarTotoposNube();
+        cargarDatosNube();
         cargarRankingGlobal();
     }, [user]);
 

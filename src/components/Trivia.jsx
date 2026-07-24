@@ -34,6 +34,81 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     const PREGUNTAS_POR_NIVEL = 5;
     const TOTOPOS_POR_NIVEL = 15; // Recompensa de totopos al completar nivel
 
+    // Función auxiliar para guardar automáticamente si hay sesión activa y nickname configurado
+    const confirmarGuardadoAutomatico = async (nombreLimpio) => {
+        const scoreToSave = pendingGlobalScore || { level: nivel, errores: errores };
+
+        try {
+            await addDoc(collection(db, "ranking_trivia"), {
+                name: nombreLimpio,
+                errores: scoreToSave.errores,
+                level: scoreToSave.level,
+                fecha: new Date().toISOString()
+            });
+            await cargarRankingGlobal();
+            setGuardadoEnNivel(true);
+            setPendingGlobalScore(null);
+            setFeedbackModal({
+                show: true,
+                title: "🎉 ¡Guardado Exitoso!",
+                message: `¡Hola ${nombreLimpio}! Récord registrado automáticamente en el ranking global para el Nivel ${scoreToSave.level} (${scoreToSave.errores} errores).`
+            });
+        } catch (error) {
+            console.error("Error al guardar en Firebase:", error);
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Guardado Parcial",
+                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
+            });
+        }
+    };
+
+    // Al hacer click en Guardar con verificación de sesión y nickname
+    const handleClickGuardar = async () => {
+        localStorage.setItem('triviaNivel', nivel);
+        localStorage.setItem('triviaErrores', errores);
+        localStorage.setItem('triviaModoDificil', modoDificil);
+        localStorage.setItem('totopos', totopos);
+
+        if (guardadoEnNivel && !pendingGlobalScore) {
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Récord ya guardado",
+                message: `Ya guardaste tu récord global para el Nivel ${nivel}. Avanza de nivel para volver a registrar puntaje.`
+            });
+            return;
+        }
+
+        const currentUser = user || auth.currentUser;
+        let nombreAUsar = playerName;
+
+        if (currentUser) {
+            try {
+                const userDocRef = doc(db, 'usuarios', currentUser.uid);
+                const userSnap = await getDoc(userDocRef);
+                if (userSnap.exists()) {
+                    const data = userSnap.data();
+                    const nickNube = data.nickname || data.nombre || data.name;
+                    if (nickNube) {
+                        nombreAUsar = nickNube;
+                        setPlayerName(nickNube);
+                        setInputPlayerName(nickNube);
+                        localStorage.setItem('triviaPlayerName', nickNube);
+                    }
+                }
+            } catch (e) {
+                console.error("Error al verificar nickname en la nube:", e);
+            }
+        }
+
+        if (currentUser && nombreAUsar.trim()) {
+            confirmarGuardadoAutomatico(nombreAUsar.trim());
+        } else {
+            setInputPlayerName(nombreAUsar);
+            setShowGuardarModal(true);
+        }
+    };
+
     // Sincronizar controles globales con App.jsx y ConfiguracionModal
     useEffect(() => {
         const registrarControles = onSetControles || setControlesJuegoActivo;
@@ -43,7 +118,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 onMenuClick: () => {
                     setShowMenuModal(true); // ⚠️ Muestra la advertencia antes de salir
                 },
-                onGuardarClick: () => handleClickGuardar(),
+                onGuardarClick: handleClickGuardar,
                 onReiniciarClick: () => setShowConfirmRestartModal(true),
                 modoDificil: modoDificil,
                 onToggleModoDificil: () => setModoDificil(prev => !prev)
@@ -74,8 +149,8 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         }
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
 
-        // Sincronizar totopos del perfil en Firestore si el usuario está logueado
-        const cargarTotoposNube = async () => {
+        // Sincronizar totopos y nickname del perfil en Firestore si el usuario está logueado
+        const cargarDatosNube = async () => {
             const currentUser = user || auth.currentUser;
             if (currentUser) {
                 try {
@@ -87,13 +162,19 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                             setTotopos(data.totopos);
                             localStorage.setItem('totopos', data.totopos);
                         }
+                        const nickNube = data.nickname || data.nombre || data.name;
+                        if (nickNube) {
+                            setPlayerName(nickNube);
+                            setInputPlayerName(nickNube);
+                            localStorage.setItem('triviaPlayerName', nickNube);
+                        }
                     }
                 } catch (e) {
-                    console.error("Error al cargar totopos de la nube:", e);
+                    console.error("Error al cargar datos de la nube:", e);
                 }
             }
         };
-        cargarTotoposNube();
+        cargarDatosNube();
         cargarRankingGlobal();
     }, [user]);
 
@@ -182,25 +263,6 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             title: "🌽 ¡Nivel Superado!",
             message: `Ganaste +${TOTOPOS_POR_NIVEL} totopos. Tienes un total de ${nuevosTotopos} totopos en tu morral.`
         });
-    };
-
-    const handleClickGuardar = () => {
-        localStorage.setItem('triviaNivel', nivel);
-        localStorage.setItem('triviaErrores', errores);
-        localStorage.setItem('triviaModoDificil', modoDificil);
-        localStorage.setItem('totopos', totopos);
-
-        if (guardadoEnNivel && !pendingGlobalScore) {
-            setFeedbackModal({
-                show: true,
-                title: "⚠️ Récord ya guardado",
-                message: `Ya guardaste tu récord global para el Nivel ${nivel}. Avanza de nivel para volver a registrar puntaje.`
-            });
-            return;
-        }
-
-        setInputPlayerName(playerName);
-        setShowGuardarModal(true);
     };
 
     const confirmarGuardadoGlobal = async (e) => {

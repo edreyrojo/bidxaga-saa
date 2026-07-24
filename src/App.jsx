@@ -4,7 +4,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 import MenuPrincipal from './components/MenuPrincipal';
-import Tablero from './components/Tablero';
+import Memorama from './components/Memorama'; // 👈 Actualizado el nombre del componente y archivo
 import SopaLetras from './components/SopaLetras';
 import Crucigrama from './components/Crucigrama';
 import Trivia from './components/Trivia';
@@ -158,12 +158,12 @@ function App() {
 
       {/* 2. Memorama */}
       {vistaActual === 'memorama' && (
-        <Tablero 
+        <Memorama 
           user={user} 
           onSetControles={setControlesJuegoActivo}
           onBack={() => { 
             setControlesJuegoActivo(null); 
-            setShowConfigModal(false); // 👈 Cierra el panel de configuración global
+            setShowConfigModal(false); 
             setVistaActual('menu'); 
           }} 
         />
@@ -176,7 +176,7 @@ function App() {
           onSetControles={setControlesJuegoActivo}
           onBack={() => { 
             setControlesJuegoActivo(null); 
-            setShowConfigModal(false); // 👈 Cierra el panel de configuración global
+            setShowConfigModal(false); 
             setVistaActual('menu'); 
           }} 
         />
@@ -189,7 +189,7 @@ function App() {
           onSetControles={setControlesJuegoActivo}
           onBack={() => { 
             setControlesJuegoActivo(null); 
-            setShowConfigModal(false); // 👈 Cierra el panel de configuración global
+            setShowConfigModal(false); 
             setVistaActual('menu'); 
           }} 
         />
@@ -202,7 +202,7 @@ function App() {
           onSetControles={setControlesJuegoActivo}
           onBack={() => { 
             setControlesJuegoActivo(null); 
-            setShowConfigModal(false); // 👈 Cierra el panel de configuración global
+            setShowConfigModal(false); 
             setVistaActual('menu'); 
           }} 
         />
