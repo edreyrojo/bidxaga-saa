@@ -17,7 +17,7 @@ const CATALOGO_AVATARES = [
     { id: 'corona', nombre: 'Rey Zapoteco', emoji: '👑', costo: 500 },
 ];
 
-// ❤️ Catálogo de Vidas Extras (Optimizado en espacio)
+// ❤️ Catálogo de Vidas Extras
 const CATALOGO_VIDAS = [
     { id: 'vida_1', nombre: '1 Vida', emoji: '❤️', costo: 15, cantidad: 1 },
     { id: 'vida_3', nombre: '3 Vidas', emoji: '❤️', costo: 40, cantidad: 3 },
@@ -63,10 +63,11 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     const data = docSnap.data();
+                    const avatarId = data.avatar || 'default';
                     setNombre(data.nombre || '');
                     setTotopos(data.totopos || 0);
                     setVidas(data.vidas !== undefined ? data.vidas : 3);
-                    setAvatarActual(data.avatar || 'default');
+                    setAvatarActual(avatarId);
                     setAvataresDesbloqueados(data.avataresDesbloqueados || ['default']);
                     setLogrosDesbloqueados(data.logrosDesbloqueados || []);
                     
@@ -76,9 +77,11 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     
                     if (onProfileUpdate) {
                         const calc = calcularNivelYTitulo(historico);
+                        const avatarObj = CATALOGO_AVATARES.find(a => a.id === avatarId);
                         onProfileUpdate({
                             nombre: data.nombre || '',
-                            avatar: data.avatar || 'default',
+                            avatar: avatarId,
+                            emoji: avatarObj ? avatarObj.emoji : '🌽',
                             nivel: calc.nivel
                         });
                     }
@@ -102,7 +105,13 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
             
             const calc = calcularNivelYTitulo(totoposHistoricos);
             if (onProfileUpdate) {
-                onProfileUpdate({ nombre: nombreLimpio, avatar: avatarActual, nivel: calc.nivel });
+                const avatarObj = CATALOGO_AVATARES.find(a => a.id === avatarActual);
+                onProfileUpdate({ 
+                    nombre: nombreLimpio, 
+                    avatar: avatarActual, 
+                    emoji: avatarObj ? avatarObj.emoji : '🌽', 
+                    nivel: calc.nivel 
+                });
             }
             setTimeout(() => setMensaje(''), 3000);
         } catch (error) {
@@ -162,8 +171,14 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                 setAvataresDesbloqueados(nuevosDesbloqueados);
                 setAvatarActual(avatarItem.id);
                 setMensaje(`¡Has comprado y equipado ${avatarItem.nombre}! 🎉`);
+                
                 if (onProfileUpdate) {
-                    onProfileUpdate({ nombre, avatar: avatarItem.id, nivel: calc.nivel });
+                    onProfileUpdate({ 
+                        nombre, 
+                        avatar: avatarItem.id, 
+                        emoji: avatarItem.emoji, 
+                        nivel: calc.nivel 
+                    });
                 }
                 setTimeout(() => setMensaje(''), 3000);
             } catch (error) {
@@ -175,8 +190,14 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                 await updateDoc(docRef, { avatar: avatarItem.id });
                 setAvatarActual(avatarItem.id);
                 setMensaje(`Avatar cambiado a ${avatarItem.nombre} 👍`);
+                
                 if (onProfileUpdate) {
-                    onProfileUpdate({ nombre, avatar: avatarItem.id, nivel: calc.nivel });
+                    onProfileUpdate({ 
+                        nombre, 
+                        avatar: avatarItem.id, 
+                        emoji: avatarItem.emoji, 
+                        nivel: calc.nivel 
+                    });
                 }
                 setTimeout(() => setMensaje(''), 3000);
             } catch (error) {
@@ -286,7 +307,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     </form>
 
-                    {/* 🌟 COMPRAR VIDAS EXTRAS (Optimizado con diseño compacto ❤️ x Cantidad) */}
+                    {/* 🌟 COMPRAR VIDAS EXTRAS */}
                     <div className="mb-6">
                         <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">
                             <span>❤️</span> Comprar Vidas Extras
@@ -310,7 +331,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     </div>
 
-                    {/* 🛍️ TIENDA DE AVATARES (Extendida a 10 opciones) */}
+                    {/* 🛍️ TIENDA DE AVATARES */}
                     <div className="mb-6">
                         <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">
                             <span>🛍️</span> Tienda de Avatares (10 Disponibles)
@@ -349,7 +370,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     </div>
 
-                    {/* 🏆 SISTEMA DE LOGROS Y TROFEOS PARA LOS 4 JUEGOS */}
+                    {/* 🏆 SISTEMA DE LOGROS Y TROFEOS */}
                     <div className="mb-6">
                         <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">
                             <span>🏆</span> Logros y Trofeos de Juegos

@@ -13,11 +13,18 @@ import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
 import ConfiguracionModal from './components/ConfiguracionModal';
 
+// 🛍️ Catálogo completo de emojis para sincronizar con la tienda
 const AVATAR_EMOJIS = {
   default: '🌽',
   iguana: '🦎',
   tortuga: '🐢',
-  huipil: '🌸'
+  huipil: '🌸',
+  colibri: '🐦',
+  jaguar: '🐆',
+  mezcal: '🥃',
+  sol: '☀️',
+  bandera: '🧵',
+  corona: '👑'
 };
 
 const calcularNivelRapido = (totalHistorico) => {
@@ -32,7 +39,7 @@ function App() {
   const [vistaActual, setVistaActual] = useState('menu');
   const [user, setUser] = useState(null);
   
-  const [perfilInfo, setPerfilInfo] = useState({ nombre: '', avatar: 'default', nivel: 1 });
+  const [perfilInfo, setPerfilInfo] = useState({ nombre: '', avatar: 'default', emoji: '🌽', nivel: 1 });
   
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showPerfilModal, setShowPerfilModal] = useState(false);
@@ -45,33 +52,39 @@ function App() {
   // 🎮 Estado global para almacenar los controles del juego activo en curso
   const [controlesJuegoActivo, setControlesJuegoActivo] = useState(null);
 
+  // 🔄 Función reutilizable para cargar el perfil del usuario desde Firestore
+  const cargarPerfil = async (currentUser) => {
+    if (currentUser) {
+      try {
+        const docRef = doc(db, 'usuarios', currentUser.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          let historico = data.totoposHistoricos || data.totopos || 0;
+          if (data.totopos > historico) historico = data.totopos;
+          const nivelCalc = calcularNivelRapido(historico);
+          const avatarId = data.avatar || 'default';
+
+          setPerfilInfo({
+            nombre: data.nombre || '',
+            avatar: avatarId,
+            emoji: AVATAR_EMOJIS[avatarId] || '🌽',
+            nivel: nivelCalc
+          });
+        }
+      } catch (error) {
+        console.error("Error cargando perfil superior:", error);
+      }
+    } else {
+      setPerfilInfo({ nombre: '', avatar: 'default', emoji: '🌽', nivel: 1 });
+    }
+  };
+
   // Escuchar sesión y cargar datos iniciales de Firestore
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      
-      if (currentUser) {
-        try {
-          const docRef = doc(db, 'usuarios', currentUser.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            let historico = data.totoposHistoricos || data.totopos || 0;
-            if (data.totopos > historico) historico = data.totopos;
-            const nivelCalc = calcularNivelRapido(historico);
-
-            setPerfilInfo({
-              nombre: data.nombre || '',
-              avatar: data.avatar || 'default',
-              nivel: nivelCalc
-            });
-          }
-        } catch (error) {
-          console.error("Error cargando perfil superior:", error);
-        }
-      } else {
-        setPerfilInfo({ nombre: '', avatar: 'default', nivel: 1 });
-      }
+      await cargarPerfil(currentUser);
     });
     return () => unsubscribe();
   }, []);
@@ -93,7 +106,7 @@ function App() {
     setIndicePista(siguiente);
   };
 
-  const emojiAvatar = user ? (AVATAR_EMOJIS[perfilInfo.avatar] || '🌽') : '👤';
+  const emojiAvatar = user ? (perfilInfo.emoji || AVATAR_EMOJIS[perfilInfo.avatar] || '🌽') : '👤';
   const displayNickname = user 
     ? (perfilInfo.nombre ? perfilInfo.nombre : user.email.split('@')[0]) 
     : 'Iniciar Sesión';
@@ -108,7 +121,7 @@ function App() {
         onPlayStateChange={setIsPlayingMusic} 
       />
 
-      {/* 🚀 PANEL SUPERIOR FLOTANTE (Fixed para no mover el DOM ni distorsionar los juegos) */}
+      {/* 🚀 PANEL SUPERIOR FLOTANTE */}
       <div className="fixed top-3 left-3 sm:top-4 sm:left-4 z-40 flex items-center gap-2">
         
         {/* Botón / Tarjeta de Perfil */}
@@ -148,17 +161,15 @@ function App() {
 
       </div>
 
-      {/* 🎮 CONTENEDOR DE VISTAS CON MARGEN SUPERIOR PARA EVITAR TAPAR TÍTULOS */}
+      {/* 🎮 CONTENEDOR DE VISTAS */}
       <main className="pt-16 sm:pt-20">
-        {/* 1. Menú Principal */}
         {vistaActual === 'menu' && (
           <MenuPrincipal setVistaActual={(vista) => {
-            setControlesJuegoActivo(null); // Limpiamos controles al volver al menú
+            setControlesJuegoActivo(null);
             setVistaActual(vista);
           }} />
         )}
 
-        {/* 2. Memorama */}
         {vistaActual === 'memorama' && (
           <Memorama 
             user={user} 
@@ -171,7 +182,6 @@ function App() {
           />
         )}
 
-        {/* 3. Sopa de Letras */}
         {vistaActual === 'sopa' && (
           <SopaLetras 
             user={user} 
@@ -184,7 +194,6 @@ function App() {
           />
         )}
 
-        {/* 4. Crucigrama */}
         {vistaActual === 'crucigrama' && (
           <Crucigrama 
             user={user} 
@@ -197,7 +206,6 @@ function App() {
           />
         )}
 
-        {/* 5. Trivia */}
         {vistaActual === 'trivia' && (
           <Trivia 
             user={user} 
@@ -220,12 +228,21 @@ function App() {
       {showPerfilModal && (
         <PerfilModal 
           user={user} 
-          onClose={() => setShowPerfilModal(false)} 
-          onProfileUpdate={(nuevosDatos) => setPerfilInfo(prev => ({ ...prev, ...nuevosDatos }))}
+          onClose={() => {
+            setShowPerfilModal(false);
+            cargarPerfil(user); // 🔄 Recargamos los datos al cerrar el modal
+          }} 
+          onProfileUpdate={(nuevosDatos) => {
+            setPerfilInfo(prev => ({ 
+              ...prev, 
+              ...nuevosDatos, 
+              emoji: nuevosDatos.emoji || AVATAR_EMOJIS[nuevosDatos.avatar] || prev.emoji 
+            }));
+          }}
         />
       )}
 
-      {/* Modal de Configuración y Música (Con barra de control unificada) */}
+      {/* Modal de Configuración y Música */}
       <ConfiguracionModal
         isOpen={showConfigModal}
         onClose={() => setShowConfigModal(false)}
