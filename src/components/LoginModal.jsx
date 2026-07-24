@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { auth, db } from '../firebaseConfig';
 import {
     signInWithEmailAndPassword,
@@ -6,8 +6,7 @@ import {
     sendPasswordResetEmail,
     signOut,
     GoogleAuthProvider,
-    signInWithRedirect,
-    getRedirectResult
+    signInWithPopup
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -19,35 +18,6 @@ export default function LoginModal({ user, onClose }) {
     const [error, setError] = useState('');
     const [mensajeExito, setMensajeExito] = useState('');
     const [loading, setLoading] = useState(false);
-
-    // 🌟 Capturar el resultado cuando el usuario regresa de la redirección de Google (Especial para móviles/iPhone)
-    useEffect(() => {
-        const verificarRedireccionGoogle = async () => {
-            try {
-                const result = await getRedirectResult(auth);
-                if (result && result.user) {
-                    const googleUser = result.user;
-                    const userDocRef = doc(db, 'usuarios', googleUser.uid);
-                    const userDocSnap = await getDoc(userDocRef);
-
-                    if (!userDocSnap.exists()) {
-                        await setDoc(userDocRef, {
-                            email: googleUser.email,
-                            totopos: 0,
-                            avatar: 'default',
-                            createdAt: new Date()
-                        });
-                    }
-                    if (onClose) onClose();
-                }
-            } catch (err) {
-                console.error("Error en Google Redirect:", err);
-                setError('No se pudo completar el acceso con Google.');
-            }
-        };
-
-        verificarRedireccionGoogle();
-    }, [onClose]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -89,18 +59,48 @@ export default function LoginModal({ user, onClose }) {
         }
     };
 
-    // 🌟 Función de acceso con Google optimizada con Redirección (Compatible con iPhone/Móviles)
+    // 🌟 Google Login con Popup optimizado para capturar el error exacto si ocurre
     const handleGoogleLogin = async () => {
         setError('');
         setLoading(true);
         const provider = new GoogleAuthProvider();
+        
+        // Forzar selección de cuenta para evitar problemas de caché en móviles
+        provider.setCustomParameters({
+            prompt: 'select_account'
+        });
 
         try {
-            // Usamos signInWithRedirect para evitar bloqueos de popups en iPhone y Safari
-            await signInWithRedirect(auth, provider);
+            const result = await signInWithPopup(auth, provider);
+            const googleUser = result.user;
+
+            const userDocRef = doc(db, 'usuarios', googleUser.uid);
+            const userDocSnap = await getDoc(userDocRef);
+
+            if (!userDocSnap.exists()) {
+                await setDoc(userDocRef, {
+                    email: googleUser.email,
+                    totopos: 0,
+                    avatar: 'default',
+                    createdAt: new Date()
+                });
+            }
+
+            onClose();
         } catch (err) {
-            console.error("Error al iniciar Google Login:", err);
-            setError('No se pudo iniciar la autenticación con Google.');
+            console.error("Error detallado en Google Login:", err);
+            
+            // Mensajes personalizados basados en el error real de Firebase
+            if (err.code === 'auth/popup-blocked') {
+                setError('El navegador bloqueó la ventana emergente. Permite las ventanas emergentes para iniciar sesión.');
+            } else if (err.code === 'auth/popup-closed-by-user') {
+                setError('Ventana cerrada. Cancelaste el inicio de sesión.');
+            } else if (err.code === 'auth/unauthorized-domain') {
+                setError('Dominio no autorizado en Firebase. Agrega tu dominio actual en la consola de Firebase.');
+            } else {
+                setError(`Error de Google (${err.code || 'desconocido'}): ${err.message}`);
+            }
+        } finally {
             setLoading(false);
         }
     };
