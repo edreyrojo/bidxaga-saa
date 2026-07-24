@@ -6,7 +6,8 @@ import {
     sendPasswordResetEmail,
     signOut,
     GoogleAuthProvider,
-    signInWithPopup
+    signInWithPopup,
+    signInWithRedirect
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -59,50 +60,63 @@ export default function LoginModal({ user, onClose }) {
         }
     };
 
-    // 🌟 Google Login con Popup optimizado para capturar el error exacto si ocurre
+    // 🌟 Google Login optimizado con respaldo para iPhone / PWA
     const handleGoogleLogin = async () => {
         setError('');
         setLoading(true);
         const provider = new GoogleAuthProvider();
-        
-        // Forzar selección de cuenta para evitar problemas de caché en móviles
         provider.setCustomParameters({
             prompt: 'select_account'
         });
 
         try {
+            // Intento principal con popup (navegadores normales)
             const result = await signInWithPopup(auth, provider);
-            const googleUser = result.user;
-
-            const userDocRef = doc(db, 'usuarios', googleUser.uid);
-            const userDocSnap = await getDoc(userDocRef);
-
-            if (!userDocSnap.exists()) {
-                await setDoc(userDocRef, {
-                    email: googleUser.email,
-                    totopos: 0,
-                    avatar: 'default',
-                    createdAt: new Date()
-                });
-            }
-
-            onClose();
+            await procesarUsuarioGoogle(result.user);
         } catch (err) {
             console.error("Error detallado en Google Login:", err);
             
-            // Mensajes personalizados basados en el error real de Firebase
+            // Si el entorno móvil en iPhone bloquea popups o da acción inválida
+            if (err.code === 'auth/operation-not-supported-in-this-environment' || 
+                err.code === 'auth/invalid-api-key' || 
+                err.message.includes('invalid') ||
+                err.message.includes('popup')) {
+                try {
+                    // Respaldo automático por redirección en dispositivos móviles
+                    await signInWithRedirect(auth, provider);
+                    return;
+                } catch (redirectErr) {
+                    console.error("Error en redirect:", redirectErr);
+                }
+            }
+
+            // Mensajes explicativos para depuración y usuario final
             if (err.code === 'auth/popup-blocked') {
-                setError('El navegador bloqueó la ventana emergente. Permite las ventanas emergentes para iniciar sesión.');
+                setError('El navegador bloqueó la ventana emergente. Permite los pop-ups.');
             } else if (err.code === 'auth/popup-closed-by-user') {
                 setError('Ventana cerrada. Cancelaste el inicio de sesión.');
             } else if (err.code === 'auth/unauthorized-domain') {
-                setError('Dominio no autorizado en Firebase. Agrega tu dominio actual en la consola de Firebase.');
+                setError('Dominio no autorizado en Firebase. Añádelo en la Consola (Authentication > Settings > Authorized domains).');
             } else {
-                setError(`Error de Google (${err.code || 'desconocido'}): ${err.message}`);
+                setError('En iPhone/PWA, asegúrate de abrir la app en Safari si el inicio rápido presenta bloqueos.');
             }
-        } finally {
             setLoading(false);
         }
+    };
+
+    const procesarUsuarioGoogle = async (googleUser) => {
+        const userDocRef = doc(db, 'usuarios', googleUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+            await setDoc(userDocRef, {
+                email: googleUser.email,
+                totopos: 0,
+                avatar: 'default',
+                createdAt: new Date()
+            });
+        }
+        onClose();
     };
 
     const handleLogout = async () => {
@@ -163,7 +177,7 @@ export default function LoginModal({ user, onClose }) {
                         </p>
 
                         {error && (
-                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
+                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm font-medium">
                                 {error}
                             </div>
                         )}
