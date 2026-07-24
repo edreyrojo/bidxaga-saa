@@ -7,12 +7,19 @@ import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, update
 
 const LETRAS_RELLENO = ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'L', 'M', 'N', 'O', 'R', 'S', 'T', 'U', 'X', 'Y', 'Z'];
 
-// Recompensas de totopos por nivel completado en Sopa de Letras
+// Recompensas de totopos mejor equilibradas para evitar números rojos en Nivel 1
 const RECOMPENSAS_SOPA = {
-    1: 10,
-    2: 20,
-    3: 35,
-    4: 50
+    1: 20, // Subido de 10 a 20 para superar el costo base de vidas
+    2: 30,
+    3: 45,
+    4: 60
+};
+
+// Costo de vidas dinámico según el nivel (más accesible al inicio)
+const obtenerCostoVidas = (lvl) => {
+    if (lvl === 1) return 10;
+    if (lvl === 2) return 15;
+    return 20; // Niveles superiores
 };
 
 const limpiarPalabra = (texto, modoDificil = false) => {
@@ -86,7 +93,8 @@ export default function SopaLetras({
     // Tamaño dinámico y progresivo de la cuadrícula
     const tamanoActual = Math.min(5 + nivel, 12); 
     const cantidadPalabras = Math.min(3 + nivel, 8); 
-    const recompensaActual = RECOMPENSAS_SOPA[nivel] || 50;
+    const recompensaActual = RECOMPENSAS_SOPA[nivel] || 60;
+    const costoActualVidas = obtenerCostoVidas(nivel);
 
     // Función auxiliar para guardar automáticamente si hay sesión activa y nickname configurado
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
@@ -513,8 +521,7 @@ export default function SopaLetras({
     };
 
     const comprarVidas = async () => {
-        const COSTO_VIDAS = 15;
-        if (totopos < COSTO_VIDAS) {
+        if (totopos < costoActualVidas) {
             setFeedbackModal({
                 show: true,
                 title: "⚠️ Totopos insuficientes",
@@ -523,7 +530,7 @@ export default function SopaLetras({
             return;
         }
 
-        const nuevosTotopos = totopos - COSTO_VIDAS;
+        const nuevosTotopos = totopos - costoActualVidas;
         setTotopos(nuevosTotopos);
         localStorage.setItem('totopos', nuevosTotopos);
 
@@ -536,7 +543,7 @@ export default function SopaLetras({
             try {
                 const userRef = doc(db, 'usuarios', currentUser.uid);
                 await updateDoc(userRef, {
-                    totopos: increment(-COSTO_VIDAS)
+                    totopos: increment(-costoActualVidas)
                 });
             } catch (err) {
                 console.error("Error al descontar totopos en Firebase:", err);
@@ -546,7 +553,7 @@ export default function SopaLetras({
         setFeedbackModal({
             show: true,
             title: "❤️ ¡Vidas Recargadas!",
-            message: "Has recuperado 3 vidas por 15 totopos. ¡A seguir jugando!"
+            message: `Has recuperado 3 vidas por ${costoActualVidas} totopos. ¡A seguir jugando!`
         });
     };
 
@@ -748,7 +755,7 @@ export default function SopaLetras({
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-red-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <div className="text-4xl mb-2">💔</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¡Te has quedado sin vidas!</h3>
-                        <p className="text-xs text-amber-800 mb-4">Puedes gastar 15 🌽 Totopos para recuperar 3 vidas y continuar tu partida.</p>
+                        <p className="text-xs text-amber-800 mb-4">Puedes gastar {costoActualVidas} 🌽 Totopos para recuperar 3 vidas y continuar tu partida.</p>
                         
                         <div className="flex gap-3 w-full">
                             <button 
@@ -763,7 +770,7 @@ export default function SopaLetras({
                                 onClick={comprarVidas} 
                                 className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
-                                Comprar (15 🌽)
+                                Comprar ({costoActualVidas} 🌽)
                             </button>
                         </div>
                     </div>

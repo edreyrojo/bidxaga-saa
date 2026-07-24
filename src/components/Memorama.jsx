@@ -5,6 +5,8 @@ import { listaAnimales } from '../data/animales.js';
 import { auth, db } from '../firebaseConfig.js';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
+const MAX_VIDAS = 10; // 🛡️ Siempre 10 vidas al comenzar el juego, sin importar el valor guardado previamente
+
 const CONFIG_NIVELES = {
     1: { parejas: 4, columnas: 'grid-cols-4', recompensa: 10 },
     2: { parejas: 6, columnas: 'grid-cols-4 text-sm', recompensa: 20 },
@@ -96,8 +98,10 @@ export default function Tablero({
     const [modoDificil, setModoDificil] = useState(false);
     const [guardadoEnNivel, setGuardadoEnNivel] = useState(false);
     const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
-    const [vidas, setVidas] = useState(3); // ❤️ Sistema de Vidas
-    const [erroresModoNormal, setErroresModoNormal] = useState(0); // Contador de errores orgánicos en modo normal
+    const [vidas, setVidas] = useState(MAX_VIDAS); // ❤️ Sistema de Vidas: SIEMPRE arranca en 10
+    const [fichasVistas, setFichasVistas] = useState([]); // 🛡️ IDs de cartas ya volteadas al menos una vez
+    const [avisoVistasMostrado, setAvisoVistasMostrado] = useState(false); // 🛡️ Control para mostrar el aviso de tablero conocido una sola vez
+    const [combosFallidos, setCombosFallidos] = useState({}); // 🛡️ Conteo de veces que se repite la MISMA combinación incorrecta
     
     // Memoria temporal para guardar el récord del nivel anterior completado
     const [pendingGlobalScore, setPendingGlobalScore] = useState(null);
@@ -121,7 +125,7 @@ export default function Tablero({
         localStorage.setItem('memoramaNivel', level);
         localStorage.setItem('memoramaModoDificil', modoDificil);
         localStorage.setItem('totopos', totopos);
-        localStorage.setItem('vidas', vidas);
+        localStorage.setItem('memoramaVidas', vidas);
 
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
@@ -246,7 +250,6 @@ export default function Tablero({
         const modoDificilGuardado = localStorage.getItem('memoramaModoDificil');
         const nombreGuardado = localStorage.getItem('memoramaPlayerName');
         const totoposGuardados = localStorage.getItem('totopos');
-        const vidasGuardadas = localStorage.getItem('vidas');
         const nivelInicial = nivelGuardado ? parseInt(nivelGuardado, 10) : 1;
         
         if (modoDificilGuardado) setModoDificil(modoDificilGuardado === 'true');
@@ -255,10 +258,12 @@ export default function Tablero({
             setInputPlayerName(nombreGuardado);
         }
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
-        if (vidasGuardadas) setVidas(parseInt(vidasGuardadas, 10));
+
+        setVidas(MAX_VIDAS);
+        localStorage.setItem('memoramaVidas', MAX_VIDAS);
+
         setLevel(nivelInicial);
 
-        // Sincronizar datos (totopos, vidas y nickname) del perfil en Firestore si el usuario está logueado
         const cargarDatosNube = async () => {
             const currentUser = user || auth.currentUser;
             if (currentUser) {
@@ -270,10 +275,6 @@ export default function Tablero({
                         if (data.totopos !== undefined) {
                             setTotopos(data.totopos);
                             localStorage.setItem('totopos', data.totopos);
-                        }
-                        if (data.vidas !== undefined) {
-                            setVidas(data.vidas);
-                            localStorage.setItem('vidas', data.vidas);
                         }
                         const nickNube = data.nickname || data.nombre || data.name;
                         if (nickNube) {
@@ -334,6 +335,18 @@ export default function Tablero({
         }
     }, [matches, parejasRequeridas, level, turns, user, configActual.recompensa, pendingGlobalScore]);
 
+    // 🛡️ Detectar exactamente cuando se han visto todas las fichas por primera vez
+    useEffect(() => {
+        if (!avisoVistasMostrado && cards.length > 0 && fichasVistas.length >= cards.length) {
+            setAvisoVistasMostrado(true);
+            setFeedbackModal({
+                show: true,
+                title: "👀 ¡Tablero conocido!",
+                message: "¡Has visto todas las fichas del tablero! A partir de ahora, si repites una combinación incorrecta 3 veces, perderás una vida."
+            });
+        }
+    }, [fichasVistas, cards.length, avisoVistasMostrado]);
+
     const confirmarGuardadoGlobal = async () => {
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
@@ -371,15 +384,17 @@ export default function Tablero({
             setFeedbackModal({
                 show: true,
                 title: "⚠️ Guardado Parcial",
-                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
+                message: "Progreso guardado localmente, pero hubo un error al conectarกับ Firebase."
             });
         }
     };
 
+    // Reinicia TODO el progreso y vuelve al Nivel 1, con 10 vidas
     const confirmarReiniciar = () => {
         localStorage.removeItem('memoramaNivel');
         localStorage.removeItem('memoramaModoDificil');
         localStorage.removeItem('memoramaPlayerName');
+        localStorage.removeItem('memoramaVidas');
         setLevel(1);
         setModoDificil(false);
         setPlayerName('');
@@ -388,9 +403,32 @@ export default function Tablero({
         setPendingGlobalScore(null);
         setShowConfirmRestartModal(false);
         setShowSinVidasModal(false);
-        setVidas(3);
-        localStorage.setItem('vidas', 3);
+        setVidas(MAX_VIDAS);
+        setFichasVistas([]);
+        setAvisoVistasMostrado(false);
+        setCombosFallidos({});
+        localStorage.setItem('memoramaVidas', MAX_VIDAS);
         iniciarJuego(1);
+    };
+
+    // 🆕 Reinicia SOLO el nivel actual con 10 vidas
+    const reiniciarNivelActual = () => {
+        setVidas(MAX_VIDAS);
+        localStorage.setItem('memoramaVidas', MAX_VIDAS);
+        setFichasVistas([]);
+        setAvisoVistasMostrado(false);
+        setCombosFallidos({});
+        setPendingGlobalScore(null);
+        setShowSinVidasModal(false);
+        setShowConfirmRestartModal(false);
+        iniciarJuego(level);
+
+        const currentUser = user || auth.currentUser;
+        if (currentUser) {
+            updateDoc(doc(db, 'usuarios', currentUser.uid), { vidas: MAX_VIDAS }).catch(err => {
+                console.error("Error al sincronizar vidas al reiniciar nivel:", err);
+            });
+        }
     };
 
     const iniciarJuego = (nivelActual) => {
@@ -423,7 +461,9 @@ export default function Tablero({
         setChoiceTwo(null);
         setTurns(0);
         setMatches(0);
-        setErroresModoNormal(0);
+        setFichasVistas([]);
+        setAvisoVistasMostrado(false);
+        setCombosFallidos({});
         setGuardadoEnNivel(false);
     };
 
@@ -436,6 +476,8 @@ export default function Tablero({
     };
 
     const handleChoice = (card) => {
+        // 🛡️ Registramos que esta ficha ya fue vista, sin importar si el intento es correcto o no
+        setFichasVistas(prev => (prev.includes(card.id) ? prev : [...prev, card.id]));
         choiceOne ? setChoiceTwo(card) : setChoiceOne(card);
     };
 
@@ -450,7 +492,7 @@ export default function Tablero({
     const descontarVida = async (cantidad) => {
         const nuevasVidas = Math.max(0, vidas - cantidad);
         setVidas(nuevasVidas);
-        localStorage.setItem('vidas', nuevasVidas);
+        localStorage.setItem('memoramaVidas', nuevasVidas);
 
         const currentUser = user || auth.currentUser;
         if (currentUser) {
@@ -486,7 +528,7 @@ export default function Tablero({
         setTotopos(nuevosTotopos);
         setVidas(nuevasVidas);
         localStorage.setItem('totopos', nuevosTotopos);
-        localStorage.setItem('vidas', nuevasVidas);
+        localStorage.setItem('memoramaVidas', nuevasVidas);
         setShowSinVidasModal(false);
 
         const currentUser = user || auth.currentUser;
@@ -517,24 +559,41 @@ export default function Tablero({
                 resetTurn();
             } else {
                 setTimeout(() => {
-                    if (modoDificil) {
+                    // 🛡️ Solo se puede perder vidas si ya se vieron todas las fichas del tablero al menos una vez.
+                    const todasVistas = cards.length > 0 && fichasVistas.length >= cards.length;
+
+                    // Clave única para "esta combinación incorrecta" sin importar el orden en que se seleccionaron las cartas
+                    const comboKey = [choiceOne.pairId, choiceTwo.pairId].sort().join('|');
+
+                    if (!todasVistas) {
+                        // Aún no se han visto todas las fichas: no se penaliza ni se muestra modal molesto.
+                    } else if (modoDificil) {
                         // Modo difícil: cada error descuenta 1 vida directamente
                         descontarVida(1);
                     } else {
-                        // Modo normal: castigo orgánico cada 3 errores acumulados
-                        const nuevosErrores = erroresModoNormal + 1;
-                        if (nuevosErrores >= 3) {
-                            descontarVida(1);
-                            setErroresModoNormal(0);
-                        } else {
-                            setErroresModoNormal(nuevosErrores);
-                        }
+                        // Modo normal: solo se descuenta vida al repetir 3 VECES la MISMA combinación incorrecta
+                        setCombosFallidos(prev => {
+                            const conteoActual = (prev[comboKey] || 0) + 1;
+                            const actualizado = { ...prev, [comboKey]: conteoActual };
+
+                            if (conteoActual >= 3) {
+                                descontarVida(1);
+                                actualizado[comboKey] = 0; // Se reinicia el contador de ESTA combinación
+                                setFeedbackModal({
+                                    show: true,
+                                    title: "⚠️ ¡3 Errores con esta combinación!",
+                                    message: "Has repetido el mismo par incorrecto 3 veces."
+                                });
+                            }
+                            return actualizado;
+                        });
                     }
+
                     resetTurn();
                 }, 1000);
             }
         }
-    }, [choiceOne, choiceTwo, modoDificil, erroresModoNormal, vidas]);
+    }, [choiceOne, choiceTwo, modoDificil, cards.length, fichasVistas]);
 
     return (
         <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col items-center select-none pb-[env(safe-area-inset-bottom)]">
@@ -590,11 +649,18 @@ export default function Tablero({
                             >
                                 <span>❤️ Comprar 3 Vidas (40 🌽)</span>
                             </button>
+
+                            <button 
+                                onClick={reiniciarNivelActual}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
+                            >
+                                🔄 Reiniciar Nivel {level} (10 Vidas)
+                            </button>
                             <button 
                                 onClick={confirmarReiniciar}
                                 className="w-full bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold py-2.5 rounded-xl text-sm transition-colors cursor-pointer border border-amber-400"
                             >
-                                🔄 Reiniciar Nivel 1
+                                ⚠️ Reiniciar Todo (Volver a Nivel 1)
                             </button>
                         </div>
                     </div>

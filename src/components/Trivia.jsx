@@ -7,6 +7,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     // Estados principales del juego
     const [nivel, setNivel] = useState(1);
     const [errores, setErrores] = useState(0);
+    const [erroresParaVida, setErroresParaVida] = useState(0); // 🛡️ Acumulador de errores para perder 1 vida cada 3
     const [aciertosNivel, setAciertosNivel] = useState(0);
     const [modoDificil, setModoDificil] = useState(false);
     const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
@@ -61,7 +62,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             setFeedbackModal({
                 show: true,
                 title: "⚠️ Guardado Parcial",
-                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
+                message: "Progreso guardado localmente, pero hubo un error al conectarกับ Firebase."
             });
         }
     };
@@ -233,20 +234,29 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             setEstadoRespuesta('incorrecta');
             setErrores(prev => prev + 1);
             
-            const nuevasVidas = vidas - 1;
-            setVidas(nuevasVidas);
-            localStorage.setItem('triviaVidas', nuevasVidas);
+            // 🛡️ Incrementamos contador de errores acumulados para perder vida cada 3 errores
+            const nuevoErroresParaVida = erroresParaVida + 1;
+            setErroresParaVida(nuevoErroresParaVida);
 
-            if (nuevasVidas <= 0) {
-                setTimeout(() => {
-                    setIsGameOver(true);
-                }, 1000);
-            } else {
-                setTimeout(() => {
-                    setEstadoRespuesta(null);
-                    setOpcionSeleccionada(null);
-                }, 1200);
+            if (nuevoErroresParaVida >= 3) {
+                setErroresParaVida(0); // Reiniciamos el contador de errores parciales
+                const nuevasVidas = vidas - 1;
+                setVidas(nuevasVidas);
+                localStorage.setItem('triviaVidas', nuevasVidas);
+
+                if (nuevasVidas <= 0) {
+                    setTimeout(() => {
+                        setIsGameOver(true);
+                    }, 1000);
+                    return;
+                }
             }
+
+            // Permite al usuario volver a intentar sin revelar cuál era la respuesta correcta
+            setTimeout(() => {
+                setEstadoRespuesta(null);
+                setOpcionSeleccionada(null);
+            }, 1200);
         }
     };
 
@@ -322,21 +332,17 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         }
     };
 
+    // 🛡️ Reinicia únicamente el Nivel actual con las 3 vidas restauradas
     const confirmarReiniciar = (e) => {
         if (e?.preventDefault) e.preventDefault();
-        localStorage.removeItem('triviaNivel');
-        localStorage.removeItem('triviaErrores');
-        localStorage.removeItem('triviaModoDificil');
-        localStorage.removeItem('triviaVidas');
-        setNivel(1);
-        setErrores(0);
-        setAciertosNivel(0);
-        setModoDificil(false);
         setVidas(3);
+        setErroresParaVida(0);
+        setAciertosNivel(0);
         setIsGameOver(false);
         setGuardadoEnNivel(false);
         setPendingGlobalScore(null);
         setShowConfirmRestartModal(false);
+        localStorage.setItem('triviaVidas', 3);
         generarNuevaPregunta();
     };
 
@@ -394,7 +400,8 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                                 {opciones.map((opcion) => {
                                     let estiloBoton = "bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-amber-950 cursor-pointer";
                                     
-                                    if (estadoRespuesta && opcion.id === preguntaActual.id) {
+                                    // 🛡️ Solo se ilumina en verde si la opción es correcta Y el usuario acertó. Nunca revela la correcta al equivocarse.
+                                    if (estadoRespuesta === 'correcta' && opcion.id === preguntaActual.id) {
                                         estiloBoton = "bg-emerald-600 border-emerald-700 text-white scale-105 shadow-lg";
                                     } else if (estadoRespuesta === 'incorrecta' && opcionSeleccionada === opcion.id) {
                                         estiloBoton = "bg-red-500 border-red-600 text-white scale-95 opacity-80";
@@ -448,7 +455,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center animate-fade-in">
                         <div className="text-4xl mb-2">💔</div>
                         <h3 className="text-2xl font-black text-amber-950 mb-1">¡Sin Vidas!</h3>
-                        <p className="text-xs text-amber-700 mb-5 font-medium">Te has quedado sin corazones. Puedes reiniciar la partida o usar tus totopos para revivir.</p>
+                        <p className="text-xs text-amber-700 mb-5 font-medium">Te has quedado sin corazones. Puedes reiniciar este nivel o usar tus totopos para revivir.</p>
                         
                         <div className="flex flex-col gap-3 w-full">
                             {totopos >= COSTO_VIDAS && (
@@ -472,7 +479,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                                 onClick={confirmarReiniciar} 
                                 className="w-full bg-amber-950 hover:bg-black text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer"
                             >
-                                🔄 Reiniciar desde Nivel 1
+                                🔄 Reiniciar Nivel {nivel} (3 Vidas)
                             </button>
                         </div>
                     </div>
@@ -535,8 +542,8 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                         <div className="w-12 h-12 bg-amber-600 rounded-full flex items-center justify-center text-white text-xl shadow-md border-2 border-white mb-3">
                             🔄
                         </div>
-                        <h3 className="text-xl font-black text-amber-950 mb-1">¿Reiniciar Partida?</h3>
-                        <p className="text-xs text-amber-700 mb-5 font-medium">Volverás al Nivel 1. ¿Estás seguro?</p>
+                        <h3 className="text-xl font-black text-amber-950 mb-1">¿Reiniciar Nivel {nivel}?</h3>
+                        <p className="text-xs text-amber-700 mb-5 font-medium">Reiniciarás el Nivel {nivel} con 3 vidas restauradas. ¿Estás seguro?</p>
                         <div className="flex gap-3 w-full">
                             <button type="button" onClick={() => setShowConfirmRestartModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-3 rounded-2xl font-bold text-xs border border-amber-300 cursor-pointer">Cancelar</button>
                             <button type="button" onClick={confirmarReiniciar} className="flex-1 bg-amber-950 hover:bg-black text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer">Sí, reiniciar</button>
