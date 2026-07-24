@@ -96,6 +96,8 @@ export default function Tablero({
     const [modoDificil, setModoDificil] = useState(false);
     const [guardadoEnNivel, setGuardadoEnNivel] = useState(false);
     const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
+    const [vidas, setVidas] = useState(3); // ❤️ Sistema de Vidas
+    const [erroresModoNormal, setErroresModoNormal] = useState(0); // Contador de errores orgánicos en modo normal
     
     // Memoria temporal para guardar el récord del nivel anterior completado
     const [pendingGlobalScore, setPendingGlobalScore] = useState(null);
@@ -108,6 +110,7 @@ export default function Tablero({
     const [inputPlayerName, setInputPlayerName] = useState('');
     const [showMenuModal, setShowMenuModal] = useState(false); // ⚠️ Estado restaurado para la advertencia del menú
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
+    const [showSinVidasModal, setShowSinVidasModal] = useState(false); // 🛑 Modal para cuando se agotan las vidas
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
     const configActual = getConfigForLevel(level);
@@ -118,6 +121,7 @@ export default function Tablero({
         localStorage.setItem('memoramaNivel', level);
         localStorage.setItem('memoramaModoDificil', modoDificil);
         localStorage.setItem('totopos', totopos);
+        localStorage.setItem('vidas', vidas);
 
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
@@ -242,6 +246,7 @@ export default function Tablero({
         const modoDificilGuardado = localStorage.getItem('memoramaModoDificil');
         const nombreGuardado = localStorage.getItem('memoramaPlayerName');
         const totoposGuardados = localStorage.getItem('totopos');
+        const vidasGuardadas = localStorage.getItem('vidas');
         const nivelInicial = nivelGuardado ? parseInt(nivelGuardado, 10) : 1;
         
         if (modoDificilGuardado) setModoDificil(modoDificilGuardado === 'true');
@@ -250,9 +255,10 @@ export default function Tablero({
             setInputPlayerName(nombreGuardado);
         }
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
+        if (vidasGuardadas) setVidas(parseInt(vidasGuardadas, 10));
         setLevel(nivelInicial);
 
-        // Sincronizar datos (totopos y nickname) del perfil en Firestore si el usuario está logueado
+        // Sincronizar datos (totopos, vidas y nickname) del perfil en Firestore si el usuario está logueado
         const cargarDatosNube = async () => {
             const currentUser = user || auth.currentUser;
             if (currentUser) {
@@ -264,6 +270,10 @@ export default function Tablero({
                         if (data.totopos !== undefined) {
                             setTotopos(data.totopos);
                             localStorage.setItem('totopos', data.totopos);
+                        }
+                        if (data.vidas !== undefined) {
+                            setVidas(data.vidas);
+                            localStorage.setItem('vidas', data.vidas);
                         }
                         const nickNube = data.nickname || data.nombre || data.name;
                         if (nickNube) {
@@ -377,6 +387,9 @@ export default function Tablero({
         setGuardadoEnNivel(false);
         setPendingGlobalScore(null);
         setShowConfirmRestartModal(false);
+        setShowSinVidasModal(false);
+        setVidas(3);
+        localStorage.setItem('vidas', 3);
         iniciarJuego(1);
     };
 
@@ -410,6 +423,7 @@ export default function Tablero({
         setChoiceTwo(null);
         setTurns(0);
         setMatches(0);
+        setErroresModoNormal(0);
         setGuardadoEnNivel(false);
     };
 
@@ -432,6 +446,68 @@ export default function Tablero({
         setDisabled(false);
     };
 
+    // Sistema de Vidas y Manejo de Errores Orgánico
+    const descontarVida = async (cantidad) => {
+        const nuevasVidas = Math.max(0, vidas - cantidad);
+        setVidas(nuevasVidas);
+        localStorage.setItem('vidas', nuevasVidas);
+
+        const currentUser = user || auth.currentUser;
+        if (currentUser) {
+            try {
+                await updateDoc(doc(db, 'usuarios', currentUser.uid), { vidas: nuevasVidas });
+            } catch (err) {
+                console.error("Error al actualizar vidas en la nube:", err);
+            }
+        }
+
+        if (nuevasVidas === 0) {
+            setShowSinVidasModal(true);
+        }
+    };
+
+    // Comprar 3 vidas por 40 totopos
+    const comprarVidasRescate = async () => {
+        const costoPaquete = 40;
+        const vidasGanadas = 3;
+
+        if (totopos < costoPaquete) {
+            setFeedbackModal({
+                show: true,
+                title: "🌽 Totopos insuficientes",
+                message: `Te faltan ${costoPaquete - totopos} totopos para comprar el paquete de 3 vidas. ¡Sigue jugando o completa niveles!`
+            });
+            return;
+        }
+
+        const nuevosTotopos = totopos - costoPaquete;
+        const nuevasVidas = vidas + vidasGanadas;
+
+        setTotopos(nuevosTotopos);
+        setVidas(nuevasVidas);
+        localStorage.setItem('totopos', nuevosTotopos);
+        localStorage.setItem('vidas', nuevasVidas);
+        setShowSinVidasModal(false);
+
+        const currentUser = user || auth.currentUser;
+        if (currentUser) {
+            try {
+                await updateDoc(doc(db, 'usuarios', currentUser.uid), {
+                    totopos: nuevosTotopos,
+                    vidas: nuevasVidas
+                });
+            } catch (err) {
+                console.error("Error al gastar totopos por vidas:", err);
+            }
+        }
+
+        setFeedbackModal({
+            show: true,
+            title: "❤️ ¡Vidas Recargadas!",
+            message: `¡Has comprado ${vidasGanadas} vidas extra por ${costoPaquete} 🌽! Puedes continuar jugando.`
+        });
+    };
+
     useEffect(() => {
         if (choiceOne && choiceTwo) {
             setDisabled(true);
@@ -440,18 +516,36 @@ export default function Tablero({
                 setMatches(prev => prev + 1);
                 resetTurn();
             } else {
-                setTimeout(() => resetTurn(), 1000);
+                setTimeout(() => {
+                    if (modoDificil) {
+                        // Modo difícil: cada error descuenta 1 vida directamente
+                        descontarVida(1);
+                    } else {
+                        // Modo normal: castigo orgánico cada 3 errores acumulados
+                        const nuevosErrores = erroresModoNormal + 1;
+                        if (nuevosErrores >= 3) {
+                            descontarVida(1);
+                            setErroresModoNormal(0);
+                        } else {
+                            setErroresModoNormal(nuevosErrores);
+                        }
+                    }
+                    resetTurn();
+                }, 1000);
             }
         }
-    }, [choiceOne, choiceTwo]);
+    }, [choiceOne, choiceTwo, modoDificil, erroresModoNormal, vidas]);
 
     return (
         <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col items-center select-none pb-[env(safe-area-inset-bottom)]">
             
             <header className="text-center mb-3">
                 <img src="/images/banner.png" alt="Banner Diidxaza" className="mx-auto mb-2 max-w-full h-auto" />
-                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">
-                    Nivel {level} • Turnos: {turns} • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
+                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1 flex flex-wrap justify-center items-center gap-2">
+                    <span>Nivel {level}</span> • 
+                    <span>Turnos: {turns}</span> • 
+                    <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span> • 
+                    <span className="text-red-600 font-bold">❤️ {vidas} Vidas</span>
                 </p>
             </header>
 
@@ -474,10 +568,38 @@ export default function Tablero({
                         card={card} 
                         handleChoice={handleChoice} 
                         flipped={card === choiceOne || card === choiceTwo || card.isMatched} 
-                        disabled={disabled} 
+                        disabled={disabled || vidas === 0} 
                     />
                 ))}
             </div>
+
+            {/* 🛑 MODAL: TE QUEDASTE SIN VIDAS */}
+            {showSinVidasModal && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+                    <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-red-500 w-full max-w-sm flex flex-col items-center text-center animate-fade-in relative">
+                        <div className="text-5xl mb-2 animate-bounce">💔</div>
+                        <h3 className="text-2xl font-black text-red-700 mb-1">¡Te has quedado sin vidas!</h3>
+                        <p className="text-xs text-amber-900 mb-5 font-medium">
+                            Has agotado tus corazones. Puedes gastar totopos para rellenar tus vidas y continuar o reiniciar el progreso.
+                        </p>
+
+                        <div className="flex flex-col gap-2.5 w-full">
+                            <button 
+                                onClick={comprarVidasRescate}
+                                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl shadow-md text-sm transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                            >
+                                <span>❤️ Comprar 3 Vidas (40 🌽)</span>
+                            </button>
+                            <button 
+                                onClick={confirmarReiniciar}
+                                className="w-full bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold py-2.5 rounded-xl text-sm transition-colors cursor-pointer border border-amber-400"
+                            >
+                                🔄 Reiniciar Nivel 1
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* MODAL PERSONALIZADA PARA GUARDAR PROGRESO */}
             {showGuardarModal && (

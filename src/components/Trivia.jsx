@@ -10,6 +10,8 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     const [aciertosNivel, setAciertosNivel] = useState(0);
     const [modoDificil, setModoDificil] = useState(false);
     const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
+    const [vidas, setVidas] = useState(3); // ❤️ Sistema de Vidas
+    const [isGameOver, setIsGameOver] = useState(false); // Estado de Game Over por falta de vidas
     
     // Estados de la pregunta actual
     const [preguntaActual, setPreguntaActual] = useState(null);
@@ -33,6 +35,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
     const PREGUNTAS_POR_NIVEL = 5;
     const TOTOPOS_POR_NIVEL = 15; // Recompensa de totopos al completar nivel
+    const COSTO_VIDAS = 30; // Costo en totopos para recuperar 3 vidas
 
     // Función auxiliar para guardar automáticamente si hay sesión activa y nickname configurado
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
@@ -69,6 +72,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         localStorage.setItem('triviaErrores', errores);
         localStorage.setItem('triviaModoDificil', modoDificil);
         localStorage.setItem('totopos', totopos);
+        localStorage.setItem('triviaVidas', vidas);
 
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
@@ -139,6 +143,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         const modoDificilGuardado = localStorage.getItem('triviaModoDificil');
         const nombreGuardado = localStorage.getItem('triviaPlayerName');
         const totoposGuardados = localStorage.getItem('totopos');
+        const vidasGuardadas = localStorage.getItem('triviaVidas');
         
         if (nivelGuardado) setNivel(parseInt(nivelGuardado, 10));
         if (erroresGuardados) setErrores(parseInt(erroresGuardados, 10));
@@ -148,6 +153,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             setInputPlayerName(nombreGuardado);
         }
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
+        if (vidasGuardadas !== null) setVidas(parseInt(vidasGuardadas, 10));
 
         // Sincronizar totopos y nickname del perfil en Firestore si el usuario está logueado
         const cargarDatosNube = async () => {
@@ -178,21 +184,22 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         cargarRankingGlobal();
     }, [user]);
 
-    // Guardar en localStorage los cambios de nivel o modo difícil
+    // Guardar en localStorage los cambios de nivel, errores, modo difícil o vidas
     useEffect(() => {
         localStorage.setItem('triviaNivel', nivel);
         localStorage.setItem('triviaErrores', errores);
         localStorage.setItem('triviaModoDificil', modoDificil);
-    }, [nivel, errores, modoDificil]);
+        localStorage.setItem('triviaVidas', vidas);
+    }, [nivel, errores, modoDificil, vidas]);
 
     // Generar pregunta cuando cambia el nivel o los aciertos
     useEffect(() => {
-        if (aciertosNivel < PREGUNTAS_POR_NIVEL) {
+        if (aciertosNivel < PREGUNTAS_POR_NIVEL && !isGameOver) {
             generarNuevaPregunta();
-        } else {
+        } else if (aciertosNivel >= PREGUNTAS_POR_NIVEL) {
             setPendingGlobalScore({ level: nivel, errores: errores });
         }
-    }, [nivel, aciertosNivel]);
+    }, [nivel, aciertosNivel, isGameOver]);
 
     const generarNuevaPregunta = () => {
         setEstadoRespuesta(null);
@@ -213,7 +220,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     };
 
     const manejarRespuesta = (opcionElegida) => {
-        if (estadoRespuesta !== null) return;
+        if (estadoRespuesta !== null || isGameOver) return;
 
         setOpcionSeleccionada(opcionElegida.id);
 
@@ -225,10 +232,21 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         } else {
             setEstadoRespuesta('incorrecta');
             setErrores(prev => prev + 1);
-            setTimeout(() => {
-                setEstadoRespuesta(null);
-                setOpcionSeleccionada(null);
-            }, 1200);
+            
+            const nuevasVidas = vidas - 1;
+            setVidas(nuevasVidas);
+            localStorage.setItem('triviaVidas', nuevasVidas);
+
+            if (nuevasVidas <= 0) {
+                setTimeout(() => {
+                    setIsGameOver(true);
+                }, 1000);
+            } else {
+                setTimeout(() => {
+                    setEstadoRespuesta(null);
+                    setOpcionSeleccionada(null);
+                }, 1200);
+            }
         }
     };
 
@@ -309,10 +327,13 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         localStorage.removeItem('triviaNivel');
         localStorage.removeItem('triviaErrores');
         localStorage.removeItem('triviaModoDificil');
+        localStorage.removeItem('triviaVidas');
         setNivel(1);
         setErrores(0);
         setAciertosNivel(0);
         setModoDificil(false);
+        setVidas(3);
+        setIsGameOver(false);
         setGuardadoEnNivel(false);
         setPendingGlobalScore(null);
         setShowConfirmRestartModal(false);
@@ -338,7 +359,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             <header className="text-center mb-3">
                 <h2 className="text-2xl sm:text-3xl font-black text-amber-950">⚡ Reto Trivia Diidxazá</h2>
                 <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">
-                    Nivel {nivel} • Errores: {errores} • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
+                    Nivel {nivel} • Errores: {errores} • Vidas: <span className="text-red-600 font-bold">{'❤️'.repeat(Math.max(0, vidas))}</span> • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
                 </p>
             </header>
 
@@ -420,6 +441,43 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     )}
                 </div>
             </div>
+
+            {/* 💔 MODAL DE GAME OVER (SIN VIDAS) */}
+            {isGameOver && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center animate-fade-in">
+                        <div className="text-4xl mb-2">💔</div>
+                        <h3 className="text-2xl font-black text-amber-950 mb-1">¡Sin Vidas!</h3>
+                        <p className="text-xs text-amber-700 mb-5 font-medium">Te has quedado sin corazones. Puedes reiniciar la partida o usar tus totopos para revivir.</p>
+                        
+                        <div className="flex flex-col gap-3 w-full">
+                            {totopos >= COSTO_VIDAS && (
+                                <button 
+                                    type="button" 
+                                    onClick={() => {
+                                        const nuevosTotopos = totopos - COSTO_VIDAS;
+                                        setTotopos(nuevosTotopos);
+                                        setVidas(3);
+                                        setIsGameOver(false);
+                                        localStorage.setItem('totopos', nuevosTotopos);
+                                        localStorage.setItem('triviaVidas', 3);
+                                    }} 
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer flex items-center justify-center gap-2"
+                                >
+                                    ❤️ Comprar 3 Vidas ({COSTO_VIDAS} 🌽)
+                                </button>
+                            )}
+                            <button 
+                                type="button" 
+                                onClick={confirmarReiniciar} 
+                                className="w-full bg-amber-950 hover:bg-black text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer"
+                            >
+                                🔄 Reiniciar desde Nivel 1
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* MODAL GUARDAR */}
             {showGuardarModal && (

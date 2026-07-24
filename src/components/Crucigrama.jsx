@@ -12,6 +12,8 @@ const RECOMPENSAS_CRUCIGRAMA = {
     5: 90
 };
 
+const MAX_VIDAS = 3;
+
 const limpiarPalabra = (texto, modoDificil = false) => {
     if (modoDificil) {
         return texto
@@ -137,6 +139,7 @@ export default function Crucigrama({
 }) {
     const [nivel, setNivel] = useState(1);
     const [intentos, setIntentos] = useState(0);
+    const [vidas, setVidas] = useState(MAX_VIDAS);
     const [placements, setPlacements] = useState([]);
     const [matriz, setMatriz] = useState([]);
     
@@ -164,6 +167,7 @@ export default function Crucigrama({
     const [inputPlayerName, setInputPlayerName] = useState('');
     const [showMenuModal, setShowMenuModal] = useState(false);
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
+    const [showGameOverModal, setShowGameOverModal] = useState(false);
     
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
@@ -202,6 +206,7 @@ export default function Crucigrama({
     const handleClickGuardar = () => {
         localStorage.setItem('crucigramaNivel', nivel);
         localStorage.setItem('crucigramaIntentos', intentos);
+        localStorage.setItem('crucigramaVidas', vidas);
         localStorage.setItem('crucigramaModoDificil', modoDificil);
         localStorage.setItem('totopos', totopos);
 
@@ -214,7 +219,6 @@ export default function Crucigrama({
             return;
         }
 
-        // 🚀 Validación de sesión activa para saltar el modal de texto
         const currentUser = user || auth.currentUser;
         if (currentUser) {
             const nombreAutomatico = currentUser.displayName || currentUser.email.split('@')[0];
@@ -222,7 +226,6 @@ export default function Crucigrama({
             return;
         }
 
-        // Si no está logueado, se abre el modal de texto normalmente
         setInputPlayerName(playerName);
         setShowGuardarModal(true);
     };
@@ -236,7 +239,7 @@ export default function Crucigrama({
                 onGuardarClick: handleClickGuardar,
                 onReiniciarClick: () => setShowConfirmRestartModal(true),
                 onMenuClick: () => {
-                    setShowMenuModal(true); // Abre la modal de advertencia antes de salir al menú
+                    setShowMenuModal(true);
                 },
                 modoDificil: modoDificil,
                 onToggleModoDificil: () => {
@@ -247,31 +250,31 @@ export default function Crucigrama({
             });
         }
 
-        // Limpieza al desmontar el juego
         return () => {
             if (registrarControles) {
                 registrarControles(null);
             }
         };
-    }, [nivel, intentos, modoDificil, totopos, guardadoEnNivel, pendingGlobalScore, playerName, setControlesJuegoActivo, onSetControles, user]);
+    }, [nivel, intentos, vidas, modoDificil, totopos, guardadoEnNivel, pendingGlobalScore, playerName, setControlesJuegoActivo, onSetControles, user]);
 
-    // Función para confirmar la salida al menú principal desde la modal unificada
     const confirmarSalidaMenu = () => {
         setShowMenuModal(false);
         if (onBack) {
-            onBack(); // Limpia los controles y vuelve a la vista de menú en App.jsx
+            onBack();
         }
     };
 
     useEffect(() => {
         const nivelGuardado = localStorage.getItem('crucigramaNivel');
         const intentosGuardados = localStorage.getItem('crucigramaIntentos');
+        const vidasGuardadas = localStorage.getItem('crucigramaVidas');
         const modoDificilGuardado = localStorage.getItem('crucigramaModoDificil');
         const nombreGuardado = localStorage.getItem('crucigramaPlayerName');
         const totoposGuardados = localStorage.getItem('totopos');
 
         if (nivelGuardado) setNivel(parseInt(nivelGuardado, 10));
         if (intentosGuardados) setIntentos(parseInt(intentosGuardados, 10));
+        if (vidasGuardadas) setVidas(parseInt(vidasGuardadas, 10));
         if (modoDificilGuardado) setModoDificil(modoDificilGuardado === 'true');
         if (nombreGuardado) {
             setPlayerName(nombreGuardado);
@@ -279,7 +282,6 @@ export default function Crucigrama({
         }
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
 
-        // Sincronizar totopos del perfil en Firestore si el usuario está logueado
         const cargarTotoposNube = async () => {
             const currentUser = user || auth.currentUser;
             if (currentUser) {
@@ -299,7 +301,6 @@ export default function Crucigrama({
             }
         };
         cargarTotoposNube();
-        
         cargarRankingGlobal();
     }, [user]);
 
@@ -332,7 +333,6 @@ export default function Crucigrama({
         };
     }, [isDragging]);
 
-    // Efecto de nivel completado con guarda anti-bucle (!pendingGlobalScore)
     useEffect(() => {
         if (palabrasResueltas.length === placements.length && placements.length > 0 && !pendingGlobalScore) {
             setPendingGlobalScore({ level: nivel, intentos: intentos });
@@ -389,7 +389,7 @@ export default function Crucigrama({
     };
 
     const abrirDialParaPalabra = (p) => {
-        if (palabrasResueltas.includes(p.id)) return;
+        if (palabrasResueltas.includes(p.id) || vidas <= 0) return;
         setActivePlacement(p);
         const letrasMezcladas = p.text.split('').sort(() => Math.random() - 0.5);
         setDialSeleccion(letrasMezcladas);
@@ -450,6 +450,7 @@ export default function Crucigrama({
         const palabraFormada = letrasElegidas.map(i => dialSeleccion[i]).join('');
 
         setIntentos(prev => prev + 1);
+        localStorage.setItem('crucigramaIntentos', intentos + 1);
 
         if (palabraFormada === activePlacement.text) {
             const nuevasRespuestas = { ...respuestasUsuario };
@@ -467,11 +468,20 @@ export default function Crucigrama({
             setActivePlacement(null);
             setLetrasElegidas([]);
         } else {
-            setFeedbackModal({
-                show: true,
-                title: "⚠️ Palabra Incorrecta",
-                message: "La palabra no es correcta. ¡Inténtalo de nuevo!"
-            });
+            const nuevasVidas = vidas - 1;
+            setVidas(nuevasVidas);
+            localStorage.setItem('crucigramaVidas', nuevasVidas);
+
+            if (nuevasVidas <= 0) {
+                setActivePlacement(null);
+                setShowGameOverModal(true);
+            } else {
+                setFeedbackModal({
+                    show: true,
+                    title: "⚠️ Palabra Incorrecta",
+                    message: `La palabra no es correcta. Te quedan ${nuevasVidas} ${nuevasVidas === 1 ? 'vida' : 'vidas'}. ¡Inténtalo de nuevo!`
+                });
+            }
             setLetrasElegidas([]);
         }
     };
@@ -521,10 +531,12 @@ export default function Crucigrama({
     const confirmarReiniciar = () => {
         localStorage.removeItem('crucigramaNivel');
         localStorage.removeItem('crucigramaIntentos');
+        localStorage.removeItem('crucigramaVidas');
         localStorage.removeItem('crucigramaModoDificil');
         localStorage.removeItem('crucigramaPlayerName');
         setNivel(1);
         setIntentos(0);
+        setVidas(MAX_VIDAS);
         setModoDificil(false);
         setPlayerName('');
         setInputPlayerName('');
@@ -553,7 +565,9 @@ export default function Crucigrama({
     const siguienteNivel = () => {
         const proximoNivel = nivel + 1;
         setNivel(proximoNivel);
+        setVidas(MAX_VIDAS);
         localStorage.setItem('crucigramaNivel', proximoNivel);
+        localStorage.setItem('crucigramaVidas', MAX_VIDAS);
         setGuardadoEnNivel(false);
         setPendingGlobalScore(null);
     };
@@ -568,8 +582,16 @@ export default function Crucigrama({
         >
             <header className="text-center mb-3">
                 <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">✏️ Crucigrama Diidxazá</h2>
-                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">
-                    Nivel {nivel} • Intentos: {intentos} • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
+                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1 flex items-center justify-center gap-2 flex-wrap">
+                    <span>Nivel {nivel}</span>
+                    <span>•</span>
+                    <span>Intentos: {intentos}</span>
+                    <span>•</span>
+                    <span className="text-red-600 font-bold tracking-wider" title={`Vidas: ${vidas}/${MAX_VIDAS}`}>
+                        {'❤️ '.repeat(vidas)}{'🤍 '.repeat(MAX_VIDAS - vidas)}
+                    </span>
+                    <span>•</span>
+                    <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
                 </p>
             </header>
 
@@ -762,6 +784,54 @@ export default function Crucigrama({
                             </button>
                         </div>
 
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE GAME OVER / SIN VIDAS */}
+            {showGameOverModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-red-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
+                        <div className="text-4xl mb-2">💔</div>
+                        <h3 className="text-xl font-bold text-red-900 mb-1">¡Te has quedado sin vidas!</h3>
+                        <p className="text-xs text-amber-800 mb-4">Has agotado tus 3 oportunidades en este nivel.</p>
+                        
+                        <div className="flex flex-col gap-2.5 w-full">
+                            {totopos >= 15 ? (
+                                <button 
+                                    onClick={() => {
+                                        setTotopos(prev => {
+                                            const nuevo = prev - 15;
+                                            localStorage.setItem('totopos', nuevo);
+                                            return nuevo;
+                                        });
+                                        setVidas(MAX_VIDAS);
+                                        localStorage.setItem('crucigramaVidas', MAX_VIDAS);
+                                        setShowGameOverModal(false);
+                                    }}
+                                    className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
+                                >
+                                    🌽 Recuperar Vidas (-15 Totopos)
+                                </button>
+                            ) : (
+                                <button disabled className="w-full bg-gray-200 text-gray-400 py-2.5 rounded-xl font-bold text-sm cursor-not-allowed">
+                                    🌽 Necesitas 15 Totopos para revivir
+                                </button>
+                            )}
+                            <button 
+                                onClick={() => {
+                                    setShowGameOverModal(false);
+                                    setVidas(MAX_VIDAS);
+                                    localStorage.setItem('crucigramaVidas', MAX_VIDAS);
+                                    setRespuestasUsuario({});
+                                    setPalabrasResueltas([]);
+                                    generarNuevoJuego();
+                                }}
+                                className="w-full bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
+                            >
+                                🔄 Reiniciar Nivel
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

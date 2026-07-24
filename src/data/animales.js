@@ -1,6 +1,6 @@
 export const listaAnimales = [
     // --- INSECTOS Y BICHITOS ---
-    { id: 1, diidxaza: 'Bacuzagií', spanish: 'luciérnaga', image: '/images/bacuzagii.png' }, //
+    { id: 1, diidxaza: 'Bacuzaguí', spanish: 'luciérnaga', image: '/images/bacuzagui.png' }, //
     { id: 2, diidxaza: 'Birí', spanish: 'hormiga', image: '/images/biri.png' }, //
     { id: 3, diidxaza: 'Biichi’', spanish: 'piojo', image: '/images/biichi.png' }, //
     { id: 4, diidxaza: 'Bi’chidó', spanish: 'pulga', image: '/images/bichido.png' }, //

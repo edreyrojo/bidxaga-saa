@@ -40,6 +40,7 @@ export default function SopaLetras({
 }) {
     const [nivel, setNivel] = useState(1);
     const [intentos, setIntentos] = useState(0); 
+    const [vidas, setVidas] = useState(3); // 💖 Sistema de Vidas orgánico
     const [matriz, setMatriz] = useState([]);
     const [animalesObjetivo, setAnimalesObjetivo] = useState([]);
     const [palabrasEncontradas, setPalabrasEncontradas] = useState([]);
@@ -72,6 +73,7 @@ export default function SopaLetras({
     const [inputPlayerName, setInputPlayerName] = useState('');
     const [showMenuModal, setShowMenuModal] = useState(false);
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
+    const [showComprarVidasModal, setShowComprarVidasModal] = useState(false); // 💖 Modal de vidas agotadas
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
     // Soporte para control externo o interno del modal de configuración
@@ -119,6 +121,7 @@ export default function SopaLetras({
     const handleClickGuardar = async () => {
         localStorage.setItem('sopaLetrasNivel', nivel);
         localStorage.setItem('sopaLetrasIntentos', intentos);
+        localStorage.setItem('sopaLetrasVidas', vidas);
         localStorage.setItem('sopaLetrasModoDificil', modoDificil);
         localStorage.setItem('totopos', totopos);
 
@@ -184,18 +187,20 @@ export default function SopaLetras({
                 registrarControles(null);
             }
         };
-    }, [nivel, modoDificil, intentos, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
+    }, [nivel, modoDificil, intentos, vidas, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
     // Cargar datos locales y sincronizar totopos y nickname de la nube si hay sesión activa
     useEffect(() => {
         const nivelGuardado = localStorage.getItem('sopaLetrasNivel');
         const intentosGuardados = localStorage.getItem('sopaLetrasIntentos');
+        const vidasGuardadas = localStorage.getItem('sopaLetrasVidas');
         const modoDificilGuardado = localStorage.getItem('sopaLetrasModoDificil');
         const nombreGuardado = localStorage.getItem('sopaLetrasPlayerName');
         const totoposGuardados = localStorage.getItem('totopos');
         
         if (nivelGuardado) setNivel(parseInt(nivelGuardado, 10));
         if (intentosGuardados) setIntentos(parseInt(intentosGuardados, 10));
+        if (vidasGuardadas) setVidas(parseInt(vidasGuardadas, 10));
         if (modoDificilGuardado) setModoDificil(modoDificilGuardado === 'true');
         if (nombreGuardado) {
             setPlayerName(nombreGuardado);
@@ -484,16 +489,65 @@ export default function SopaLetras({
         const animalEncontrado = animalesObjetivo.find(animal => {
             const palabraLimpia = limpiarPalabra(animal.diidxaza, modoDificil);
             return (palabraLimpia === textoSeleccionado || palabraLimpia === textoInvertido) 
-                   && !palabrasEncontradas.includes(animal.id);
+                    && !palabrasEncontradas.includes(animal.id);
         });
 
         if (animalEncontrado) {
             setPalabrasEncontradas(prev => [...prev, animalEncontrado.id]);
+        } else {
+            // Si falla la selección en Modo Difícil, pierde una vida
+            if (modoDificil) {
+                const nuevasVidas = vidas - 1;
+                setVidas(nuevasVidas);
+                localStorage.setItem('sopaLetrasVidas', nuevasVidas);
+
+                if (nuevasVidas <= 0) {
+                    setShowComprarVidasModal(true);
+                }
+            }
         }
 
         setStartCell(null);
         setCurrentCell(null);
         setCeldasSeleccionadas([]);
+    };
+
+    const comprarVidas = async () => {
+        const COSTO_VIDAS = 15;
+        if (totopos < COSTO_VIDAS) {
+            setFeedbackModal({
+                show: true,
+                title: "⚠️ Totopos insuficientes",
+                message: "No tienes suficientes totopos para comprar vidas. ¡Completa niveles o juega otros minijuegos para ganar más!"
+            });
+            return;
+        }
+
+        const nuevosTotopos = totopos - COSTO_VIDAS;
+        setTotopos(nuevosTotopos);
+        localStorage.setItem('totopos', nuevosTotopos);
+
+        setVidas(3);
+        localStorage.setItem('sopaLetrasVidas', 3);
+        setShowComprarVidasModal(false);
+
+        const currentUser = user || auth.currentUser;
+        if (currentUser) {
+            try {
+                const userRef = doc(db, 'usuarios', currentUser.uid);
+                await updateDoc(userRef, {
+                    totopos: increment(-COSTO_VIDAS)
+                });
+            } catch (err) {
+                console.error("Error al descontar totopos en Firebase:", err);
+            }
+        }
+
+        setFeedbackModal({
+            show: true,
+            title: "❤️ ¡Vidas Recargadas!",
+            message: "Has recuperado 3 vidas por 15 totopos. ¡A seguir jugando!"
+        });
     };
 
     const confirmarGuardadoGlobal = async () => {
@@ -541,16 +595,19 @@ export default function SopaLetras({
     const confirmarReiniciar = () => {
         localStorage.removeItem('sopaLetrasNivel');
         localStorage.removeItem('sopaLetrasIntentos');
+        localStorage.removeItem('sopaLetrasVidas');
         localStorage.removeItem('sopaLetrasModoDificil');
         localStorage.removeItem('sopaLetrasPlayerName');
         setNivel(1);
         setIntentos(0);
+        setVidas(3);
         setModoDificil(false);
         setPlayerName('');
         setInputPlayerName('');
         setGuardadoEnNivel(false);
         setPendingGlobalScore(null);
         setShowConfirmRestartModal(false);
+        setShowComprarVidasModal(false);
         generarNuevoJuego();
     };
 
@@ -573,7 +630,9 @@ export default function SopaLetras({
     const siguienteNivel = () => {
         const proximoNivel = nivel + 1;
         setNivel(proximoNivel);
+        setVidas(3);
         localStorage.setItem('sopaLetrasNivel', proximoNivel);
+        localStorage.setItem('sopaLetrasVidas', 3);
         setGuardadoEnNivel(false);
         setPendingGlobalScore(null);
     };
@@ -586,7 +645,7 @@ export default function SopaLetras({
             <header className="text-center mb-3">
                 <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">🔎 Sopa de Letras</h2>
                 <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">
-                    Nivel {nivel} • Intentos: {intentos} • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
+                    <span className="text-red-600 font-bold">❤️ {vidas} Vidas</span> • Nivel {nivel} • Intentos: {intentos} • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
                 </p>
             </header>
 
@@ -682,6 +741,34 @@ export default function SopaLetras({
                     </div>
                 </div>
             </div>
+
+            {/* MODAL DE VIDAS AGOTADAS / COMPRAR (z-[70]) */}
+            {showComprarVidasModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-red-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
+                        <div className="text-4xl mb-2">💔</div>
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">¡Te has quedado sin vidas!</h3>
+                        <p className="text-xs text-amber-800 mb-4">Puedes gastar 15 🌽 Totopos para recuperar 3 vidas y continuar tu partida.</p>
+                        
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                type="button"
+                                onClick={confirmarReiniciar} 
+                                className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
+                            >
+                                Reiniciar Nivel
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={comprarVidas} 
+                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
+                            >
+                                Comprar (15 🌽)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* MODAL PERSONALIZADA PARA GUARDAR PROGRESO (z-[70]) */}
             {showGuardarModal && (
