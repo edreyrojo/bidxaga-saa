@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebaseConfig';
 import {
     signInWithEmailAndPassword,
@@ -6,7 +6,8 @@ import {
     sendPasswordResetEmail,
     signOut,
     GoogleAuthProvider,
-    signInWithPopup
+    signInWithRedirect,
+    getRedirectResult
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -18,6 +19,35 @@ export default function LoginModal({ user, onClose }) {
     const [error, setError] = useState('');
     const [mensajeExito, setMensajeExito] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // 🌟 Capturar el resultado cuando el usuario regresa de la redirección de Google (Especial para móviles/iPhone)
+    useEffect(() => {
+        const verificarRedireccionGoogle = async () => {
+            try {
+                const result = await getRedirectResult(auth);
+                if (result && result.user) {
+                    const googleUser = result.user;
+                    const userDocRef = doc(db, 'usuarios', googleUser.uid);
+                    const userDocSnap = await getDoc(userDocRef);
+
+                    if (!userDocSnap.exists()) {
+                        await setDoc(userDocRef, {
+                            email: googleUser.email,
+                            totopos: 0,
+                            avatar: 'default',
+                            createdAt: new Date()
+                        });
+                    }
+                    if (onClose) onClose();
+                }
+            } catch (err) {
+                console.error("Error en Google Redirect:", err);
+                setError('No se pudo completar el acceso con Google.');
+            }
+        };
+
+        verificarRedireccionGoogle();
+    }, [onClose]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -59,42 +89,18 @@ export default function LoginModal({ user, onClose }) {
         }
     };
 
-    // 🌟 Función de acceso con Google optimizada con mejor control de errores de Popup/COOP
+    // 🌟 Función de acceso con Google optimizada con Redirección (Compatible con iPhone/Móviles)
     const handleGoogleLogin = async () => {
         setError('');
         setLoading(true);
         const provider = new GoogleAuthProvider();
 
         try {
-            const result = await signInWithPopup(auth, provider);
-            const googleUser = result.user;
-
-            // Verificar si el usuario ya tiene documento en Firestore
-            const userDocRef = doc(db, 'usuarios', googleUser.uid);
-            const userDocSnap = await getDoc(userDocRef);
-
-            if (!userDocSnap.exists()) {
-                await setDoc(userDocRef, {
-                    email: googleUser.email,
-                    totopos: 0,
-                    avatar: 'default',
-                    createdAt: new Date()
-                });
-            }
-
-            onClose();
+            // Usamos signInWithRedirect para evitar bloqueos de popups en iPhone y Safari
+            await signInWithRedirect(auth, provider);
         } catch (err) {
-            console.error("Error en Google Login:", err);
-            
-            // Detectar si fue bloqueado por el navegador, política COOP o extensiones
-            if (err.code === 'auth/popup-blocked' || err.message?.includes('popup') || err.message?.includes('Cross-Origin')) {
-                setError('El navegador bloqueó la ventana emergente o la política de seguridad. Prueba en modo incógnito o desactiva bloqueadores.');
-            } else if (err.code === 'auth/popup-closed-by-user') {
-                setError('Cancelaste el inicio de sesión con Google.');
-            } else {
-                setError('No se pudo completar el acceso con Google. Inténtalo de nuevo.');
-            }
-        } finally {
+            console.error("Error al iniciar Google Login:", err);
+            setError('No se pudo iniciar la autenticación con Google.');
             setLoading(false);
         }
     };
