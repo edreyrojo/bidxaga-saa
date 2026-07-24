@@ -52,5 +52,5 @@ export const listaAnimales = [
     { id: 42, diidxaza: 'Da’ma’', spanish: 'tecolote', image: '/images/dama.png' }, //
     { id: 43, diidxaza: 'Nguengue', spanish: 'loro', image: '/images/nguengue.png' }, //
     { id: 44, diidxaza: 'Ndxuru’', spanish: 'perico', image: '/images/ndxuru.png' }, //
-    { id: 45, diidxaza: 'Cha’cha’', spanish: 'carpintero', image: '/images/chacha.png' } //
+    { id: 45, diidxaza: 'Cha’ca’', spanish: 'carpintero', image: '/images/chaca.png' } //
 ];

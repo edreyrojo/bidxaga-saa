@@ -242,7 +242,7 @@ function App() {
         />
       )}
 
-      {/* Modal de Configuración y Música */}
+      {/* Modal de Configuración, Música y Panel Admin */}
       <ConfiguracionModal
         isOpen={showConfigModal}
         onClose={() => setShowConfigModal(false)}
@@ -252,6 +252,7 @@ function App() {
         onCambiarPista={cambiarPistaAudio}
         listaPistas={LISTA_PISTAS}
         controlesJuegoActivo={controlesJuegoActivo}
+        user={user} // 🛡️ Prop añadida para verificar el rol de administrador
       />
 
     </div>
