@@ -41,11 +41,33 @@ const calcularNivelYTitulo = (totalHistorico) => {
     return { nivel: 5, titulo: "Maestro Zapoteco 👑" };
 };
 
+// 📈 Función para calcular el porcentaje de progreso dentro del nivel actual
+const calcularProgresoNivel = (totalHistorico) => {
+    if (totalHistorico < 100) {
+        const porcentaje = Math.min(100, Math.max(0, (totalHistorico / 100) * 100));
+        return { necesario: 100, porcentaje };
+    } else if (totalHistorico < 300) {
+        const actual = totalHistorico - 100;
+        const porcentaje = Math.min(100, Math.max(0, (actual / 200) * 100));
+        return { necesario: 300, porcentaje };
+    } else if (totalHistorico < 600) {
+        const actual = totalHistorico - 300;
+        const porcentaje = Math.min(100, Math.max(0, (actual / 300) * 100));
+        return { necesario: 600, porcentaje };
+    } else if (totalHistorico < 1000) {
+        const actual = totalHistorico - 600;
+        const porcentaje = Math.min(100, Math.max(0, (actual / 400) * 100));
+        return { necesario: 1000, porcentaje };
+    } else {
+        return { necesario: totalHistorico, porcentaje: 100 };
+    }
+};
+
 export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     const [nombre, setNombre] = useState('');
     const [totopos, setTotopos] = useState(0);
     const [totoposHistoricos, setTotoposHistoricos] = useState(0);
-    const [vidas, setVidas] = useState(0);
+    const [vidas, setVidas] = useState(3);
     const [avatarActual, setAvatarActual] = useState('default');
     const [avataresDesbloqueados, setAvataresDesbloqueados] = useState(['default']);
     const [logrosDesbloqueados, setLogrosDesbloqueados] = useState([]);
@@ -54,10 +76,13 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     const [mensaje, setMensaje] = useState('');
     const [showConfirmLogout, setShowConfirmLogout] = useState(false);
 
-    // Cargar datos del usuario desde Firestore
+    // Cargar datos del usuario desde Firestore con optimización de renderizado inmediato
     useEffect(() => {
         const fetchUserData = async () => {
-            if (!user) return;
+            if (!user) {
+                setLoading(false);
+                return;
+            }
             try {
                 const docRef = doc(db, 'usuarios', user.uid);
                 const docSnap = await getDoc(docRef);
@@ -215,19 +240,9 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-2xl p-6 text-center text-amber-900 font-bold shadow-xl">
-                    <span className="text-4xl animate-pulse block mb-2">🌽</span>
-                    Cargando tu perfil...
-                </div>
-            </div>
-        );
-    }
-
     const avatarSeleccionadoObj = CATALOGO_AVATARES.find(a => a.id === avatarActual);
     const { nivel, titulo } = calcularNivelYTitulo(totoposHistoricos);
+    const progresoInfo = calcularProgresoNivel(totoposHistoricos);
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
@@ -254,8 +269,15 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     </div>
                 )}
 
-                <div className="overflow-y-auto custom-scrollbar p-5 pb-6">
+                <div className="overflow-y-auto custom-scrollbar p-5 pb-6 relative">
                     
+                    {/* Indicador de Carga Discreto (No bloquea el modal completo) */}
+                    {loading && (
+                        <div className="absolute inset-x-0 top-0 bg-amber-600/90 text-white text-[11px] font-bold py-1 text-center z-10 flex items-center justify-center gap-1.5 shadow-sm animate-pulse">
+                            <span>🌽 Sincronizando datos con la nube...</span>
+                        </div>
+                    )}
+
                     {/* ENCABEZADO DE PERFIL */}
                     <div className="text-center mb-6 mt-2 relative">
                         <div className="w-24 h-24 bg-amber-600 rounded-full mx-auto flex items-center justify-center text-white text-5xl shadow-lg border-4 border-white relative">
@@ -266,11 +288,27 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                         
                         <h2 className="text-2xl font-black text-amber-950 mt-3">
-                            {nombre ? nombre : 'Mi Perfil Istmeño'}
+                            {nombre ? nombre : (user?.email || 'Mi Perfil Istmeño')}
                         </h2>
-                        <p className="text-amber-700 text-sm font-medium mb-1">
-                            {!nombre ? user.email : titulo}
+                        <p className="text-amber-700 text-sm font-medium mb-2">
+                            {!nombre ? 'Explorador' : titulo}
                         </p>
+
+                        {/* 📊 BARRA DE ESTADO / PROGRESO DENTRO DEL NIVEL */}
+                        <div className="max-w-xs mx-auto mb-3 bg-white/80 p-3 rounded-2xl border border-amber-200 shadow-sm">
+                            <div className="flex justify-between items-center text-xs font-black text-amber-900 mb-1.5">
+                                <span>Progreso Nivel {nivel}</span>
+                                <span className="text-amber-700">
+                                    {nivel === 5 ? `${totoposHistoricos} 🌽 (Máximo)` : `${totoposHistoricos} / ${progresoInfo.necesario} 🌽`}
+                                </span>
+                            </div>
+                            <div className="w-full bg-amber-100 rounded-full h-3.5 overflow-hidden border border-amber-300 shadow-inner">
+                                <div 
+                                    className="bg-amber-500 h-full rounded-full transition-all duration-500 ease-out shadow-sm"
+                                    style={{ width: `${progresoInfo.porcentaje}%` }}
+                                ></div>
+                            </div>
+                        </div>
 
                         <div className="flex justify-center gap-3 mt-3">
                             <div className="flex items-center gap-1.5 bg-amber-200/80 px-3 py-1.5 rounded-xl border border-amber-400 shadow-sm">

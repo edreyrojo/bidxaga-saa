@@ -384,7 +384,7 @@ export default function Tablero({
             setFeedbackModal({
                 show: true,
                 title: "⚠️ Guardado Parcial",
-                message: "Progreso guardado localmente, pero hubo un error al conectarกับ Firebase."
+                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
             });
         }
     };
@@ -596,11 +596,12 @@ export default function Tablero({
     }, [choiceOne, choiceTwo, modoDificil, cards.length, fichasVistas]);
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col items-center select-none pb-[env(safe-area-inset-bottom)]">
+        <div className="max-w-6xl mx-auto px-4 py-2 select-none pb-[env(safe-area-inset-bottom)]">
             
-            <header className="text-center mb-3">
-                <img src="/images/banner.png" alt="Banner Diidxaza" className="mx-auto mb-2 max-w-full h-auto" />
-                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1 flex flex-wrap justify-center items-center gap-2">
+            {/* 🌟 Banner optimizado con altura controlada para evitar desbordes */}
+            <header className="text-center mb-2">
+                <img src="/images/banner.png" alt="Banner Diidxaza" className="mx-auto mb-1 max-h-16 sm:max-h-20 w-auto object-contain" />
+                <p className="text-xs sm:text-sm text-amber-800 font-medium flex flex-wrap justify-center items-center gap-2">
                     <span>Nivel {level}</span> • 
                     <span>Turnos: {turns}</span> • 
                     <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span> • 
@@ -608,28 +609,62 @@ export default function Tablero({
                 </p>
             </header>
 
-            {matches === parejasRequeridas && (
-                <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce">
-                    <p className="text-lg sm:text-xl font-bold text-green-900 mb-1">🎉 ¡Nivel {level} completado!</p>
-                    <p className="text-xs font-bold text-amber-700 mb-2">
-                        +{configActual.recompensa} 🌽 Totopos añadidos a tu morral (Total: {totopos})
-                    </p>
-                    <div className="flex gap-3 justify-center">
-                        <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm cursor-pointer">Siguiente Nivel</button>
+            {/* 🖥️ CONTENEDOR OPTIMIZADO: Dos columnas en PC (Tablero izq, Ranking der), responsivo en móvil */}
+            <div className="flex flex-col lg:grid lg:grid-cols-[1fr_360px] gap-4 items-start justify-center">
+                
+                {/* Columna Izquierda: Tablero y Notificaciones de Nivel */}
+                <div className="flex flex-col items-center w-full">
+                    {matches === parejasRequeridas && (
+                        <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-3 mb-2 text-center animate-bounce">
+                            <p className="text-base sm:text-lg font-bold text-green-900 mb-0.5">🎉 ¡Nivel {level} completado!</p>
+                            <p className="text-xs font-bold text-amber-700 mb-2">
+                                +{configActual.recompensa} 🌽 Totopos añadidos a tu morral (Total: {totopos})
+                            </p>
+                            <div className="flex gap-3 justify-center">
+                                <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-4 rounded-lg shadow-md text-xs sm:text-sm cursor-pointer">Siguiente Nivel</button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className={`grid ${configActual.columnas} gap-2.5 w-full max-w-xl`}>
+                        {cards.map(card => (
+                            <Tarjeta 
+                                key={card.id} 
+                                card={card} 
+                                handleChoice={handleChoice} 
+                                flipped={card === choiceOne || card === choiceTwo || card.isMatched} 
+                                disabled={disabled || vidas === 0} 
+                            />
+                        ))}
                     </div>
                 </div>
-            )}
 
-            <div className={`grid ${configActual.columnas} gap-3 w-full max-w-2xl mt-2`}>
-                {cards.map(card => (
-                    <Tarjeta 
-                        key={card.id} 
-                        card={card} 
-                        handleChoice={handleChoice} 
-                        flipped={card === choiceOne || card === choiceTwo || card.isMatched} 
-                        disabled={disabled || vidas === 0} 
-                    />
-                ))}
+                {/* Columna Derecha en PC (Abajo en Móvil): Tabla de Ranking Global */}
+                <div className="w-full max-w-md mx-auto lg:max-w-none">
+                    <div className="bg-white rounded-2xl p-3.5 shadow-md border-2 border-amber-200">
+                        <h3 className="font-black text-amber-900 text-center mb-2.5 text-sm sm:text-base flex items-center justify-center gap-1.5">
+                            <span>🏆</span> Ranking Global - Memorama
+                        </h3>
+                        {cargandoRanking ? (
+                            <p className="text-center text-xs text-gray-500 py-2">Cargando puntajes globales...</p>
+                        ) : ranking.length === 0 ? (
+                            <p className="text-center text-xs text-gray-500 py-2">Aún no hay scores en la nube. ¡Sé el primero!</p>
+                        ) : (
+                            <div className="flex flex-col gap-1 max-h-[320px] overflow-y-auto pr-1">
+                                {ranking.map((r, i) => (
+                                    <div key={r.id || i} className="flex justify-between items-center border-b py-1.5 text-xs border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
+                                        <span className="font-bold text-amber-950 truncate max-w-[180px]">
+                                            <span className="text-orange-600 font-black mr-1">{i + 1}.</span> {r.name} 
+                                            <span className="text-[9px] text-amber-700 font-bold ml-1.5 bg-amber-100 px-1 py-0.5 rounded">Niv {r.level}</span>
+                                        </span>
+                                        <span className="font-black text-amber-900 whitespace-nowrap">{r.score} turnos</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
             </div>
 
             {/* 🛑 MODAL: TE QUEDASTE SIN VIDAS */}
@@ -773,28 +808,6 @@ export default function Tablero({
                 </div>
             )}
 
-            {/* Tabla de Ranking Global */}
-            <div className="mt-12 w-full max-w-md">
-                <h3 className="font-bold text-amber-900 text-center mb-3 text-xl">🏆 Ranking - Memorama</h3>
-                <div className="bg-white rounded-xl p-4 shadow-md border border-amber-200">
-                    {cargandoRanking ? (
-                        <p className="text-center text-sm text-gray-500 py-2">Cargando puntajes globales...</p>
-                    ) : ranking.length === 0 ? (
-                        <p className="text-center text-sm text-gray-500 py-2">Aún no hay scores en la nube. ¡Sé el primero!</p>
-                    ) : (
-                        <div>
-                            {ranking.map((r, i) => (
-                                <div key={r.id || i} className="flex justify-between items-center border-b py-2 text-sm border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
-                                    <span className="font-medium text-amber-950">
-                                        <span className="text-orange-500 font-bold mr-2">{i + 1}.</span> {r.name} <span className="text-xs text-amber-700 font-bold ml-2">(Nivel {r.level})</span>
-                                    </span>
-                                    <span className="font-bold text-amber-900">{r.score} turnos</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
         </div>
     );
 }

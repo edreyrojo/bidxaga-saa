@@ -690,7 +690,7 @@ export default function Crucigrama({
 
     return (
         <div 
-            className="max-w-4xl mx-auto px-3 py-4 flex flex-col items-center select-none w-full pb-[env(safe-area-inset-bottom)]"
+            className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-4 flex flex-col items-center select-none w-full pb-[env(safe-area-inset-bottom)]"
             onMouseUp={handleMouseUpGlobal}
             onTouchEnd={handleMouseUpGlobal}
         >
@@ -721,18 +721,20 @@ export default function Crucigrama({
                 </div>
             )}
 
-            <div className="flex flex-col lg:flex-row gap-4 w-full max-w-5xl justify-center items-center lg:items-start mt-1">
+            {/* 🖥️ CONTENEDOR DE TRES COLUMNAS EN PC: (Panel Crucigrama) (Pistas Crucigrama) (Ranking Global) */}
+            <div className="w-full max-w-6xl xl:max-w-7xl flex flex-col lg:grid lg:grid-cols-[1fr_320px_320px] gap-6 items-center lg:items-start justify-center mt-1">
                 
-                <div className="w-full lg:w-auto p-2 sm:p-4 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner overflow-x-auto custom-scrollbar flex justify-center">
+                {/* Columna 1: Tablero del Crucigrama (Ligeramente más pequeño en PC) */}
+                <div className="w-full p-3 sm:p-5 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner overflow-x-auto custom-scrollbar flex justify-center items-center min-h-[380px]">
                     <div className="flex justify-center min-w-max mx-auto">
                         <div 
-                            className="grid gap-0.5 sm:gap-1 p-1" 
+                            className="grid gap-1 sm:gap-1.5 p-1.5" 
                             style={{ gridTemplateColumns: `repeat(${matriz[0]?.length || 1}, max-content)` }}
                         >
                             {matriz.map((fila, r) => 
                                 fila.map((celda, c) => {
                                     if (celda.empty) {
-                                        return <div key={`${r}-${c}`} className="w-7 h-7 sm:w-9 sm:h-9 md:w-[42px] md:h-[42px] bg-transparent"></div>;
+                                        return <div key={`${r}-${c}`} className="w-7 h-7 sm:w-9 sm:h-9 md:w-11 md:h-11 lg:w-10 lg:h-10 bg-transparent"></div>;
                                     }
 
                                     const resuelta = celda.words.some(id => palabrasResueltas.includes(id));
@@ -741,12 +743,12 @@ export default function Crucigrama({
                                     return (
                                         <div 
                                             key={`${r}-${c}`} 
-                                            className={`relative w-7 h-7 sm:w-9 sm:h-9 md:w-[42px] md:h-[42px] flex items-center justify-center font-bold text-[12px] sm:text-[16px] md:text-xl uppercase border-2 rounded-md shadow-sm transition-all select-none
+                                            className={`relative w-7 h-7 sm:w-9 sm:h-9 md:w-11 md:h-11 lg:w-10 lg:h-10 flex items-center justify-center font-bold text-[12px] sm:text-[16px] md:text-xl lg:text-xl uppercase border-2 rounded-md shadow-sm transition-all select-none
                                                 ${resuelta ? 'bg-green-500 text-white border-green-600' : letraGuardada ? 'bg-amber-50 text-amber-950 border-amber-500' : 'bg-white border-amber-400 text-amber-950'}
                                             `}
                                         >
                                             {celda.number && (
-                                                <span className="absolute top-0.5 left-0.5 sm:top-0.5 sm:left-1 text-[8px] sm:text-[9px] font-black text-amber-800 z-10 pointer-events-none">
+                                                <span className="absolute top-0.5 left-0.5 sm:top-0.5 sm:left-1 text-[8px] sm:text-[9px] lg:text-[10px] font-black text-amber-800 z-10 pointer-events-none">
                                                     {celda.number}
                                                 </span>
                                             )}
@@ -759,11 +761,12 @@ export default function Crucigrama({
                     </div>
                 </div>
 
-                <div className="w-full lg:w-80 flex flex-col gap-2.5">
-                    <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1 text-center lg:text-left text-sm sm:text-base">
-                        📋 Pistas del Crucigrama
+                {/* Columna 2: Panel Lateral de Pistas (Completa sin scroll en PC) */}
+                <div className="w-full flex flex-col gap-3">
+                    <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base">
+                        📋 Pistas ({palabrasResueltas.length}/{placements.length}):
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 w-full">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 w-full max-h-[440px] lg:max-h-none overflow-y-auto lg:overflow-y-visible pr-1 custom-scrollbar">
                         {placements.map((p) => {
                             const resuelto = palabrasResueltas.includes(p.id);
                             const direccion = p.dirX === 1 ? "Horizontal" : "Vertical";
@@ -792,6 +795,32 @@ export default function Crucigrama({
                                 </div>
                             );
                         })}
+                    </div>
+                </div>
+
+                {/* Columna 3: Ranking Global */}
+                <div className="w-full flex flex-col gap-3">
+                    <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base">
+                        🏆 Ranking Global
+                    </h3>
+                    <div className="bg-white rounded-xl p-3 shadow-md border border-amber-200 w-full max-h-[440px] lg:max-h-none overflow-y-auto lg:overflow-y-visible custom-scrollbar">
+                        {cargandoRanking ? (
+                            <p className="text-center text-sm text-gray-500 py-2">Cargando puntajes...</p>
+                        ) : ranking.length === 0 ? (
+                            <p className="text-center text-sm text-gray-500 py-2">Aún no hay scores. ¡Sé el primero!</p>
+                        ) : (
+                            <div>
+                                {ranking.map((r, i) => (
+                                    <div key={r.id || i} className="flex justify-between items-center border-b py-2 text-xs sm:text-sm border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
+                                        <span className="font-medium text-amber-950 truncate pr-2">
+                                            <span className="text-orange-500 font-bold mr-1.5">{i + 1}.</span> {r.name} 
+                                            <span className="text-[11px] text-amber-700 font-bold ml-1.5">(Nivel {r.level})</span>
+                                        </span>
+                                        <span className="font-bold text-amber-900 flex-shrink-0">{r.intentos} int.</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -1070,29 +1099,6 @@ export default function Crucigrama({
                     </div>
                 </div>
             )}
-
-            <div className="mt-10 w-full max-w-md px-2">
-                <h3 className="font-bold text-amber-900 text-center mb-2.5 text-lg">🏆 Ranking - Crucigrama</h3>
-                <div className="bg-white rounded-xl p-3 shadow-md border border-amber-200">
-                    {cargandoRanking ? (
-                        <p className="text-center text-sm text-gray-500 py-2">Cargando puntajes globales...</p>
-                    ) : ranking.length === 0 ? (
-                        <p className="text-center text-sm text-gray-500 py-2">Aún no hay scores en la nube. ¡Sé el primero!</p>
-                    ) : (
-                        <div>
-                            {ranking.map((r, i) => (
-                                <div key={r.id || i} className="flex justify-between items-center border-b py-2 text-xs sm:text-sm border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
-                                    <span className="font-medium text-amber-950 truncate pr-2">
-                                        <span className="text-orange-500 font-bold mr-1.5">{i + 1}.</span> {r.name} 
-                                        <span className="text-[11px] text-amber-700 font-bold ml-1.5">(Nivel {r.level})</span>
-                                    </span>
-                                    <span className="font-bold text-amber-900 flex-shrink-0">{r.intentos} int.</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
         </div>
     );
 }

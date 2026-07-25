@@ -62,7 +62,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             setFeedbackModal({
                 show: true,
                 title: "⚠️ Guardado Parcial",
-                message: "Progreso guardado localmente, pero hubo un error al conectarกับ Firebase."
+                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
             });
         }
     };
@@ -361,7 +361,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     };
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col items-center select-none pb-[env(safe-area-inset-bottom)]">
+        <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-4 flex flex-col items-center select-none w-full pb-[env(safe-area-inset-bottom)]">
             <header className="text-center mb-3">
                 <h2 className="text-2xl sm:text-3xl font-black text-amber-950">⚡ Reto Trivia Diidxazá</h2>
                 <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">
@@ -369,84 +369,114 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 </p>
             </header>
 
-            {/* INDICADOR DE PROGRESO DE PREGUNTAS DEL NIVEL */}
-            <div className="w-full max-w-2xl text-center mb-3 text-xs sm:text-sm font-bold text-amber-900 bg-amber-100/50 py-1.5 px-3 rounded-xl border border-amber-200 shadow-sm">
-                Progreso del Nivel: {aciertosNivel} / {PREGUNTAS_POR_NIVEL} aciertos
-            </div>
-
-            {/* ZONA DE JUEGO */}
-            <div className="w-full max-w-lg mt-2 flex flex-col items-center">
-                {aciertosNivel === PREGUNTAS_POR_NIVEL ? (
-                    <div className="w-full bg-amber-50 border-4 border-amber-600 rounded-3xl p-6 text-center animate-fade-in mt-4 shadow-xl">
-                        <h3 className="text-2xl font-black text-amber-950 mb-2">🎉 ¡Nivel Superado!</h3>
-                        <p className="text-amber-800 mb-6 font-medium text-sm">Has superado las 5 preguntas y ganado +{TOTOPOS_POR_NIVEL} totopos.</p>
-                        <button type="button" onClick={siguienteNivel} className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-8 rounded-2xl shadow-md text-sm transition-transform active:scale-95 cursor-pointer">
-                            Siguiente Nivel ➡️
-                        </button>
-                    </div>
-                ) : (
-                    preguntaActual && (
-                        <div className="w-full flex flex-col items-center bg-white p-6 rounded-3xl shadow-xl border-2 border-amber-200">
-                            {!modoDificil && (
-                                <div className="w-48 h-48 sm:w-56 sm:h-56 bg-orange-50 rounded-2xl overflow-hidden flex items-center justify-center border-4 border-amber-200 mb-4 shadow-inner">
-                                    <img src={preguntaActual.image} alt={preguntaActual.spanish} className="max-w-[80%] max-h-[80%] object-contain drop-shadow-md" onError={(e) => { e.target.src = "❓"; }} />
-                                </div>
-                            )}
-                            <h3 className="text-2xl sm:text-3xl font-black text-amber-950 uppercase tracking-wide mb-6 text-center">
-                                {preguntaActual.spanish}
-                            </h3>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-                                {opciones.map((opcion) => {
-                                    let estiloBoton = "bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-amber-950 cursor-pointer";
-                                    
-                                    // 🛡️ Solo se ilumina en verde si la opción es correcta Y el usuario acertó. Nunca revela la correcta al equivocarse.
-                                    if (estadoRespuesta === 'correcta' && opcion.id === preguntaActual.id) {
-                                        estiloBoton = "bg-emerald-600 border-emerald-700 text-white scale-105 shadow-lg";
-                                    } else if (estadoRespuesta === 'incorrecta' && opcionSeleccionada === opcion.id) {
-                                        estiloBoton = "bg-red-500 border-red-600 text-white scale-95 opacity-80";
-                                    }
-
-                                    return (
-                                        <button
-                                            key={opcion.id}
-                                            type="button"
-                                            onClick={() => manejarRespuesta(opcion)}
-                                            disabled={estadoRespuesta !== null}
-                                            className={`py-4 px-4 rounded-2xl font-bold text-lg sm:text-xl transition-all duration-200 active:scale-95 shadow-sm ${estiloBoton}`}
-                                        >
-                                            {opcion.diidxaza}
-                                        </button>
-                                    );
-                                })}
+            {/* 🖥️ CONTENEDOR DE TRES COLUMNAS EN PC (Panel oculto en móvil): (Panel de Estado) (Zona de Juego) (Ranking Global) */}
+            <div className="w-full max-w-6xl xl:max-w-7xl flex flex-col lg:grid lg:grid-cols-[280px_1fr_300px] gap-6 items-center lg:items-start justify-center mt-1">
+                
+                {/* Columna Izquierda: Panel de Estado y Progreso del Nivel (Oculto en móvil, visible en PC con lg:flex) */}
+                <div className="hidden lg:flex flex-col gap-3 w-full">
+                    <h3 className="font-black text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base">
+                        📊 Estado del Nivel
+                    </h3>
+                    <div className="bg-white rounded-2xl p-4 shadow-md border border-amber-200 flex flex-col gap-3 w-full">
+                        <div className="flex justify-between items-center text-sm font-bold text-amber-950 border-b border-amber-100 pb-2">
+                            <span>Nivel Actual:</span>
+                            <span className="text-amber-700">{nivel}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm font-bold text-amber-950 border-b border-amber-100 pb-2">
+                            <span>Errores Totales:</span>
+                            <span className="text-red-600">{errores}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm font-bold text-amber-950 border-b border-amber-100 pb-2">
+                            <span>Vidas:</span>
+                            <span className="text-red-600 font-bold">{'❤️'.repeat(Math.max(0, vidas))}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm font-bold text-amber-950 border-b border-amber-100 pb-2">
+                            <span>Totopos:</span>
+                            <span className="text-orange-600 font-bold">🌽 {totopos}</span>
+                        </div>
+                        <div className="flex flex-col gap-1.5 pt-1">
+                            <span className="text-xs font-bold text-amber-900">Progreso:</span>
+                            <div className="w-full bg-amber-100/60 text-center py-2 px-3 rounded-xl border border-amber-200 text-xs font-bold text-amber-900">
+                                {aciertosNivel} / {PREGUNTAS_POR_NIVEL} aciertos
                             </div>
                         </div>
-                    )
-                )}
-            </div>
+                    </div>
+                </div>
 
-            {/* RANKING GLOBAL */}
-            <div className="mt-12 w-full max-w-md">
-                <h3 className="font-black text-amber-900 text-center mb-3 text-lg flex items-center justify-center gap-2">
-                    <span>🏆</span> Ranking Global - Trivia
-                </h3>
-                <div className="bg-white rounded-2xl p-4 shadow-md border border-amber-200">
-                    {cargandoRanking ? (
-                        <p className="text-center text-xs text-amber-700 py-3 font-medium">Cargando puntajes globales...</p>
-                    ) : ranking.length === 0 ? (
-                        <p className="text-center text-xs text-amber-700 py-3 font-medium">Aún no hay scores en la nube. ¡Sé el primero!</p>
+                {/* Columna Central: Zona de Juego de la Trivia */}
+                <div className="w-full flex flex-col items-center">
+                    {aciertosNivel === PREGUNTAS_POR_NIVEL ? (
+                        <div className="w-full bg-amber-50 border-4 border-amber-600 rounded-3xl p-6 text-center animate-fade-in shadow-xl">
+                            <h3 className="text-2xl font-black text-amber-950 mb-2">🎉 ¡Nivel Superado!</h3>
+                            <p className="text-amber-800 mb-6 font-medium text-sm">Has superado las 5 preguntas y ganado +{TOTOPOS_POR_NIVEL} totopos.</p>
+                            <button type="button" onClick={siguienteNivel} className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-8 rounded-2xl shadow-md text-sm transition-transform active:scale-95 cursor-pointer">
+                                Siguiente Nivel ➡️
+                            </button>
+                        </div>
                     ) : (
-                        ranking.map((r, i) => (
-                            <div key={r.id || i} className="flex justify-between items-center border-b py-2.5 text-xs sm:text-sm border-amber-100 last:border-0 hover:bg-amber-50 rounded-xl px-2 transition-colors">
-                                <span className="font-bold text-amber-950 flex items-center gap-2">
-                                    <span className="text-orange-600 font-black">{i + 1}.</span> {r.name} 
-                                    <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Nivel {r.level}</span>
-                                </span>
-                                <span className="font-bold text-red-700">{r.errores} errores</span>
+                        preguntaActual && (
+                            <div className="w-full flex flex-col items-center bg-white p-6 rounded-3xl shadow-xl border-2 border-amber-200">
+                                {!modoDificil && (
+                                    <div className="w-48 h-48 sm:w-56 sm:h-56 bg-orange-50 rounded-2xl overflow-hidden flex items-center justify-center border-4 border-amber-200 mb-4 shadow-inner">
+                                        <img src={preguntaActual.image} alt={preguntaActual.spanish} className="max-w-[80%] max-h-[80%] object-contain drop-shadow-md" onError={(e) => { e.target.src = "❓"; }} />
+                                    </div>
+                                )}
+                                <h3 className="text-2xl sm:text-3xl font-black text-amber-950 uppercase tracking-wide mb-6 text-center">
+                                    {preguntaActual.spanish}
+                                </h3>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                                    {opciones.map((opcion) => {
+                                        let estiloBoton = "bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-amber-950 cursor-pointer";
+                                        
+                                        if (estadoRespuesta === 'correcta' && opcion.id === preguntaActual.id) {
+                                            estiloBoton = "bg-emerald-600 border-emerald-700 text-white scale-105 shadow-lg";
+                                        } else if (estadoRespuesta === 'incorrecta' && opcionSeleccionada === opcion.id) {
+                                            estiloBoton = "bg-red-500 border-red-600 text-white scale-95 opacity-80";
+                                        }
+
+                                        return (
+                                            <button
+                                                key={opcion.id}
+                                                type="button"
+                                                onClick={() => manejarRespuesta(opcion)}
+                                                disabled={estadoRespuesta !== null}
+                                                className={`py-4 px-4 rounded-2xl font-bold text-lg sm:text-xl transition-all duration-200 active:scale-95 shadow-sm ${estiloBoton}`}
+                                            >
+                                                {opcion.diidxaza}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        ))
+                        )
                     )}
                 </div>
+
+                {/* Columna Derecha: Ranking Global */}
+                <div className="w-full flex flex-col gap-3">
+                    <h3 className="font-black text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base flex items-center justify-center lg:justify-start gap-2">
+                        <span>🏆</span> Ranking Global
+                    </h3>
+                    <div className="bg-white rounded-2xl p-4 shadow-md border border-amber-200 w-full max-h-[440px] lg:max-h-none overflow-y-auto lg:overflow-y-visible custom-scrollbar">
+                        {cargandoRanking ? (
+                            <p className="text-center text-xs text-amber-700 py-3 font-medium">Cargando puntajes globales...</p>
+                        ) : ranking.length === 0 ? (
+                            <p className="text-center text-xs text-amber-700 py-3 font-medium">Aún no hay scores en la nube. ¡Sé el primero!</p>
+                        ) : (
+                            ranking.map((r, i) => (
+                                <div key={r.id || i} className="flex justify-between items-center border-b py-2.5 text-xs sm:text-sm border-amber-100 last:border-0 hover:bg-amber-50 rounded-xl px-2 transition-colors">
+                                    <span className="font-bold text-amber-950 flex items-center gap-2 truncate pr-2">
+                                        <span className="text-orange-600 font-black">{i + 1}.</span> <span className="truncate">{r.name}</span> 
+                                        <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full flex-shrink-0">Nivel {r.level}</span>
+                                    </span>
+                                    <span className="font-bold text-red-700 flex-shrink-0">{r.errores} err.</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
             </div>
 
             {/* 💔 MODAL DE GAME OVER (SIN VIDAS) */}
