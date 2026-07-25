@@ -76,7 +76,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     const [mensaje, setMensaje] = useState('');
     const [showConfirmLogout, setShowConfirmLogout] = useState(false);
 
-    // Cargar datos del usuario desde Firestore con optimización de renderizado inmediato
+    // Cargar datos del usuario asegurando la integridad del histórico
     useEffect(() => {
         const fetchUserData = async () => {
             if (!user) {
@@ -96,8 +96,12 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     setAvataresDesbloqueados(data.avataresDesbloqueados || ['default']);
                     setLogrosDesbloqueados(data.logrosDesbloqueados || []);
                     
-                    let historico = data.totoposHistoricos || data.totopos || 0;
-                    if (data.totopos > historico) historico = data.totopos;
+                    // Cálculo seguro del histórico acumulado
+                    let historico = data.totoposHistoricos;
+                    if (historico === undefined || historico < (data.totopos || 0)) {
+                        historico = data.totopos || 0;
+                        await updateDoc(docRef, { totoposHistoricos: historico });
+                    }
                     setTotoposHistoricos(historico);
                     
                     if (onProfileUpdate) {
@@ -157,9 +161,11 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
         try {
             const docRef = doc(db, 'usuarios', user.uid);
+            // 🛡️ Guardamos el balance reducido de totopos, pero MANTENEMOS totoposHistoricos intacto
             await updateDoc(docRef, { 
                 totopos: nuevosTotopos,
-                vidas: nuevasVidas
+                vidas: nuevasVidas,
+                totoposHistoricos: totoposHistoricos
             });
             setTotopos(nuevosTotopos);
             setVidas(nuevasVidas);
@@ -187,10 +193,12 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
             try {
                 const docRef = doc(db, 'usuarios', user.uid);
+                // 🛡️ Actualizamos el inventario y gastamos totopos, conservando totoposHistoricos
                 await updateDoc(docRef, {
                     totopos: nuevosTotopos,
                     avataresDesbloqueados: nuevosDesbloqueados,
-                    avatar: avatarItem.id
+                    avatar: avatarItem.id,
+                    totoposHistoricos: totoposHistoricos
                 });
                 setTotopos(nuevosTotopos);
                 setAvataresDesbloqueados(nuevosDesbloqueados);
@@ -271,7 +279,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
                 <div className="overflow-y-auto custom-scrollbar p-5 pb-6 relative">
                     
-                    {/* Indicador de Carga Discreto (No bloquea el modal completo) */}
                     {loading && (
                         <div className="absolute inset-x-0 top-0 bg-amber-600/90 text-white text-[11px] font-bold py-1 text-center z-10 flex items-center justify-center gap-1.5 shadow-sm animate-pulse">
                             <span>🌽 Sincronizando datos con la nube...</span>
@@ -294,7 +301,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             {!nombre ? 'Explorador' : titulo}
                         </p>
 
-                        {/* 📊 BARRA DE ESTADO / PROGRESO DENTRO DEL NIVEL */}
+                        {/* 📊 BARRA DE ESTADO / PROGRESO DENTRO DEL NIVEL (Basado en Histórico) */}
                         <div className="max-w-xs mx-auto mb-3 bg-white/80 p-3 rounded-2xl border border-amber-200 shadow-sm">
                             <div className="flex justify-between items-center text-xs font-black text-amber-900 mb-1.5">
                                 <span>Progreso Nivel {nivel}</span>
