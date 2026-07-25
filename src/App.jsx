@@ -124,14 +124,34 @@ function App() {
       {/* 🚀 PANEL SUPERIOR FLOTANTE */}
       <div className="fixed top-3 left-3 sm:top-4 sm:left-4 z-40 flex items-center gap-2">
         
-        {/* Botón / Tarjeta de Perfil (Avatar) */}
+        {/* Botón / Tarjeta de Perfil (Avatar / Imagen con respaldo en Emoji) */}
         <button
           onClick={handlePanelSuperiorClick}
           className="bg-amber-100/90 hover:bg-amber-200/90 backdrop-blur-md text-amber-950 px-3 py-1.5 rounded-2xl font-bold shadow-md transition-transform transform active:scale-95 flex items-center gap-2.5 cursor-pointer border-2 border-amber-300 hover:border-amber-400 text-xs sm:text-sm"
           title={user ? "Ver Perfil" : "Iniciar Sesión"}
         >
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-600 text-white flex items-center justify-center text-lg sm:text-xl shadow-inner border-2 border-amber-300 flex-shrink-0">
-            {emojiAvatar}
+          {/* Fondo claro para que la imagen del avatar luzca correctamente */}
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-50 text-amber-900 flex items-center justify-center text-lg sm:text-xl shadow-inner border-2 border-amber-300 flex-shrink-0 overflow-hidden relative">
+            {user && perfilInfo.avatar && perfilInfo.avatar !== 'default' ? (
+              <img 
+                src={`/avatares/${perfilInfo.avatar}.png`} 
+                alt={perfilInfo.avatar}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Si la imagen no se encuentra en /avatares/, ocultamos la etiqueta img y mostramos el emoji
+                  e.target.style.display = 'none';
+                  if (e.target.nextSibling) {
+                    e.target.nextSibling.style.display = 'flex';
+                  }
+                }}
+              />
+            ) : null}
+            <span 
+              style={{ display: (user && perfilInfo.avatar && perfilInfo.avatar !== 'default') ? 'none' : 'flex' }} 
+              className="w-full h-full items-center justify-center"
+            >
+              {emojiAvatar}
+            </span>
           </div>
 
           <div className="flex flex-col text-left leading-tight">
@@ -146,12 +166,12 @@ function App() {
           </div>
         </button>
 
-        {/* 🏠 Botón Volver al Menú Principal (Icono ☰ en móviles y Texto en escritorio) */}
+        {/* 🏠 Botón Volver al Menú Principal */}
         {vistaActual !== 'menu' && (
           <button
             onClick={() => {
               if (controlesJuegoActivo?.onMenuClick) {
-                controlesJuegoActivo.onMenuClick(); // Respeta la modal de advertencia del juego si la tiene
+                controlesJuegoActivo.onMenuClick(); 
               } else {
                 setControlesJuegoActivo(null);
                 setVistaActual('menu');
@@ -249,7 +269,7 @@ function App() {
           user={user} 
           onClose={() => {
             setShowPerfilModal(false);
-            cargarPerfil(user); // 🔄 Recargamos los datos al cerrar el modal
+            cargarPerfil(user); 
           }} 
           onProfileUpdate={(nuevosDatos) => {
             setPerfilInfo(prev => ({ 
@@ -271,7 +291,7 @@ function App() {
         onCambiarPista={cambiarPistaAudio}
         listaPistas={LISTA_PISTAS}
         controlesJuegoActivo={controlesJuegoActivo}
-        user={user} // 🛡️ Prop añadida para verificar el rol de administrador
+        user={user} 
       />
 
     </div>

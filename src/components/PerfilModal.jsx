@@ -71,7 +71,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     const [avatarActual, setAvatarActual] = useState('default');
     const [avataresDesbloqueados, setAvataresDesbloqueados] = useState(['default']);
     const [logrosDesbloqueados, setLogrosDesbloqueados] = useState([]);
-    
+
     const [loading, setLoading] = useState(true);
     const [mensaje, setMensaje] = useState('');
     const [showConfirmLogout, setShowConfirmLogout] = useState(false);
@@ -95,7 +95,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     setAvatarActual(avatarId);
                     setAvataresDesbloqueados(data.avataresDesbloqueados || ['default']);
                     setLogrosDesbloqueados(data.logrosDesbloqueados || []);
-                    
+
                     // Cálculo seguro del histórico acumulado
                     let historico = data.totoposHistoricos;
                     if (historico === undefined || historico < (data.totopos || 0)) {
@@ -103,7 +103,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         await updateDoc(docRef, { totoposHistoricos: historico });
                     }
                     setTotoposHistoricos(historico);
-                    
+
                     if (onProfileUpdate) {
                         const calc = calcularNivelYTitulo(historico);
                         const avatarObj = CATALOGO_AVATARES.find(a => a.id === avatarId);
@@ -131,15 +131,15 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
             const docRef = doc(db, 'usuarios', user.uid);
             await updateDoc(docRef, { nombre: nombreLimpio });
             setMensaje('¡Nombre actualizado con éxito!');
-            
+
             const calc = calcularNivelYTitulo(totoposHistoricos);
             if (onProfileUpdate) {
                 const avatarObj = CATALOGO_AVATARES.find(a => a.id === avatarActual);
-                onProfileUpdate({ 
-                    nombre: nombreLimpio, 
-                    avatar: avatarActual, 
-                    emoji: avatarObj ? avatarObj.emoji : '🌽', 
-                    nivel: calc.nivel 
+                onProfileUpdate({
+                    nombre: nombreLimpio,
+                    avatar: avatarActual,
+                    emoji: avatarObj ? avatarObj.emoji : '🌽',
+                    nivel: calc.nivel
                 });
             }
             setTimeout(() => setMensaje(''), 3000);
@@ -162,7 +162,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
         try {
             const docRef = doc(db, 'usuarios', user.uid);
             // 🛡️ Guardamos el balance reducido de totopos, pero MANTENEMOS totoposHistoricos intacto
-            await updateDoc(docRef, { 
+            await updateDoc(docRef, {
                 totopos: nuevosTotopos,
                 vidas: nuevasVidas,
                 totoposHistoricos: totoposHistoricos
@@ -204,13 +204,13 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                 setAvataresDesbloqueados(nuevosDesbloqueados);
                 setAvatarActual(avatarItem.id);
                 setMensaje(`¡Has comprado y equipado ${avatarItem.nombre}! 🎉`);
-                
+
                 if (onProfileUpdate) {
-                    onProfileUpdate({ 
-                        nombre, 
-                        avatar: avatarItem.id, 
-                        emoji: avatarItem.emoji, 
-                        nivel: calc.nivel 
+                    onProfileUpdate({
+                        nombre,
+                        avatar: avatarItem.id,
+                        emoji: avatarItem.emoji,
+                        nivel: calc.nivel
                     });
                 }
                 setTimeout(() => setMensaje(''), 3000);
@@ -223,13 +223,13 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                 await updateDoc(docRef, { avatar: avatarItem.id });
                 setAvatarActual(avatarItem.id);
                 setMensaje(`Avatar cambiado a ${avatarItem.nombre} 👍`);
-                
+
                 if (onProfileUpdate) {
-                    onProfileUpdate({ 
-                        nombre, 
-                        avatar: avatarItem.id, 
-                        emoji: avatarItem.emoji, 
-                        nivel: calc.nivel 
+                    onProfileUpdate({
+                        nombre,
+                        avatar: avatarItem.id,
+                        emoji: avatarItem.emoji,
+                        nivel: calc.nivel
                     });
                 }
                 setTimeout(() => setMensaje(''), 3000);
@@ -255,7 +255,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
             <div className="bg-amber-50 rounded-3xl shadow-2xl border-4 border-amber-600 w-full max-w-lg relative overflow-hidden flex flex-col max-h-[95vh] animate-fade-in">
-                
+
                 <div className="absolute top-3 right-3 z-20">
                     <button
                         onClick={onClose}
@@ -278,7 +278,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                 )}
 
                 <div className="overflow-y-auto custom-scrollbar p-5 pb-6 relative">
-                    
+
                     {loading && (
                         <div className="absolute inset-x-0 top-0 bg-amber-600/90 text-white text-[11px] font-bold py-1 text-center z-10 flex items-center justify-center gap-1.5 shadow-sm animate-pulse">
                             <span>🌽 Sincronizando datos con la nube...</span>
@@ -287,13 +287,30 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
                     {/* ENCABEZADO DE PERFIL */}
                     <div className="text-center mb-6 mt-2 relative">
-                        <div className="w-24 h-24 bg-amber-600 rounded-full mx-auto flex items-center justify-center text-white text-5xl shadow-lg border-4 border-white relative">
-                            {avatarSeleccionadoObj ? avatarSeleccionadoObj.emoji : '🌽'}
-                            <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-1 rounded-full border-2 border-white shadow-sm">
+                        {/* Contenedor relativo que evita que el badge de nivel quede atrapado por el overflow-hidden */}
+                        <div className="relative inline-block mx-auto">
+                            {/* 🖼️ Círculo superior del avatar equipado */}
+                            <div className="w-24 h-24 bg-amber-600 rounded-full flex items-center justify-center border-4 border-white shadow-lg overflow-hidden">
+                                <img 
+                                    src={`/avatares/${avatarActual}.png`} 
+                                    alt="Avatar Equipado"
+                                    className="w-full h-full object-contain p-1 bg-amber-50"
+                                    onError={(e) => {
+                                        e.target.onerror = 1;
+                                        e.target.style.display = 'none';
+                                        const fallback = document.createElement('span');
+                                        fallback.className = "text-4xl";
+                                        fallback.innerText = avatarSeleccionadoObj ? avatarSeleccionadoObj.emoji : '🌽';
+                                        e.target.parentNode.appendChild(fallback);
+                                    }}
+                                />
+                            </div>
+                            {/* Indicador de Nivel correctamente posicionado fuera del círculo recortado */}
+                            <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-1 rounded-full border-2 border-white shadow-md z-10">
                                 Lvl {nivel}
                             </div>
                         </div>
-                        
+
                         <h2 className="text-2xl font-black text-amber-950 mt-3">
                             {nombre ? nombre : (user?.email || 'Mi Perfil Istmeño')}
                         </h2>
@@ -310,7 +327,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                                 </span>
                             </div>
                             <div className="w-full bg-amber-100 rounded-full h-3.5 overflow-hidden border border-amber-300 shadow-inner">
-                                <div 
+                                <div
                                     className="bg-amber-500 h-full rounded-full transition-all duration-500 ease-out shadow-sm"
                                     style={{ width: `${progresoInfo.porcentaje}%` }}
                                 ></div>
@@ -379,9 +396,9 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     {/* 🛍️ TIENDA DE AVATARES */}
                     <div className="mb-6">
                         <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">
-                            <span>🛍️</span> Tienda de Avatares (10 Disponibles)
+                            <span>🛍️</span> Tienda de Avatares
                         </h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto p-1 custom-scrollbar">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto p-2 custom-scrollbar">
                             {CATALOGO_AVATARES.map((avatar) => {
                                 const desbloqueado = avataresDesbloqueados.includes(avatar.id);
                                 const equipado = avatarActual === avatar.id;
@@ -389,22 +406,49 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                                 return (
                                     <div
                                         key={avatar.id}
-                                        className={`p-3 rounded-2xl border flex flex-col items-center justify-between transition-all ${
-                                            equipado ? 'border-amber-500 bg-amber-100 ring-2 ring-amber-400 shadow-sm' : 'border-amber-200 bg-white'
+                                        className={`p-4 rounded-3xl border-2 flex flex-col items-center justify-between transition-all duration-200 ${equipado
+                                            ? 'border-amber-600 bg-amber-100 ring-2 ring-amber-400 shadow-lg'
+                                            : 'border-amber-300 bg-white hover:border-amber-400 hover:shadow-md'
                                         }`}
                                     >
-                                        <div className="text-3xl mb-1 drop-shadow-sm">{avatar.emoji}</div>
-                                        <div className="font-bold text-xs text-center text-amber-950 mb-1 leading-tight h-8 flex items-center justify-center">{avatar.nombre}</div>
-                                        <div className="text-[10px] font-black text-amber-700 mb-2">
-                                            {desbloqueado ? 'Desbloqueado ✅' : `${avatar.costo} 🌽`}
+                                        {/* 🖼️ CONTENEDOR DE LA ILUSTRACIÓN PNG */}
+                                        <div className={`w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-3 rounded-full flex items-center justify-center border-4 shadow-inner overflow-hidden transition-all ${
+                                            equipado ? 'border-amber-500 bg-white' : 'border-amber-200 bg-amber-50'
+                                        }`}>
+                                            <img
+                                                src={`/avatares/${avatar.id}.png`}
+                                                alt={avatar.nombre}
+                                                className="w-full h-full object-contain p-1 sm:p-2"
+                                                onError={(e) => {
+                                                    e.target.onerror = 1;
+                                                    e.target.style.display = 'none';
+                                                    const fallback = document.createElement('span');
+                                                    fallback.className = "text-5xl";
+                                                    fallback.innerText = avatar.emoji;
+                                                    e.target.parentNode.appendChild(fallback);
+                                                }}
+                                            />
                                         </div>
+
+                                        <div className="font-black text-sm text-center text-amber-950 mb-1 leading-tight h-9 flex items-center justify-center">
+                                            {avatar.nombre}
+                                        </div>
+
+                                        <div className={`text-xs font-black mb-3 px-3 py-1 rounded-full ${desbloqueado
+                                            ? 'text-green-900 bg-green-100 border border-green-300'
+                                            : 'text-amber-800 bg-amber-100 border border-amber-300'
+                                        }`}>
+                                            {desbloqueado ? '✓ Adquirido' : `${avatar.costo} 🌽`}
+                                        </div>
+
                                         <button
                                             onClick={() => handleComprarOEquipar(avatar)}
                                             disabled={equipado}
-                                            className={`w-full py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                                equipado ? 'bg-amber-400 text-white cursor-default'
-                                                : desbloqueado ? 'bg-amber-600 hover:bg-amber-700 text-white shadow active:scale-95'
-                                                : 'bg-orange-500 hover:bg-orange-600 text-white shadow active:scale-95'
+                                            className={`w-full py-2.5 px-4 rounded-2xl text-sm font-black transition-all duration-150 active:scale-95 shadow ${equipado
+                                                ? 'bg-amber-500 text-white cursor-default opacity-90'
+                                                : desbloqueado
+                                                    ? 'bg-amber-700 hover:bg-amber-800 text-white cursor-pointer'
+                                                    : 'bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
                                             }`}
                                         >
                                             {equipado ? 'Equipado' : desbloqueado ? 'Equipar' : 'Comprar'}
@@ -427,10 +471,9 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                                 return (
                                     <div
                                         key={logro.id}
-                                        className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${
-                                            conseguido 
-                                                ? 'bg-white border-amber-300 shadow-sm' 
-                                                : 'bg-gray-100 border-gray-300 opacity-60 grayscale'
+                                        className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${conseguido
+                                            ? 'bg-white border-amber-300 shadow-sm'
+                                            : 'bg-gray-100 border-gray-300 opacity-60 grayscale'
                                         }`}
                                     >
                                         <div className="text-3xl bg-amber-100 p-2 rounded-xl border border-amber-200 flex-shrink-0">
@@ -438,8 +481,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between">
-                                                <span className={`font-bold text-xs px-2 py-0.5 rounded-md ${
-                                                    conseguido ? 'bg-amber-200 text-amber-900' : 'bg-gray-200 text-gray-700'
+                                                <span className={`font-bold text-xs px-2 py-0.5 rounded-md ${conseguido ? 'bg-amber-200 text-amber-900' : 'bg-gray-200 text-gray-700'
                                                 }`}>
                                                     {logro.juego}
                                                 </span>
@@ -466,7 +508,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     >
                         Cerrar Sesión
                     </button>
-                    
+
                 </div>
             </div>
         </div>
