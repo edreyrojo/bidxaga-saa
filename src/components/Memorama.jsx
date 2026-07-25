@@ -476,7 +476,6 @@ export default function Tablero({
     };
 
     const handleChoice = (card) => {
-        // 🛡️ Registramos que esta ficha ya fue vista, sin importar si el intento es correcto o no
         setFichasVistas(prev => (prev.includes(card.id) ? prev : [...prev, card.id]));
         choiceOne ? setChoiceTwo(card) : setChoiceOne(card);
     };
@@ -488,7 +487,6 @@ export default function Tablero({
         setDisabled(false);
     };
 
-    // Sistema de Vidas y Manejo de Errores Orgánico
     const descontarVida = async (cantidad) => {
         const nuevasVidas = Math.max(0, vidas - cantidad);
         setVidas(nuevasVidas);
@@ -508,7 +506,6 @@ export default function Tablero({
         }
     };
 
-    // Comprar 3 vidas por 40 totopos
     const comprarVidasRescate = async () => {
         const costoPaquete = 40;
         const vidasGanadas = 3;
@@ -546,7 +543,7 @@ export default function Tablero({
         setFeedbackModal({
             show: true,
             title: "❤️ ¡Vidas Recargadas!",
-            message: `¡Has comprado ${vidasGanadas} vidas extra por ${costoPaquete} 🌽! Puedes continuar jugando.`
+            message: `¡Has comprado ${vidasGanadas} vidas extra por ${costoPaquete} totopos! Puedes continuar jugando.`
         });
     };
 
@@ -559,26 +556,21 @@ export default function Tablero({
                 resetTurn();
             } else {
                 setTimeout(() => {
-                    // 🛡️ Solo se puede perder vidas si ya se vieron todas las fichas del tablero al menos una vez.
                     const todasVistas = cards.length > 0 && fichasVistas.length >= cards.length;
-
-                    // Clave única para "esta combinación incorrecta" sin importar el orden en que se seleccionaron las cartas
                     const comboKey = [choiceOne.pairId, choiceTwo.pairId].sort().join('|');
 
                     if (!todasVistas) {
-                        // Aún no se han visto todas las fichas: no se penaliza ni se muestra modal molesto.
+                        // Aún no se han visto todas las fichas
                     } else if (modoDificil) {
-                        // Modo difícil: cada error descuenta 1 vida directamente
                         descontarVida(1);
                     } else {
-                        // Modo normal: solo se descuenta vida al repetir 3 VECES la MISMA combinación incorrecta
                         setCombosFallidos(prev => {
                             const conteoActual = (prev[comboKey] || 0) + 1;
                             const actualizado = { ...prev, [comboKey]: conteoActual };
 
                             if (conteoActual >= 3) {
                                 descontarVida(1);
-                                actualizado[comboKey] = 0; // Se reinicia el contador de ESTA combinación
+                                actualizado[comboKey] = 0;
                                 setFeedbackModal({
                                     show: true,
                                     title: "⚠️ ¡3 Errores con esta combinación!",
@@ -598,27 +590,34 @@ export default function Tablero({
     return (
         <div className="max-w-6xl mx-auto px-4 py-2 select-none pb-[env(safe-area-inset-bottom)]">
             
-            {/* 🌟 Banner optimizado con altura controlada para evitar desbordes */}
             <header className="text-center mb-2">
                 <img src="/images/banner.png" alt="Banner Diidxaza" className="mx-auto mb-1 max-h-16 sm:max-h-20 w-auto object-contain" />
                 <p className="text-xs sm:text-sm text-amber-800 font-medium flex flex-wrap justify-center items-center gap-2">
                     <span>Nivel {level}</span> • 
                     <span>Turnos: {turns}</span> • 
-                    <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span> • 
-                    <span className="text-red-600 font-bold">❤️ {vidas} Vidas</span>
+                    <span className="text-orange-600 font-bold inline-flex items-center gap-1">
+                        <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block" onError={(e)=>{e.target.style.display='none'}} />
+                        <span style={{display: 'none'}}>🌽</span>
+                        {totopos} Totopos
+                    </span> • 
+                    <span className="text-red-600 font-bold inline-flex items-center gap-1">
+                        <img src="/tuna-vida.png" alt="Vidas" className="w-4 h-4 object-contain inline-block" onError={(e)=>{e.target.style.display='none'}} />
+                        <span style={{display: 'none'}}>❤️</span>
+                        {vidas} Vidas
+                    </span>
                 </p>
             </header>
 
-            {/* 🖥️ CONTENEDOR OPTIMIZADO: Dos columnas en PC (Tablero izq, Ranking der), responsivo en móvil */}
             <div className="flex flex-col lg:grid lg:grid-cols-[1fr_360px] gap-4 items-start justify-center">
                 
-                {/* Columna Izquierda: Tablero y Notificaciones de Nivel */}
                 <div className="flex flex-col items-center w-full">
                     {matches === parejasRequeridas && (
                         <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-3 mb-2 text-center animate-bounce">
                             <p className="text-base sm:text-lg font-bold text-green-900 mb-0.5">🎉 ¡Nivel {level} completado!</p>
-                            <p className="text-xs font-bold text-amber-700 mb-2">
-                                +{configActual.recompensa} 🌽 Totopos añadidos a tu morral (Total: {totopos})
+                            <p className="text-xs font-bold text-amber-700 mb-2 inline-flex items-center justify-center gap-1">
+                                +{configActual.recompensa} 
+                                <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block" onError={(e)=>{e.target.style.display='none'}} />
+                                Totopos añadidos a tu morral (Total: {totopos})
                             </p>
                             <div className="flex gap-3 justify-center">
                                 <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-4 rounded-lg shadow-md text-xs sm:text-sm cursor-pointer">Siguiente Nivel</button>
@@ -639,11 +638,21 @@ export default function Tablero({
                     </div>
                 </div>
 
-                {/* Columna Derecha en PC (Abajo en Móvil): Tabla de Ranking Global */}
                 <div className="w-full max-w-md mx-auto lg:max-w-none">
                     <div className="bg-white rounded-2xl p-3.5 shadow-md border-2 border-amber-200">
+                        {/* Título de Ranking con Collar Guiechachi en PNG */}
                         <h3 className="font-black text-amber-900 text-center mb-2.5 text-sm sm:text-base flex items-center justify-center gap-1.5">
-                            <span>🏆</span> Ranking Global - Memorama
+                            <img 
+                                src="/guiechachi.png" 
+                                alt="Guiechachi" 
+                                className="w-6 h-6 object-contain"
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
+                                }}
+                            />
+                            <span style={{ display: 'none' }}>🏆</span>
+                            Ranking Global - Memorama
                         </h3>
                         {cargandoRanking ? (
                             <p className="text-center text-xs text-gray-500 py-2">Cargando puntajes globales...</p>
@@ -682,7 +691,10 @@ export default function Tablero({
                                 onClick={comprarVidasRescate}
                                 className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl shadow-md text-sm transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                             >
-                                <span>❤️ Comprar 3 Vidas (40 🌽)</span>
+                                <img src="/tuna-vida.png" alt="vida" className="w-5 h-5 object-contain" onError={(e)=>e.target.style.display='none'} />
+                                <span>Comprar 3 Vidas (40</span>
+                                <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block" onError={(e)=>e.target.style.display='none'} />
+                                <span>)</span>
                             </button>
 
                             <button 

@@ -364,15 +364,34 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-4 flex flex-col items-center select-none w-full pb-[env(safe-area-inset-bottom)]">
             <header className="text-center mb-3">
                 <h2 className="text-2xl sm:text-3xl font-black text-amber-950">⚡ Reto Trivia Diidxazá</h2>
-                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">
-                    Nivel {nivel} • Errores: {errores} • Vidas: <span className="text-red-600 font-bold">{'❤️'.repeat(Math.max(0, vidas))}</span> • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
+                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1 flex items-center justify-center gap-2 flex-wrap">
+                    <span>Nivel {nivel}</span>
+                    <span>•</span>
+                    <span>Errores: {errores}</span>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1.5" title={`Vidas: ${vidas}/3`}>
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <img 
+                                key={i} 
+                                src="/tuna-vida.png" 
+                                alt="vida" 
+                                className={`w-4 h-4 object-contain inline-block transition-opacity ${i < vidas ? 'opacity-100' : 'opacity-30 grayscale'}`} 
+                                onError={(e)=>{e.target.style.display='none'}} 
+                            />
+                        ))}
+                    </span>
+                    <span>•</span>
+                    <span className="text-orange-600 font-bold inline-flex items-center gap-1">
+                        <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
+                        {totopos} Totopos
+                    </span>
                 </p>
             </header>
 
-            {/* 🖥️ CONTENEDOR DE TRES COLUMNAS EN PC (Panel oculto en móvil): (Panel de Estado) (Zona de Juego) (Ranking Global) */}
+            {/* 🖥️ CONTENEDOR DE TRES COLUMNAS EN PC */}
             <div className="w-full max-w-6xl xl:max-w-7xl flex flex-col lg:grid lg:grid-cols-[280px_1fr_300px] gap-6 items-center lg:items-start justify-center mt-1">
                 
-                {/* Columna Izquierda: Panel de Estado y Progreso del Nivel (Oculto en móvil, visible en PC con lg:flex) */}
+                {/* Columna Izquierda: Panel de Estado y Progreso del Nivel */}
                 <div className="hidden lg:flex flex-col gap-3 w-full">
                     <h3 className="font-black text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base">
                         📊 Estado del Nivel
@@ -388,11 +407,24 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                         </div>
                         <div className="flex justify-between items-center text-sm font-bold text-amber-950 border-b border-amber-100 pb-2">
                             <span>Vidas:</span>
-                            <span className="text-red-600 font-bold">{'❤️'.repeat(Math.max(0, vidas))}</span>
+                            <span className="inline-flex items-center gap-1">
+                                {Array.from({ length: 3 }).map((_, i) => (
+                                    <img 
+                                        key={i} 
+                                        src="/tuna-vida.png" 
+                                        alt="vida" 
+                                        className={`w-4 h-4 object-contain inline-block ${i < vidas ? 'opacity-100' : 'opacity-30 grayscale'}`} 
+                                        onError={(e)=>{e.target.style.display='none'}} 
+                                    />
+                                ))}
+                            </span>
                         </div>
                         <div className="flex justify-between items-center text-sm font-bold text-amber-950 border-b border-amber-100 pb-2">
                             <span>Totopos:</span>
-                            <span className="text-orange-600 font-bold">🌽 {totopos}</span>
+                            <span className="text-orange-600 font-bold inline-flex items-center gap-1">
+                                <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
+                                {totopos}
+                            </span>
                         </div>
                         <div className="flex flex-col gap-1.5 pt-1">
                             <span className="text-xs font-bold text-amber-900">Progreso:</span>
@@ -408,7 +440,11 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     {aciertosNivel === PREGUNTAS_POR_NIVEL ? (
                         <div className="w-full bg-amber-50 border-4 border-amber-600 rounded-3xl p-6 text-center animate-fade-in shadow-xl">
                             <h3 className="text-2xl font-black text-amber-950 mb-2">🎉 ¡Nivel Superado!</h3>
-                            <p className="text-amber-800 mb-6 font-medium text-sm">Has superado las 5 preguntas y ganado +{TOTOPOS_POR_NIVEL} totopos.</p>
+                            <p className="text-amber-800 mb-6 font-medium text-sm inline-flex items-center justify-center gap-1 flex-wrap">
+                                Has superado las 5 preguntas y ganado +{TOTOPOS_POR_NIVEL} 
+                                <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
+                                totopos.
+                            </p>
                             <button type="button" onClick={siguienteNivel} className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-8 rounded-2xl shadow-md text-sm transition-transform active:scale-95 cursor-pointer">
                                 Siguiente Nivel ➡️
                             </button>
@@ -453,10 +489,20 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     )}
                 </div>
 
-                {/* Columna Derecha: Ranking Global */}
+                {/* Columna Derecha: Ranking Global con Guiechachi en PNG */}
                 <div className="w-full flex flex-col gap-3">
-                    <h3 className="font-black text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base flex items-center justify-center lg:justify-start gap-2">
-                        <span>🏆</span> Ranking Global
+                    <h3 className="font-black text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base flex items-center justify-center lg:justify-start gap-1.5">
+                        <img 
+                            src="/guiechachi.png" 
+                            alt="Guiechachi" 
+                            className="w-6 h-6 object-contain"
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
+                            }}
+                        />
+                        <span style={{ display: 'none' }}>🏆</span>
+                        Ranking Global
                     </h3>
                     <div className="bg-white rounded-2xl p-4 shadow-md border border-amber-200 w-full max-h-[440px] lg:max-h-none overflow-y-auto lg:overflow-y-visible custom-scrollbar">
                         {cargandoRanking ? (
@@ -499,9 +545,11 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                                         localStorage.setItem('totopos', nuevosTotopos);
                                         localStorage.setItem('triviaVidas', 3);
                                     }} 
-                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer flex items-center justify-center gap-2"
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer flex items-center justify-center gap-1.5"
                                 >
-                                    ❤️ Comprar 3 Vidas ({COSTO_VIDAS} 🌽)
+                                    ❤️ Comprar 3 Vidas ({COSTO_VIDAS} 
+                                    <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
+                                    )
                                 </button>
                             )}
                             <button 

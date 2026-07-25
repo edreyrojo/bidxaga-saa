@@ -151,7 +151,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
     const handleComprarVidas = async (paquete) => {
         if (totopos < paquete.costo) {
-            setMensaje(`¡Te faltan ${paquete.costo - totopos} 🌽 para comprar este paquete!`);
+            setMensaje(`¡Te faltan ${paquete.costo - totopos} totopos para comprar este paquete!`);
             setTimeout(() => setMensaje(''), 4000);
             return;
         }
@@ -161,7 +161,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
         try {
             const docRef = doc(db, 'usuarios', user.uid);
-            // 🛡️ Guardamos el balance reducido de totopos, pero MANTENEMOS totoposHistoricos intacto
             await updateDoc(docRef, {
                 totopos: nuevosTotopos,
                 vidas: nuevasVidas,
@@ -183,7 +182,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
         if (!yaDesbloqueado) {
             if (totopos < avatarItem.costo) {
-                setMensaje(`¡Te faltan ${avatarItem.costo - totopos} 🌽 para desbloquear este avatar!`);
+                setMensaje(`¡Te faltan ${avatarItem.costo - totopos} totopos para desbloquear este avatar!`);
                 setTimeout(() => setMensaje(''), 4000);
                 return;
             }
@@ -193,7 +192,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
             try {
                 const docRef = doc(db, 'usuarios', user.uid);
-                // 🛡️ Actualizamos el inventario y gastamos totopos, conservando totoposHistoricos
                 await updateDoc(docRef, {
                     totopos: nuevosTotopos,
                     avataresDesbloqueados: nuevosDesbloqueados,
@@ -281,22 +279,20 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
                     {loading && (
                         <div className="absolute inset-x-0 top-0 bg-amber-600/90 text-white text-[11px] font-bold py-1 text-center z-10 flex items-center justify-center gap-1.5 shadow-sm animate-pulse">
-                            <span>🌽 Sincronizando datos con la nube...</span>
+                            <span>🔄 Sincronizando datos con la nube...</span>
                         </div>
                     )}
 
                     {/* ENCABEZADO DE PERFIL */}
                     <div className="text-center mb-6 mt-2 relative">
-                        {/* Contenedor relativo que evita que el badge de nivel quede atrapado por el overflow-hidden */}
                         <div className="relative inline-block mx-auto">
-                            {/* 🖼️ Círculo superior del avatar equipado */}
                             <div className="w-24 h-24 bg-amber-600 rounded-full flex items-center justify-center border-4 border-white shadow-lg overflow-hidden">
                                 <img 
                                     src={`/avatares/${avatarActual}.png`} 
                                     alt="Avatar Equipado"
                                     className="w-full h-full object-contain p-1 bg-amber-50"
                                     onError={(e) => {
-                                        e.target.onerror = 1;
+                                        e.target.onerror = null;
                                         e.target.style.display = 'none';
                                         const fallback = document.createElement('span');
                                         fallback.className = "text-4xl";
@@ -305,7 +301,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                                     }}
                                 />
                             </div>
-                            {/* Indicador de Nivel correctamente posicionado fuera del círculo recortado */}
                             <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-1 rounded-full border-2 border-white shadow-md z-10">
                                 Lvl {nivel}
                             </div>
@@ -318,12 +313,23 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             {!nombre ? 'Explorador' : titulo}
                         </p>
 
-                        {/* 📊 BARRA DE ESTADO / PROGRESO DENTRO DEL NIVEL (Basado en Histórico) */}
+                        {/* 📊 BARRA DE ESTADO / PROGRESO DENTRO DEL NIVEL */}
                         <div className="max-w-xs mx-auto mb-3 bg-white/80 p-3 rounded-2xl border border-amber-200 shadow-sm">
                             <div className="flex justify-between items-center text-xs font-black text-amber-900 mb-1.5">
                                 <span>Progreso Nivel {nivel}</span>
-                                <span className="text-amber-700">
-                                    {nivel === 5 ? `${totoposHistoricos} 🌽 (Máximo)` : `${totoposHistoricos} / ${progresoInfo.necesario} 🌽`}
+                                <span className="text-amber-700 flex items-center gap-1">
+                                    {nivel === 5 ? (
+                                        <>
+                                            {totoposHistoricos} 
+                                            <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block" onError={(e) => e.target.style.display='none'} />
+                                            (Máximo)
+                                        </>
+                                    ) : (
+                                        <>
+                                            {totoposHistoricos} / {progresoInfo.necesario} 
+                                            <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block" onError={(e) => e.target.style.display='none'} />
+                                        </>
+                                    )}
                                 </span>
                             </div>
                             <div className="w-full bg-amber-100 rounded-full h-3.5 overflow-hidden border border-amber-300 shadow-inner">
@@ -334,13 +340,35 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             </div>
                         </div>
 
+                        {/* CONTADORES SUPERIORES */}
                         <div className="flex justify-center gap-3 mt-3">
+                            {/* Totopos con PNG */}
                             <div className="flex items-center gap-1.5 bg-amber-200/80 px-3 py-1.5 rounded-xl border border-amber-400 shadow-sm">
-                                <span className="text-lg">🌽</span>
+                                <img 
+                                    src="/totopo.png" 
+                                    alt="Totopo" 
+                                    className="w-5 h-5 object-contain"
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
+                                    }}
+                                />
+                                <span className="text-lg" style={{ display: 'none' }}>🌽</span>
                                 <span className="font-black text-amber-900 text-sm">{totopos}</span>
                             </div>
+
+                            {/* Vidas / Tuna Corazón con PNG */}
                             <div className="flex items-center gap-1.5 bg-red-100/80 px-3 py-1.5 rounded-xl border border-red-300 shadow-sm">
-                                <span className="text-lg">❤️</span>
+                                <img 
+                                    src="/tuna-vida.png" 
+                                    alt="Vidas" 
+                                    className="w-5 h-5 object-contain"
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
+                                    }}
+                                />
+                                <span className="text-lg" style={{ display: 'none' }}>❤️</span>
                                 <span className="font-black text-red-700 text-sm">{vidas} Vidas</span>
                             </div>
                         </div>
@@ -372,7 +400,8 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     {/* 🌟 COMPRAR VIDAS EXTRAS */}
                     <div className="mb-6">
                         <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">
-                            <span>❤️</span> Comprar Vidas Extras
+                            <img src="/tuna-vida.png" alt="Vidas" className="w-5 h-5 object-contain" onError={(e)=>{e.target.style.display='none'}} />
+                            Comprar Vidas Extras
                         </h3>
                         <div className="grid grid-cols-3 gap-2">
                             {CATALOGO_VIDAS.map((paquete) => (
@@ -382,21 +411,32 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                                     className="p-2.5 bg-white rounded-xl border border-amber-200 flex flex-col items-center justify-center hover:bg-amber-50 hover:border-amber-400 transition-all shadow-sm active:scale-95 cursor-pointer"
                                 >
                                     <div className="flex items-center gap-1 font-black text-red-600 text-sm mb-1">
-                                        <span>{paquete.emoji}</span>
+                                        <img src="/tuna-vida.png" alt="Vida" className="w-4 h-4 object-contain" onError={(e)=>{e.target.style.display='none'}} />
                                         <span className="text-amber-950">× {paquete.cantidad}</span>
                                     </div>
-                                    <div className="text-[11px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded text-center w-full">
-                                        {paquete.costo} 🌽
+                                    <div className="text-[11px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded text-center w-full flex items-center justify-center gap-1">
+                                        {paquete.costo}
+                                        <img src="/totopo.png" alt="totopo" className="w-3.5 h-3.5 object-contain" onError={(e)=>{e.target.style.display='none'}} />
                                     </div>
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    {/* 🛍️ TIENDA DE AVATARES */}
+                    {/* 🛍️ TIENDA DE AVATARES (Con Tehuana en PNG) */}
                     <div className="mb-6">
                         <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">
-                            <span>🛍️</span> Tienda de Avatares
+                            <img 
+                                src="/tehuana.png" 
+                                alt="Tehuana" 
+                                className="w-6 h-6 object-contain"
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
+                                }}
+                            />
+                            <span style={{ display: 'none' }}>🛍️</span>
+                            Tienda de Avatares
                         </h3>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto p-2 custom-scrollbar">
                             {CATALOGO_AVATARES.map((avatar) => {
@@ -411,7 +451,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                                             : 'border-amber-300 bg-white hover:border-amber-400 hover:shadow-md'
                                         }`}
                                     >
-                                        {/* 🖼️ CONTENEDOR DE LA ILUSTRACIÓN PNG */}
                                         <div className={`w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-3 rounded-full flex items-center justify-center border-4 shadow-inner overflow-hidden transition-all ${
                                             equipado ? 'border-amber-500 bg-white' : 'border-amber-200 bg-amber-50'
                                         }`}>
@@ -420,7 +459,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                                                 alt={avatar.nombre}
                                                 className="w-full h-full object-contain p-1 sm:p-2"
                                                 onError={(e) => {
-                                                    e.target.onerror = 1;
+                                                    e.target.onerror = null;
                                                     e.target.style.display = 'none';
                                                     const fallback = document.createElement('span');
                                                     fallback.className = "text-5xl";
@@ -434,11 +473,18 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                                             {avatar.nombre}
                                         </div>
 
-                                        <div className={`text-xs font-black mb-3 px-3 py-1 rounded-full ${desbloqueado
+                                        <div className={`text-xs font-black mb-3 px-3 py-1 rounded-full flex items-center gap-1 ${desbloqueado
                                             ? 'text-green-900 bg-green-100 border border-green-300'
                                             : 'text-amber-800 bg-amber-100 border border-amber-300'
                                         }`}>
-                                            {desbloqueado ? '✓ Adquirido' : `${avatar.costo} 🌽`}
+                                            {desbloqueado ? (
+                                                '✓ Adquirido'
+                                            ) : (
+                                                <>
+                                                    {avatar.costo}
+                                                    <img src="/totopo.png" alt="totopo" className="w-3.5 h-3.5 object-contain" onError={(e)=>{e.target.style.display='none'}} />
+                                                </>
+                                            )}
                                         </div>
 
                                         <button
@@ -459,10 +505,20 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     </div>
 
-                    {/* 🏆 SISTEMA DE LOGROS Y TROFEOS */}
+                    {/* 🏆 SISTEMA DE LOGROS Y TROFEOS (Con Collar Guiechachi en PNG) */}
                     <div className="mb-6">
                         <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">
-                            <span>🏆</span> Logros y Trofeos de Juegos
+                            <img 
+                                src="/guiechachi.png" 
+                                alt="Guiechachi" 
+                                className="w-6 h-6 object-contain"
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
+                                }}
+                            />
+                            <span style={{ display: 'none' }}>🏆</span>
+                            Logros y Trofeos de Juegos
                         </h3>
                         <div className="space-y-2">
                             {CATALOGO_LOGROS.map((logro) => {

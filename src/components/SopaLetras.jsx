@@ -651,8 +651,19 @@ export default function SopaLetras({
         >
             <header className="text-center mb-3">
                 <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">🔎 Sopa de Letras</h2>
-                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1">
-                    <span className="text-red-600 font-bold">❤️ {vidas} Vidas</span> • Nivel {nivel} • Intentos: {intentos} • <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
+                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1 flex flex-wrap justify-center items-center gap-1.5">
+                    <span className="text-red-600 font-bold inline-flex items-center gap-1">
+                        <img src="/tuna-vida.png" alt="Vidas" className="w-4 h-4 object-contain inline-block" onError={(e)=>{e.target.style.display='none'}} />
+                        <span style={{display: 'none'}}>❤️</span>
+                        {vidas} Vidas
+                    </span> • 
+                    <span>Nivel {nivel}</span> • 
+                    <span>Intentos: {intentos}</span> • 
+                    <span className="text-orange-600 font-bold inline-flex items-center gap-1">
+                        <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block" onError={(e)=>{e.target.style.display='none'}} />
+                        <span style={{display: 'none'}}>🌽</span>
+                        {totopos} Totopos
+                    </span>
                 </p>
             </header>
 
@@ -676,8 +687,10 @@ export default function SopaLetras({
             {palabrasEncontradas.length === animalesObjetivo.length && animalesObjetivo.length > 0 && (
                 <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce shadow-md">
                     <p className="text-lg sm:text-xl font-bold text-green-900 mb-1">🎉 ¡Excelente! Encontraste todas las palabras</p>
-                    <p className="text-xs font-bold text-amber-700 mb-2">
-                        +{recompensaActual} 🌽 Totopos añadidos a tu morral
+                    <p className="text-xs font-bold text-amber-700 mb-2 inline-flex items-center justify-center gap-1">
+                        +{recompensaActual} 
+                        <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block" onError={(e)=>{e.target.style.display='none'}} />
+                        Totopos añadidos a tu morral
                     </p>
                     <div className="flex gap-3 justify-center">
                         <button type="button" onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm transition-transform active:scale-95 cursor-pointer">
@@ -687,10 +700,10 @@ export default function SopaLetras({
                 </div>
             )}
 
-            {/* 🖥️ CONTENEDOR OPTIMIZADO PARA PC: Dos columnas (Tablero amplio izq, Pistas y Ranking der) */}
+            {/* 🖥️ CONTENEDOR OPTIMIZADO PARA PC */}
             <div className="w-full max-w-5xl flex flex-col lg:grid lg:grid-cols-[1fr_360px] gap-6 items-center lg:items-start justify-center mt-2">
                 
-                {/* Columna Izquierda: Matriz de la Sopa de Letras (Más grande en PC) */}
+                {/* Columna Izquierda: Matriz de la Sopa de Letras */}
                 <div className="flex flex-col items-center w-full">
                     <div 
                         ref={gridRef}
@@ -755,10 +768,20 @@ export default function SopaLetras({
                         </div>
                     </div>
 
-                    {/* Tabla de Ranking Global Compacta para PC */}
+                    {/* Tabla de Ranking Global Compacta para PC con Guiechachi en PNG */}
                     <div className="bg-white rounded-2xl p-4 shadow-md border border-amber-200 w-full">
                         <h3 className="font-bold text-amber-900 text-center mb-2.5 text-sm sm:text-base flex items-center justify-center gap-1.5">
-                            <span>🏆</span> Ranking - Sopa de Letras
+                            <img 
+                                src="/guiechachi.png" 
+                                alt="Guiechachi" 
+                                className="w-6 h-6 object-contain"
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
+                                }}
+                            />
+                            <span style={{ display: 'none' }}>🏆</span>
+                            Ranking - Sopa de Letras
                         </h3>
                         {cargandoRanking ? (
                             <p className="text-center text-xs text-gray-500 py-2">Cargando puntajes globales...</p>
@@ -789,7 +812,11 @@ export default function SopaLetras({
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-red-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <div className="text-4xl mb-2">💔</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¡Te has quedado sin vidas!</h3>
-                        <p className="text-xs text-amber-800 mb-4">Puedes gastar {costoActualVidas} 🌽 Totopos para recuperar 3 vidas y continuar tu partida.</p>
+                        <p className="text-xs text-amber-800 mb-4 inline-flex items-center justify-center gap-1 flex-wrap">
+                            Puedes gastar {costoActualVidas} 
+                            <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
+                            Totopos para recuperar 3 vidas y continuar tu partida.
+                        </p>
                         
                         <div className="flex gap-3 w-full">
                             <button 
@@ -802,9 +829,11 @@ export default function SopaLetras({
                             <button 
                                 type="button"
                                 onClick={comprarVidas} 
-                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
+                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer inline-flex items-center justify-center gap-1"
                             >
-                                Comprar ({costoActualVidas} 🌽)
+                                Comprar ({costoActualVidas} 
+                                <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block" onError={(e)=>{e.target.style.display='none'}} />
+                                )
                             </button>
                         </div>
                     </div>

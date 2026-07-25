@@ -138,7 +138,6 @@ function App() {
                 alt={perfilInfo.avatar}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  // Si la imagen no se encuentra en /avatares/, ocultamos la etiqueta img y mostramos el emoji
                   e.target.style.display = 'none';
                   if (e.target.nextSibling) {
                     e.target.nextSibling.style.display = 'flex';
@@ -185,17 +184,28 @@ function App() {
           </button>
         )}
 
-        {/* Botón de Configuración (Engrane ⚙️) */}
+        {/* Botón de Configuración (Engrane en PNG con respaldo y animación opcional) */}
         <button
           onClick={() => setShowConfigModal(true)}
-          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-lg shadow-md transition-transform transform active:scale-95 border-2 cursor-pointer ${
+          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center shadow-md transition-transform transform active:scale-95 border-2 cursor-pointer overflow-hidden p-2 ${
             isPlayingMusic 
               ? 'bg-amber-100/90 hover:bg-amber-200/90 text-amber-900 border-amber-300 hover:border-amber-400' 
               : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
           }`}
           title="Abrir Configuración y Música"
         >
-          <span className="animate-spin-slow">⚙️</span>
+          <img 
+            src="/engrane.png" 
+            alt="Configuración" 
+            className="w-full h-full object-contain animate-spin-slow"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+          <span style={{ display: 'none' }} className="w-full h-full items-center justify-center text-lg">
+            ⚙️
+          </span>
         </button>
 
       </div>

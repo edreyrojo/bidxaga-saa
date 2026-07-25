@@ -701,19 +701,32 @@ export default function Crucigrama({
                     <span>•</span>
                     <span>Intentos: {intentos}</span>
                     <span>•</span>
-                    <span className="text-red-600 font-bold tracking-wider" title={`Vidas: ${vidas}/${MAX_VIDAS}`}>
-                        {'❤️ '.repeat(vidas)}{'🤍 '.repeat(Math.max(0, MAX_VIDAS - vidas))}
+                    <span className="inline-flex items-center gap-1.5" title={`Vidas: ${vidas}/${MAX_VIDAS}`}>
+                        {Array.from({ length: MAX_VIDAS }).map((_, i) => (
+                            <img 
+                                key={i} 
+                                src="/tuna-vida.png" 
+                                alt="vida" 
+                                className={`w-4 h-4 object-contain inline-block transition-opacity ${i < vidas ? 'opacity-100' : 'opacity-30 grayscale'}`} 
+                                onError={(e)=>{e.target.style.display='none'}} 
+                            />
+                        ))}
                     </span>
                     <span>•</span>
-                    <span className="text-orange-600 font-bold">🌽 {totopos} Totopos</span>
+                    <span className="text-orange-600 font-bold inline-flex items-center gap-1">
+                        <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
+                        {totopos} Totopos
+                    </span>
                 </p>
             </header>
 
             {nivelCompletado && (
                 <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce">
                     <p className="text-lg sm:text-xl font-bold text-green-900 mb-1">🎉 ¡Excelente! Crucigrama Resuelto</p>
-                    <p className="text-xs font-bold text-amber-700 mb-2">
-                        +{recompensaActual} 🌽 Totopos añadidos a tu morral (Total: {totopos})
+                    <p className="text-xs font-bold text-amber-700 mb-2 inline-flex items-center justify-center gap-1">
+                        +{recompensaActual} 
+                        <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
+                        Totopos añadidos a tu morral (Total: {totopos})
                     </p>
                     <div className="flex gap-3 justify-center">
                         <button onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm cursor-pointer">Siguiente Nivel</button>
@@ -721,10 +734,10 @@ export default function Crucigrama({
                 </div>
             )}
 
-            {/* 🖥️ CONTENEDOR DE TRES COLUMNAS EN PC: (Panel Crucigrama) (Pistas Crucigrama) (Ranking Global) */}
+            {/* 🖥️ CONTENEDOR DE TRES COLUMNAS EN PC */}
             <div className="w-full max-w-6xl xl:max-w-7xl flex flex-col lg:grid lg:grid-cols-[1fr_320px_320px] gap-6 items-center lg:items-start justify-center mt-1">
                 
-                {/* Columna 1: Tablero del Crucigrama (Ligeramente más pequeño en PC) */}
+                {/* Columna 1: Tablero del Crucigrama */}
                 <div className="w-full p-3 sm:p-5 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner overflow-x-auto custom-scrollbar flex justify-center items-center min-h-[380px]">
                     <div className="flex justify-center min-w-max mx-auto">
                         <div 
@@ -761,7 +774,7 @@ export default function Crucigrama({
                     </div>
                 </div>
 
-                {/* Columna 2: Panel Lateral de Pistas (Completa sin scroll en PC) */}
+                {/* Columna 2: Panel Lateral de Pistas */}
                 <div className="w-full flex flex-col gap-3">
                     <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base">
                         📋 Pistas ({palabrasResueltas.length}/{placements.length}):
@@ -798,10 +811,20 @@ export default function Crucigrama({
                     </div>
                 </div>
 
-                {/* Columna 3: Ranking Global */}
+                {/* Columna 3: Ranking Global con Guiechachi en PNG */}
                 <div className="w-full flex flex-col gap-3">
-                    <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base">
-                        🏆 Ranking Global
+                    <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base flex items-center justify-center lg:justify-start gap-1.5">
+                        <img 
+                            src="/guiechachi.png" 
+                            alt="Guiechachi" 
+                            className="w-6 h-6 object-contain"
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
+                            }}
+                        />
+                        <span style={{ display: 'none' }}>🏆</span>
+                        Ranking Global
                     </h3>
                     <div className="bg-white rounded-xl p-3 shadow-md border border-amber-200 w-full max-h-[440px] lg:max-h-none overflow-y-auto lg:overflow-y-visible custom-scrollbar">
                         {cargandoRanking ? (
@@ -847,7 +870,9 @@ export default function Crucigrama({
                             onClick={usarPistaRevelar}
                             className="mb-3 text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold py-1 px-3 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer transition-colors"
                         >
-                            💡 Revelar palabra (-10 🌽)
+                            💡 Revelar palabra (-10 
+                            <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
+                            )
                         </button>
 
                         <div className="flex gap-0.5 sm:gap-1 max-w-[280px] sm:max-w-none flex-wrap mb-3 sm:mb-4 min-h-[34px] items-center bg-amber-50/80 px-2.5 py-1.5 rounded-xl border border-amber-200 w-full justify-center">
@@ -959,13 +984,15 @@ export default function Crucigrama({
                                         localStorage.setItem('crucigramaVidas', MAX_VIDAS);
                                         setShowGameOverModal(false);
                                     }}
-                                    className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
+                                    className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
                                 >
-                                    🌽 Recuperar 5 Vidas (-15 Totopos)
+                                    <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block" onError={(e)=>{e.target.style.display='none'}} />
+                                    Recuperar 5 Vidas (-15 Totopos)
                                 </button>
                             ) : (
-                                <button disabled className="w-full bg-gray-200 text-gray-400 py-2.5 rounded-xl font-bold text-sm cursor-not-allowed">
-                                    🌽 Necesitas 15 Totopos para revivir
+                                <button disabled className="w-full bg-gray-200 text-gray-400 py-2.5 rounded-xl font-bold text-sm cursor-not-allowed inline-flex items-center justify-center gap-1.5">
+                                    <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block" onError={(e)=>{e.target.style.display='none'}} />
+                                    Necesitas 15 Totopos para revivir
                                 </button>
                             )}
 
