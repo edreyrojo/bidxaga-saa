@@ -76,6 +76,18 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     const [mensaje, setMensaje] = useState('');
     const [showConfirmLogout, setShowConfirmLogout] = useState(false);
 
+    // Estados para controlar los menús desplegables
+    const [tiendaAbierta, setTiendaAbierta] = useState(false);
+    const [logrosAbiertos, setLogrosAbiertos] = useState(false);
+
+    // Bloquear el slide/scroll de la página principal al abrir el modal
+    useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
+
     // Cargar datos del usuario asegurando la integridad del histórico
     useEffect(() => {
         const fetchUserData = async () => {
@@ -252,7 +264,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-            <div className="bg-amber-50 rounded-3xl shadow-2xl border-4 border-amber-600 w-full max-w-lg relative overflow-hidden flex flex-col max-h-[95vh] animate-fade-in">
+            <div className="bg-amber-50 rounded-3xl shadow-2xl border-4 border-amber-600 w-full max-w-lg relative overflow-hidden flex flex-col max-h-[92vh] animate-fade-in">
 
                 <div className="absolute top-3 right-3 z-20">
                     <button
@@ -423,139 +435,160 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     </div>
 
-                    {/* 🛍️ TIENDA DE AVATARES (Con Tehuana en PNG) */}
-                    <div className="mb-6">
-                        <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">
-                            <img 
-                                src="/tehuana.png" 
-                                alt="Tehuana" 
-                                className="w-6 h-6 object-contain"
-                                onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
-                                }}
-                            />
-                            <span style={{ display: 'none' }}>🛍️</span>
-                            Tienda de Avatares
-                        </h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto p-2 custom-scrollbar">
-                            {CATALOGO_AVATARES.map((avatar) => {
-                                const desbloqueado = avataresDesbloqueados.includes(avatar.id);
-                                const equipado = avatarActual === avatar.id;
+                    {/* 🛍️ TIENDA DE AVATARES (Desplegable) */}
+                    <div className="mb-6 bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={() => setTiendaAbierta(!tiendaAbierta)}
+                            className="w-full p-4 flex items-center justify-between bg-amber-100/50 hover:bg-amber-100 transition-colors cursor-pointer"
+                        >
+                            <span className="font-black text-amber-900 text-base flex items-center gap-2">
+                                <img 
+                                    src="/tehuana.png" 
+                                    alt="Tehuana" 
+                                    className="w-6 h-6 object-contain"
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
+                                    }}
+                                />
+                                <span style={{ display: 'none' }}>🛍️</span>
+                                Tienda de Avatares
+                            </span>
+                            <span className="text-amber-950 font-bold text-xs bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-sm">
+                                {tiendaAbierta ? '▲ Ocultar Tienda' : '▼'}
+                            </span>
+                        </button>
+                        {tiendaAbierta && (
+                            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto custom-scrollbar border-t border-amber-200 bg-amber-50/40">
+                                {CATALOGO_AVATARES.map((avatar) => {
+                                    const desbloqueado = avataresDesbloqueados.includes(avatar.id);
+                                    const equipado = avatarActual === avatar.id;
 
-                                return (
-                                    <div
-                                        key={avatar.id}
-                                        className={`p-4 rounded-3xl border-2 flex flex-col items-center justify-between transition-all duration-200 ${equipado
-                                            ? 'border-amber-600 bg-amber-100 ring-2 ring-amber-400 shadow-lg'
-                                            : 'border-amber-300 bg-white hover:border-amber-400 hover:shadow-md'
-                                        }`}
-                                    >
-                                        <div className={`w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-3 rounded-full flex items-center justify-center border-4 shadow-inner overflow-hidden transition-all ${
-                                            equipado ? 'border-amber-500 bg-white' : 'border-amber-200 bg-amber-50'
-                                        }`}>
-                                            <img
-                                                src={`/avatares/${avatar.id}.png`}
-                                                alt={avatar.nombre}
-                                                className="w-full h-full object-contain p-1 sm:p-2"
-                                                onError={(e) => {
-                                                    e.target.onerror = null;
-                                                    e.target.style.display = 'none';
-                                                    const fallback = document.createElement('span');
-                                                    fallback.className = "text-5xl";
-                                                    fallback.innerText = avatar.emoji;
-                                                    e.target.parentNode.appendChild(fallback);
-                                                }}
-                                            />
-                                        </div>
-
-                                        <div className="font-black text-sm text-center text-amber-950 mb-1 leading-tight h-9 flex items-center justify-center">
-                                            {avatar.nombre}
-                                        </div>
-
-                                        <div className={`text-xs font-black mb-3 px-3 py-1 rounded-full flex items-center gap-1 ${desbloqueado
-                                            ? 'text-green-900 bg-green-100 border border-green-300'
-                                            : 'text-amber-800 bg-amber-100 border border-amber-300'
-                                        }`}>
-                                            {desbloqueado ? (
-                                                '✓ Adquirido'
-                                            ) : (
-                                                <>
-                                                    {avatar.costo}
-                                                    <img src="/totopo.png" alt="totopo" className="w-3.5 h-3.5 object-contain" onError={(e)=>{e.target.style.display='none'}} />
-                                                </>
-                                            )}
-                                        </div>
-
-                                        <button
-                                            onClick={() => handleComprarOEquipar(avatar)}
-                                            disabled={equipado}
-                                            className={`w-full py-2.5 px-4 rounded-2xl text-sm font-black transition-all duration-150 active:scale-95 shadow ${equipado
-                                                ? 'bg-amber-500 text-white cursor-default opacity-90'
-                                                : desbloqueado
-                                                    ? 'bg-amber-700 hover:bg-amber-800 text-white cursor-pointer'
-                                                    : 'bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
+                                    return (
+                                        <div
+                                            key={avatar.id}
+                                            className={`p-3 rounded-3xl border-2 flex flex-col items-center justify-between transition-all duration-200 ${equipado
+                                                ? 'border-amber-600 bg-amber-100 ring-2 ring-amber-400 shadow-lg'
+                                                : 'border-amber-300 bg-white hover:border-amber-400 hover:shadow-md'
                                             }`}
                                         >
-                                            {equipado ? 'Equipado' : desbloqueado ? 'Equipar' : 'Comprar'}
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                            <div className={`w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-2 rounded-full flex items-center justify-center border-4 shadow-inner overflow-hidden transition-all ${
+                                                equipado ? 'border-amber-500 bg-white' : 'border-amber-200 bg-amber-50'
+                                            }`}>
+                                                <img
+                                                    src={`/avatares/${avatar.id}.png`}
+                                                    alt={avatar.nombre}
+                                                    className="w-full h-full object-contain p-1"
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.style.display = 'none';
+                                                        const fallback = document.createElement('span');
+                                                        fallback.className = "text-4xl";
+                                                        fallback.innerText = avatar.emoji;
+                                                        e.target.parentNode.appendChild(fallback);
+                                                    }}
+                                                />
+                                            </div>
+
+                                            <div className="font-black text-xs text-center text-amber-950 mb-1 leading-tight h-8 flex items-center justify-center">
+                                                {avatar.nombre}
+                                            </div>
+
+                                            <div className={`text-[11px] font-black mb-2 px-2.5 py-0.5 rounded-full flex items-center gap-1 ${desbloqueado
+                                                ? 'text-green-900 bg-green-100 border border-green-300'
+                                                : 'text-amber-800 bg-amber-100 border border-amber-300'
+                                            }`}>
+                                                {desbloqueado ? (
+                                                    '✓ Adquirido'
+                                                ) : (
+                                                    <>
+                                                        {avatar.costo}
+                                                        <img src="/totopo.png" alt="totopo" className="w-3.5 h-3.5 object-contain" onError={(e)=>{e.target.style.display='none'}} />
+                                                    </>
+                                                )}
+                                            </div>
+
+                                            <button
+                                                onClick={() => handleComprarOEquipar(avatar)}
+                                                disabled={equipado}
+                                                className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all duration-150 active:scale-95 shadow ${equipado
+                                                    ? 'bg-amber-500 text-white cursor-default opacity-90'
+                                                    : desbloqueado
+                                                        ? 'bg-amber-700 hover:bg-amber-800 text-white cursor-pointer'
+                                                        : 'bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
+                                                }`}
+                                            >
+                                                {equipado ? 'Equipado' : desbloqueado ? 'Equipar' : 'Comprar'}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
-                    {/* 🏆 SISTEMA DE LOGROS Y TROFEOS (Con Collar Guiechachi en PNG) */}
-                    <div className="mb-6">
-                        <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">
-                            <img 
-                                src="/guiechachi.png" 
-                                alt="Guiechachi" 
-                                className="w-6 h-6 object-contain"
-                                onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
-                                }}
-                            />
-                            <span style={{ display: 'none' }}>🏆</span>
-                            Logros y Trofeos de Juegos
-                        </h3>
-                        <div className="space-y-2">
-                            {CATALOGO_LOGROS.map((logro) => {
-                                const conseguido = logrosDesbloqueados.includes(logro.id);
+                    {/* 🏆 SISTEMA DE LOGROS Y TROFEOS (Desplegable) */}
+                    <div className="mb-6 bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={() => setLogrosAbiertos(!logrosAbiertos)}
+                            className="w-full p-4 flex items-center justify-between bg-amber-100/50 hover:bg-amber-100 transition-colors cursor-pointer"
+                        >
+                            <span className="font-black text-amber-900 text-base flex items-center gap-2">
+                                <img 
+                                    src="/guiechachi.png" 
+                                    alt="Guiechachi" 
+                                    className="w-6 h-6 object-contain"
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
+                                    }}
+                                />
+                                <span style={{ display: 'none' }}>🏆</span>
+                                Logros y Trofeos de Juegos
+                            </span>
+                            <span className="text-amber-950 font-bold text-xs bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-sm">
+                                {logrosAbiertos ? '▲ Ocultar Logros' : '▼'}
+                            </span>
+                        </button>
+                        {logrosAbiertos && (
+                            <div className="p-4 space-y-2 max-h-72 overflow-y-auto custom-scrollbar border-t border-amber-200 bg-amber-50/40">
+                                {CATALOGO_LOGROS.map((logro) => {
+                                    const conseguido = logrosDesbloqueados.includes(logro.id);
 
-                                return (
-                                    <div
-                                        key={logro.id}
-                                        className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${conseguido
-                                            ? 'bg-white border-amber-300 shadow-sm'
-                                            : 'bg-gray-100 border-gray-300 opacity-60 grayscale'
-                                        }`}
-                                    >
-                                        <div className="text-3xl bg-amber-100 p-2 rounded-xl border border-amber-200 flex-shrink-0">
-                                            {conseguido ? logro.emoji : '🔒'}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between">
-                                                <span className={`font-bold text-xs px-2 py-0.5 rounded-md ${conseguido ? 'bg-amber-200 text-amber-900' : 'bg-gray-200 text-gray-700'
-                                                }`}>
-                                                    {logro.juego}
-                                                </span>
-                                                <span className={`text-xs font-bold ${conseguido ? 'text-green-700' : 'text-gray-500'}`}>
-                                                    {conseguido ? '¡Conseguido! ✅' : 'Bloqueado'}
-                                                </span>
+                                    return (
+                                        <div
+                                            key={logro.id}
+                                            className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${conseguido
+                                                ? 'bg-white border-amber-300 shadow-sm'
+                                                : 'bg-gray-100 border-gray-300 opacity-60 grayscale'
+                                            }`}
+                                        >
+                                            <div className="text-3xl bg-amber-100 p-2 rounded-xl border border-amber-200 flex-shrink-0">
+                                                {conseguido ? logro.emoji : '🔒'}
                                             </div>
-                                            <h4 className={`font-black text-sm mt-1 truncate ${conseguido ? 'text-amber-950' : 'text-gray-600'}`}>
-                                                {logro.nombre}
-                                            </h4>
-                                            <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">
-                                                {logro.desc}
-                                            </p>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between">
+                                                    <span className={`font-bold text-xs px-2 py-0.5 rounded-md ${conseguido ? 'bg-amber-200 text-amber-900' : 'bg-gray-200 text-gray-700'}`}>
+                                                        {logro.juego}
+                                                    </span>
+                                                    <span className={`text-xs font-bold ${conseguido ? 'text-green-700' : 'text-gray-500'}`}>
+                                                        {conseguido ? '¡Conseguido! ✅' : 'Bloqueado'}
+                                                    </span>
+                                                </div>
+                                                <h4 className={`font-black text-sm mt-1 truncate ${conseguido ? 'text-amber-950' : 'text-gray-600'}`}>
+                                                    {logro.nombre}
+                                                </h4>
+                                                <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">
+                                                    {logro.desc}
+                                                </p>
+                                            </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     <button

@@ -111,6 +111,8 @@ function App() {
     ? (perfilInfo.nombre ? perfilInfo.nombre : user.email.split('@')[0]) 
     : 'Iniciar Sesión';
 
+  const onGuardarClick = controlesJuegoActivo?.onGuardarClick;
+
   return (
     <div className="min-h-screen bg-orange-50/50 font-sans text-amber-950 pb-10 relative">
 
@@ -121,16 +123,15 @@ function App() {
         onPlayStateChange={setIsPlayingMusic} 
       />
 
-      {/* 🚀 PANEL SUPERIOR FLOTANTE */}
+      {/* 🚀 PANEL SUPERIOR FLOTANTE (Orden: Perfil Modal, Menú Principal, Guardar Récord, Configuración) */}
       <div className="fixed top-3 left-3 sm:top-4 sm:left-4 z-40 flex items-center gap-2">
         
-        {/* Botón / Tarjeta de Perfil (Avatar / Imagen con respaldo en Emoji) */}
+        {/* 1.- Botón / Tarjeta de Perfil Modal */}
         <button
           onClick={handlePanelSuperiorClick}
           className="bg-amber-100/90 hover:bg-amber-200/90 backdrop-blur-md text-amber-950 px-3 py-1.5 rounded-2xl font-bold shadow-md transition-transform transform active:scale-95 flex items-center gap-2.5 cursor-pointer border-2 border-amber-300 hover:border-amber-400 text-xs sm:text-sm"
           title={user ? "Ver Perfil" : "Iniciar Sesión"}
         >
-          {/* Fondo claro para que la imagen del avatar luzca correctamente */}
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-50 text-amber-900 flex items-center justify-center text-lg sm:text-xl shadow-inner border-2 border-amber-300 flex-shrink-0 overflow-hidden relative">
             {user && perfilInfo.avatar && perfilInfo.avatar !== 'default' ? (
               <img 
@@ -165,7 +166,7 @@ function App() {
           </div>
         </button>
 
-        {/* 🏠 Botón Volver al Menú Principal */}
+        {/* 2.- Botón Menú Principal */}
         {vistaActual !== 'menu' && (
           <button
             onClick={() => {
@@ -184,7 +185,19 @@ function App() {
           </button>
         )}
 
-        {/* Botón de Configuración (Engrane en PNG con respaldo y animación opcional) */}
+        {/* 3.- Botón Flotante de Guardar Récord (Disponible cuando hay juego activo con función de guardado) */}
+        {onGuardarClick && (
+          <button
+            onClick={onGuardarClick}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2.5 sm:px-3.5 rounded-2xl shadow-md transition-transform transform active:scale-95 text-xs sm:text-sm cursor-pointer flex items-center justify-center gap-1.5 border-2 border-emerald-500 whitespace-nowrap"
+            title="Guardar Récord"
+          >
+            <span className="text-base leading-none">💾</span>
+            <span className="hidden sm:inline">Guardar Récord</span>
+          </button>
+        )}
+
+        {/* 4.- Botón de Configuración */}
         <button
           onClick={() => setShowConfigModal(true)}
           className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center shadow-md transition-transform transform active:scale-95 border-2 cursor-pointer overflow-hidden p-2 ${

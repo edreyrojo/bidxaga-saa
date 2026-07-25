@@ -26,6 +26,9 @@ export default function ConfiguracionModal({
     const [recordsLista, setRecordsLista] = useState([]);
     const [cargandoRecords, setCargandoRecords] = useState(false);
 
+    // Estado para mostrar las opciones de reinicio al frente
+    const [showOpcionesReiniciar, setShowOpcionesReiniciar] = useState(false);
+
     useEffect(() => {
         const verificarRolAdmin = async () => {
             if (!user) {
@@ -57,6 +60,7 @@ export default function ConfiguracionModal({
 
         if (isOpen) {
             verificarRolAdmin();
+            setShowOpcionesReiniciar(false); // Reiniciar estado al abrir el modal principal
         }
     }, [isOpen, user]);
 
@@ -134,6 +138,7 @@ export default function ConfiguracionModal({
     const onMenuClick = controlesJuegoActivo?.onMenuClick;
     const onGuardarClick = controlesJuegoActivo?.onGuardarClick;
     const onReiniciarClick = controlesJuegoActivo?.onReiniciarClick;
+    const onReiniciarDesdeCeroClick = controlesJuegoActivo?.onReiniciarDesdeCeroClick;
     const modoDificil = controlesJuegoActivo?.modoDificil;
     const onToggleModoDificil = controlesJuegoActivo?.onToggleModoDificil;
 
@@ -143,6 +148,55 @@ export default function ConfiguracionModal({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
             <div className="bg-amber-50 rounded-3xl shadow-2xl border-4 border-amber-600 w-full max-w-md relative overflow-hidden flex flex-col p-5 max-h-[90vh] overflow-y-auto">
                 
+                {/* --- SUB-PANEL FLOTANTE AL FRENTE PARA OPCIONES DE REINICIO --- */}
+                {showOpcionesReiniciar && (
+                    <div className="absolute inset-0 bg-amber-50/95 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+                        <div className="bg-white p-5 rounded-3xl border-2 border-amber-500 shadow-xl w-full max-w-xs flex flex-col gap-3">
+                            <h3 className="font-black text-amber-950 text-sm uppercase tracking-wider">
+                                ⚠️ Opciones de Reinicio
+                            </h3>
+                            <p className="text-amber-800 text-[11px] font-medium">
+                                Selecciona cómo deseas reiniciar tu partida:
+                            </p>
+                            <div className="flex flex-col gap-2 mt-1">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowOpcionesReiniciar(false);
+                                        if (onReiniciarClick) onReiniciarClick();
+                                        onClose();
+                                    }}
+                                    className="w-full bg-amber-950 hover:bg-black text-white py-2 px-3 rounded-xl text-[11px] font-bold transition-all shadow-xs cursor-pointer active:scale-95 text-center"
+                                >
+                                    🔄 Reiniciar Nivel Actual
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowOpcionesReiniciar(false);
+                                        if (onReiniciarDesdeCeroClick) {
+                                            onReiniciarDesdeCeroClick();
+                                        } else if (onReiniciarClick) {
+                                            onReiniciarClick();
+                                        }
+                                        onClose();
+                                    }}
+                                    className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-xl text-[11px] font-bold transition-all shadow-xs cursor-pointer active:scale-95 text-center"
+                                >
+                                    ⚠️ Reiniciar Desde 0
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOpcionesReiniciar(false)}
+                                    className="w-full bg-amber-100 hover:bg-amber-200 text-amber-900 py-1.5 px-3 rounded-xl text-[11px] font-bold transition-all cursor-pointer border border-amber-300 text-center mt-1"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Botón Cerrar (X) */}
                 <div className="absolute top-3 right-3 z-20">
                     <button
@@ -185,11 +239,17 @@ export default function ConfiguracionModal({
                                 <button
                                     type="button"
                                     onClick={() => setSeccionAdmin('records')}
-                                    className={`py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                                    className={`py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                                         seccionAdmin === 'records' ? 'bg-amber-600 text-white shadow-xs' : 'text-amber-900 hover:bg-amber-300/50'
                                     }`}
                                 >
-                                    🏆 Récords / Rankings
+                                    <img 
+                                        src="/guiechachi.png" 
+                                        alt="Guiechachi" 
+                                        className="w-4 h-4 object-contain inline-block" 
+                                        onError={(e) => e.target.style.display='none'} 
+                                    />
+                                    <span>Récords / Rankings</span>
                                 </button>
                             </div>
 
@@ -218,9 +278,25 @@ export default function ConfiguracionModal({
                                                         <span className="font-bold text-amber-950 truncate max-w-[130px]">
                                                             {u.nombre || u.email || 'Sin Nombre'}
                                                         </span>
-                                                        <div className="flex gap-2 font-bold text-amber-900">
-                                                            <span>❤️ {u.vidas ?? 3}</span>
-                                                            <span>🌽 {u.totopos ?? 0}</span>
+                                                        <div className="flex gap-2 font-bold text-amber-900 items-center">
+                                                            <span className="flex items-center gap-1">
+                                                                <img 
+                                                                    src="/tuna-vida.png" 
+                                                                    alt="Vidas" 
+                                                                    className="w-4 h-4 object-contain inline-block" 
+                                                                    onError={(e) => e.target.style.display='none'} 
+                                                                />
+                                                                <span>{u.vidas ?? 3}</span>
+                                                            </span>
+                                                            <span className="flex items-center gap-1">
+                                                                <img 
+                                                                    src="/totopo.png" 
+                                                                    alt="Totopos" 
+                                                                    className="w-4 h-4 object-contain inline-block" 
+                                                                    onError={(e) => e.target.style.display='none'} 
+                                                                />
+                                                                <span>{u.totopos ?? 0}</span>
+                                                            </span>
                                                         </div>
                                                     </div>
 
@@ -336,7 +412,7 @@ export default function ConfiguracionModal({
                                 </button>
                             )}
                             {onReiniciarClick && (
-                                <button onClick={onReiniciarClick} className="bg-amber-950 hover:bg-black text-white py-1.5 px-1 rounded-xl text-[11px] font-bold transition-all shadow-xs flex items-center justify-center cursor-pointer active:scale-95 text-center">
+                                <button onClick={() => setShowOpcionesReiniciar(true)} className="bg-amber-950 hover:bg-black text-white py-1.5 px-1 rounded-xl text-[11px] font-bold transition-all shadow-xs flex items-center justify-center cursor-pointer active:scale-95 text-center">
                                     Reiniciar
                                 </button>
                             )}
