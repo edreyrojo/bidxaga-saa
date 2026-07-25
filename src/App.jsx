@@ -145,7 +145,8 @@ function App() {
             )}
           </div>
         </button>
-        {/* 🏠 Botón Volver al Menú Principal (Solo aparece si hay un juego activo / no estamos en el menú) */}
+
+        {/* 🏠 Botón Volver al Menú Principal (Icono ☰ en móviles y Texto en escritorio) */}
         {vistaActual !== 'menu' && (
           <button
             onClick={() => {
@@ -156,9 +157,10 @@ function App() {
                 setVistaActual('menu');
               }
             }}
-            className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3.5 py-2.5 rounded-2xl shadow-md transition-transform transform active:scale-95 text-xs sm:text-sm cursor-pointer flex items-center gap-1.5 border-2 border-amber-500 whitespace-nowrap"
+            className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-2.5 sm:px-3.5 rounded-2xl shadow-md transition-transform transform active:scale-95 text-xs sm:text-sm cursor-pointer flex items-center justify-center gap-1.5 border-2 border-amber-500 whitespace-nowrap"
             title="Volver al Menú Principal"
           >
+            <span className="sm:hidden text-base leading-none">☰</span>
             <span className="hidden sm:inline">Menú Principal</span>
           </button>
         )}
