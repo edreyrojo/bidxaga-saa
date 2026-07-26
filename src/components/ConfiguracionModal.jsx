@@ -29,7 +29,14 @@ export default function ConfiguracionModal({
     // Estado para mostrar las opciones de reinicio al frente
     const [showOpcionesReiniciar, setShowOpcionesReiniciar] = useState(false);
 
+    // Estado local para el filtro de contenido (Fauna, Flora, Ambos)
+    const [tipoContenidoLocal, setTipoContenidoLocal] = useState('fauna');
+
     useEffect(() => {
+        // Cargar preferencia guardada en localStorage al abrir
+        const modoGuardado = localStorage.getItem('tipoContenidoJuego') || 'fauna';
+        setTipoContenidoLocal(modoGuardado);
+
         const verificarRolAdmin = async () => {
             if (!user) {
                 setEsAdmin(false);
@@ -63,6 +70,16 @@ export default function ConfiguracionModal({
             setShowOpcionesReiniciar(false); // Reiniciar estado al abrir el modal principal
         }
     }, [isOpen, user]);
+
+    const cambiarTipoContenido = (nuevoModo) => {
+        setTipoContenidoLocal(nuevoModo);
+        localStorage.setItem('tipoContenidoJuego', nuevoModo);
+        
+        // Si el juego activo provee una función para actualizar el modo al vuelo, la llamamos
+        if (controlesJuegoActivo?.onCambiarTipoContenido) {
+            controlesJuegoActivo.onCambiarTipoContenido(nuevoModo);
+        }
+    };
 
     const cargarUsuarios = async () => {
         setCargandoUsuarios(true);
@@ -214,6 +231,48 @@ export default function ConfiguracionModal({
                     <p className="text-amber-700 text-[11px] font-medium">
                         Ajusta la música, el nivel y las opciones de tu partida
                     </p>
+                </div>
+
+                {/* --- SELECTOR DE CONTENIDO (FAUNA / FLORA / AMBOS) --- */}
+                <div className="bg-white p-3 rounded-2xl border border-amber-200 shadow-sm flex flex-col gap-2 mb-3">
+                    <h3 className="font-black text-amber-900 text-[11px] uppercase tracking-wider flex items-center gap-1">
+                        🌍 Categoría de Aprendizaje
+                    </h3>
+                    <div className="grid grid-cols-3 gap-1.5 bg-amber-100/70 p-1 rounded-xl border border-amber-300">
+                        <button
+                            type="button"
+                            onClick={() => cambiarTipoContenido('fauna')}
+                            className={`py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                                tipoContenidoLocal === 'fauna' 
+                                    ? 'bg-amber-600 text-white shadow-xs' 
+                                    : 'text-amber-900 hover:bg-amber-200/60'
+                            }`}
+                        >
+                            🐾 Fauna
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => cambiarTipoContenido('flora')}
+                            className={`py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                                tipoContenidoLocal === 'flora' 
+                                    ? 'bg-amber-600 text-white shadow-xs' 
+                                    : 'text-amber-900 hover:bg-amber-200/60'
+                            }`}
+                        >
+                            🌿 Flora
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => cambiarTipoContenido('ambos')}
+                            className={`py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                                tipoContenidoLocal === 'ambos' 
+                                    ? 'bg-amber-600 text-white shadow-xs' 
+                                    : 'text-amber-900 hover:bg-amber-200/60'
+                            }`}
+                        >
+                            🌟 Ambos
+                        </button>
+                    </div>
                 </div>
 
                 {/* --- PANEL DE ADMINISTRACIÓN DESPLEGABLE --- */}

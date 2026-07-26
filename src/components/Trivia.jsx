@@ -38,6 +38,15 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     const TOTOPOS_POR_NIVEL = 15; // Recompensa de totopos al completar nivel
     const COSTO_VIDAS = 30; // Costo en totopos para recuperar 3 vidas
 
+    // 💾 Función auxiliar para guardar el progreso local completo al salir o guardar
+    const guardarProgresoLocal = () => {
+        localStorage.setItem('triviaNivel', nivel);
+        localStorage.setItem('triviaErrores', errores);
+        localStorage.setItem('triviaModoDificil', modoDificil);
+        localStorage.setItem('totopos', totopos);
+        localStorage.setItem('triviaVidas', vidas);
+    };
+
     // Función auxiliar para guardar automáticamente si hay sesión activa y nickname configurado
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
         const scoreToSave = pendingGlobalScore || { level: nivel, errores: errores };
@@ -69,11 +78,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
     // Al hacer click en Guardar con verificación de sesión y nickname
     const handleClickGuardar = async () => {
-        localStorage.setItem('triviaNivel', nivel);
-        localStorage.setItem('triviaErrores', errores);
-        localStorage.setItem('triviaModoDificil', modoDificil);
-        localStorage.setItem('totopos', totopos);
-        localStorage.setItem('triviaVidas', vidas);
+        guardarProgresoLocal();
 
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
@@ -185,13 +190,10 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         cargarRankingGlobal();
     }, [user]);
 
-    // Guardar en localStorage los cambios de nivel, errores, modo difícil o vidas
+    // Guardar en localStorage los cambios de nivel, errores, modo difícil o vidas de forma automática
     useEffect(() => {
-        localStorage.setItem('triviaNivel', nivel);
-        localStorage.setItem('triviaErrores', errores);
-        localStorage.setItem('triviaModoDificil', modoDificil);
-        localStorage.setItem('triviaVidas', vidas);
-    }, [nivel, errores, modoDificil, vidas]);
+        guardarProgresoLocal();
+    }, [nivel, errores, modoDificil, vidas, totopos]);
 
     // Generar pregunta cuando cambia el nivel o los aciertos
     useEffect(() => {
@@ -327,7 +329,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             });
         } catch (error) {
             setFeedbackModal({
-                show: true, title: "⚠️ Error", message: "Progreso guardado localmente, error al conectar con Firebase."
+                show: true, title: "⚠️ Error", message: "Progreso guardado localmente, error al conectar with Firebase."
             });
         }
     };
@@ -601,6 +603,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                             <button 
                                 type="button" 
                                 onClick={() => {
+                                    guardarProgresoLocal(); // 💾 Guarda antes de salir al menú
                                     setShowMenuModal(false);
                                     if (onBack) onBack();
                                 }} 

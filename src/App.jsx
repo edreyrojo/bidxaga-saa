@@ -106,6 +106,22 @@ function App() {
     setIndicePista(siguiente);
   };
 
+  // 💾 Función auxiliar para guardar el nivel actual en localStorage antes de volver al menú
+  const guardarNivelActual = () => {
+    if (controlesJuegoActivo?.level !== undefined && controlesJuegoActivo?.level !== null) {
+      const nivelActual = controlesJuegoActivo.level;
+      if (vistaActual === 'trivia') {
+        localStorage.setItem('triviaNivel', nivelActual);
+      } else if (vistaActual === 'sopa') {
+        localStorage.setItem('sopaLetrasNivel', nivelActual);
+      } else if (vistaActual === 'crucigrama') {
+        localStorage.setItem('crucigramaNivel', nivelActual);
+      } else if (vistaActual === 'memorama') {
+        localStorage.setItem('memoramaNivel', nivelActual);
+      }
+    }
+  };
+
   const emojiAvatar = user ? (perfilInfo.emoji || AVATAR_EMOJIS[perfilInfo.avatar] || '🌽') : '👤';
   const displayNickname = user 
     ? (perfilInfo.nombre ? perfilInfo.nombre : user.email.split('@')[0]) 
@@ -123,7 +139,7 @@ function App() {
         onPlayStateChange={setIsPlayingMusic} 
       />
 
-      {/* 🚀 PANEL SUPERIOR FLOTANTE (Orden: Perfil Modal, Menú Principal, Guardar Récord, Configuración) */}
+      {/* 🚀 PANEL SUPERIOR FLOTANTE */}
       <div className="fixed top-3 left-3 sm:top-4 sm:left-4 z-40 flex items-center gap-2">
         
         {/* 1.- Botón / Tarjeta de Perfil Modal */}
@@ -166,10 +182,11 @@ function App() {
           </div>
         </button>
 
-        {/* 2.- Botón Menú Principal */}
+        {/* 2.- Botón Menú Principal (Guarda el nivel actual al hacer clic) */}
         {vistaActual !== 'menu' && (
           <button
             onClick={() => {
+              guardarNivelActual();
               if (controlesJuegoActivo?.onMenuClick) {
                 controlesJuegoActivo.onMenuClick(); 
               } else {
@@ -185,7 +202,7 @@ function App() {
           </button>
         )}
 
-        {/* 3.- Botón Flotante de Guardar Récord (Disponible cuando hay juego activo con función de guardado) */}
+        {/* 3.- Botón Flotante de Guardar Récord */}
         {onGuardarClick && (
           <button
             onClick={onGuardarClick}
@@ -237,6 +254,7 @@ function App() {
             user={user} 
             onSetControles={setControlesJuegoActivo}
             onBack={() => { 
+              guardarNivelActual();
               setControlesJuegoActivo(null); 
               setShowConfigModal(false); 
               setVistaActual('menu'); 
@@ -249,6 +267,7 @@ function App() {
             user={user} 
             onSetControles={setControlesJuegoActivo}
             onBack={() => { 
+              guardarNivelActual();
               setControlesJuegoActivo(null); 
               setShowConfigModal(false); 
               setVistaActual('menu'); 
@@ -261,6 +280,7 @@ function App() {
             user={user} 
             onSetControles={setControlesJuegoActivo}
             onBack={() => { 
+              guardarNivelActual();
               setControlesJuegoActivo(null); 
               setShowConfigModal(false); 
               setVistaActual('menu'); 
@@ -273,6 +293,7 @@ function App() {
             user={user} 
             onSetControles={setControlesJuegoActivo}
             onBack={() => { 
+              guardarNivelActual();
               setControlesJuegoActivo(null); 
               setShowConfigModal(false); 
               setVistaActual('menu'); 

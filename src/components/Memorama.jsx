@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { listaAnimales } from '../data/animales.js';
+import { listaFlora } from '../data/flora.js';
 
 // 1. IMPORTAMOS LA CONFIGURACIÓN Y FUNCIONES DE FIREBASE
 import { auth, db } from '../firebaseConfig.js';
@@ -16,6 +17,21 @@ const CONFIG_NIVELES = {
 
 const getConfigForLevel = (lvl) => {
     return CONFIG_NIVELES[lvl] || { parejas: 12, columnas: 'grid-cols-4 sm:grid-cols-6', recompensa: 50 };
+};
+
+const obtenerBaseDatosActiva = (modo) => {
+    switch (modo) {
+        case 'flora':
+            return listaFlora;
+        case 'fauna':
+            return listaAnimales;
+        case 'ambos':
+            const floraConOffset = listaFlora.map(item => ({ ...item, id: item.id + 1000, categoria: 'flora' }));
+            const faunaConOffset = listaAnimales.map(item => ({ ...item, categoria: 'fauna' }));
+            return [...faunaConOffset, ...floraConOffset];
+        default:
+            return listaAnimales;
+    }
 };
 
 // ==========================================
@@ -96,6 +112,9 @@ export default function Tablero({
     const [ranking, setRanking] = useState([]);
     const [playerName, setPlayerName] = useState('');
     const [modoDificil, setModoDificil] = useState(false);
+    const [tipoContenido, setTipoContenido] = useState(() => {
+        return localStorage.getItem('tipoContenidoJuego') || 'fauna';
+    });
     const [guardadoEnNivel, setGuardadoEnNivel] = useState(false);
     const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
     const [vidas, setVidas] = useState(MAX_VIDAS); // ❤️ Sistema de Vidas: SIEMPRE arranca en 10
@@ -207,6 +226,10 @@ export default function Tablero({
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
                     localStorage.setItem('memoramaModoDificil', nuevoModo);
+                },
+                onCambiarTipoContenido: (nuevoModo) => {
+                    setTipoContenido(nuevoModo);
+                    localStorage.setItem('tipoContenidoJuego', nuevoModo);
                 }
             });
         }
@@ -216,7 +239,7 @@ export default function Tablero({
                 registrarControles(null);
             }
         };
-    }, [level, modoDificil, turns, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
+    }, [level, modoDificil, tipoContenido, turns, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
     // 2. FUNCIÓN PARA LEER DESDE LA NUBE (GLOBAL)
     const cargarRankingGlobal = async () => {
@@ -293,7 +316,7 @@ export default function Tablero({
 
     useEffect(() => {
         iniciarJuego(level);
-    }, [level, modoDificil]);
+    }, [level, modoDificil, tipoContenido]);
 
     // Detectar automáticamente cuando se completa un nivel
     useEffect(() => {
@@ -432,7 +455,8 @@ export default function Tablero({
     };
 
     const iniciarJuego = (nivelActual) => {
-        const animalesSeleccionados = [...listaAnimales]
+        const baseDatosActiva = obtenerBaseDatosActiva(tipoContenido);
+        const animalesSeleccionados = [...baseDatosActiva]
             .sort(() => Math.random() - 0.5)
             .slice(0, getConfigForLevel(nivelActual).parejas);
 

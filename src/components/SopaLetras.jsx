@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { listaAnimales } from '../data/animales.js';
+import { listaFlora } from '../data/flora.js';
 import ConfiguracionModal from './ConfiguracionModal';
 
 import { db, auth } from '../firebaseConfig';
@@ -20,6 +21,21 @@ const obtenerCostoVidas = (lvl) => {
     if (lvl === 1) return 10;
     if (lvl === 2) return 15;
     return 20; // Niveles superiores
+};
+
+const obtenerBaseDatosActiva = (modo) => {
+    switch (modo) {
+        case 'flora':
+            return listaFlora;
+        case 'fauna':
+            return listaAnimales;
+        case 'ambos':
+            const floraConOffset = listaFlora.map(item => ({ ...item, id: item.id + 1000, categoria: 'flora' }));
+            const faunaConOffset = listaAnimales.map(item => ({ ...item, categoria: 'fauna' }));
+            return [...faunaConOffset, ...floraConOffset];
+        default:
+            return listaAnimales;
+    }
 };
 
 const limpiarPalabra = (texto, modoDificil = false) => {
@@ -52,6 +68,9 @@ export default function SopaLetras({
     const [animalesObjetivo, setAnimalesObjetivo] = useState([]);
     const [palabrasEncontradas, setPalabrasEncontradas] = useState([]);
     const [modoDificil, setModoDificil] = useState(false);
+    const [tipoContenido, setTipoContenido] = useState(() => {
+        return localStorage.getItem('tipoContenidoJuego') || 'fauna';
+    });
     const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
     
     const [animalesCoords, setAnimalesCoords] = useState({});
@@ -186,6 +205,10 @@ export default function SopaLetras({
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
                     localStorage.setItem('sopaLetrasModoDificil', nuevoModo);
+                },
+                onCambiarTipoContenido: (nuevoModo) => {
+                    setTipoContenido(nuevoModo);
+                    localStorage.setItem('tipoContenidoJuego', nuevoModo);
                 }
             });
         }
@@ -195,7 +218,7 @@ export default function SopaLetras({
                 registrarControles(null);
             }
         };
-    }, [nivel, modoDificil, intentos, vidas, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
+    }, [nivel, modoDificil, tipoContenido, intentos, vidas, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
     // Cargar datos locales y sincronizar totopos y nickname de la nube si hay sesión activa
     useEffect(() => {
@@ -246,7 +269,7 @@ export default function SopaLetras({
 
     useEffect(() => {
         generarNuevoJuego();
-    }, [nivel, modoDificil]);
+    }, [nivel, modoDificil, tipoContenido]);
 
     // Solución nativa y limpia para touchstart y touchmove sin advertencias pasivas de consola
     useEffect(() => {
@@ -328,7 +351,8 @@ export default function SopaLetras({
     }, [palabrasEncontradas, animalesObjetivo, nivel, intentos, user, recompensaActual, pendingGlobalScore, totopos]);
 
     const generarNuevoJuego = () => {
-        const candidatos = [...listaAnimales]
+        const baseDatosActiva = obtenerBaseDatosActiva(tipoContenido);
+        const candidatos = [...baseDatosActiva]
             .filter(a => limpiarPalabra(a.diidxaza, modoDificil).length <= tamanoActual && limpiarPalabra(a.diidxaza, modoDificil).length > 1)
             .sort(() => Math.random() - 0.5)
             .slice(0, cantidadPalabras);

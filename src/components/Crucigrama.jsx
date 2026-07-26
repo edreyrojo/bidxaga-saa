@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { listaAnimales } from '../data/animales.js';
+import { listaFlora } from '../data/flora.js';
 import { auth, db } from '../firebaseConfig';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
@@ -12,6 +13,21 @@ const RECOMPENSAS_CRUCIGRAMA = {
 };
 
 const MAX_VIDAS = 5; // 🛡️ 5 Vidas configuradas correctamente
+
+const obtenerBaseDatosActiva = (modo) => {
+    switch (modo) {
+        case 'flora':
+            return listaFlora;
+        case 'fauna':
+            return listaAnimales;
+        case 'ambos':
+            const floraConOffset = listaFlora.map(item => ({ ...item, id: item.id + 1000, categoria: 'flora' }));
+            const faunaConOffset = listaAnimales.map(item => ({ ...item, categoria: 'fauna' }));
+            return [...faunaConOffset, ...floraConOffset];
+        default:
+            return listaAnimales;
+    }
+};
 
 const limpiarPalabra = (texto, modoDificil = false) => {
     if (!texto || typeof texto !== 'string') return "";
@@ -149,6 +165,11 @@ export default function Crucigrama({
         return i ? parseInt(i, 10) : 0;
     });
 
+    // 🛡️ Estado de Modo / Categoría de Contenido (fauna, flora, ambos)
+    const [tipoContenido, setTipoContenido] = useState(() => {
+        return localStorage.getItem('tipoContenidoJuego') || 'fauna';
+    });
+
     // 🛡️ Inicialización Perezosa ultra-robusta anti 0 vidas (Si es 0, null o inválido, devuelve 5 por fuerza)
     const [vidas, setVidas] = useState(() => {
         const vidasGuardadas = localStorage.getItem('crucigramaVidas');
@@ -213,7 +234,7 @@ export default function Crucigrama({
             setFeedbackModal({
                 show: true,
                 title: "⚠️ Guardado Parcial",
-                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
+                message: "Progreso guardado localmente, pero hubo un error al conectarกับ Firebase."
             });
         }
     };
@@ -258,6 +279,9 @@ export default function Crucigrama({
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
                     localStorage.setItem('crucigramaModoDificil', nuevoModo);
+                },
+                onCambiarTipoContenido: (nuevoModo) => {
+                    setTipoContenido(nuevoModo);
                 }
             });
         }
@@ -266,7 +290,7 @@ export default function Crucigrama({
                 registrarControles(null);
             }
         };
-    }, [nivel, intentos, vidas, modoDificil, totopos, guardadoEnNivel, pendingGlobalScore, playerName, setControlesJuegoActivo, onSetControles, user]);
+    }, [nivel, intentos, vidas, modoDificil, totopos, guardadoEnNivel, pendingGlobalScore, playerName, tipoContenido, setControlesJuegoActivo, onSetControles, user]);
 
     const confirmarSalidaMenu = () => {
         setShowMenuModal(false);
@@ -309,7 +333,7 @@ export default function Crucigrama({
 
     useEffect(() => {
         generarNuevoJuego();
-    }, [nivel, modoDificil]);
+    }, [nivel, modoDificil, tipoContenido]);
 
     useEffect(() => {
         const dialElement = dialRef.current;
@@ -385,8 +409,9 @@ export default function Crucigrama({
         });
         setShowGameOverModal(false);
 
+        const baseDatosActiva = obtenerBaseDatosActiva(tipoContenido);
         const cantidadAnimales = Math.min(2 + nivel, 6);
-        const candidatos = [...listaAnimales]
+        const candidatos = [...baseDatosActiva]
             .filter(a => a && a.diidxaza && limpiarPalabra(a.diidxaza, modoDificil).length > 2)
             .sort(() => Math.random() - 0.5)
             .slice(0, cantidadAnimales);
