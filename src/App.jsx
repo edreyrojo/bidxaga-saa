@@ -8,6 +8,7 @@ import Memorama from './components/Memorama';
 import SopaLetras from './components/SopaLetras';
 import Crucigrama from './components/Crucigrama';
 import Trivia from './components/Trivia';
+import GeneradorDev from './components/GeneradorDev'; // 🛠️ Importamos el generador a pantalla completa
 import AudioFondo, { LISTA_PISTAS } from './components/AudioFondo';
 import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
@@ -367,6 +368,16 @@ function App() {
             }} 
           />
         )}
+
+        {/* 🛠️ Vista de Generador a Pantalla Completa */}
+        {vistaActual === 'generador' && (
+          <GeneradorDev 
+            onBack={() => {
+              setControlesJuegoActivo(null);
+              setVistaActual('menu');
+            }} 
+          />
+        )}
       </main>
 
       {/* Modal de Inicio de Sesión / Registro */}
@@ -403,6 +414,7 @@ function App() {
         listaPistas={LISTA_PISTAS}
         controlesJuegoActivo={controlesJuegoActivo}
         user={user} 
+        onOpenGenerador={() => setVistaActual('generador')} 
       />
 
     </div>

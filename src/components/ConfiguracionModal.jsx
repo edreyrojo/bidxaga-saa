@@ -11,7 +11,8 @@ export default function ConfiguracionModal({
     onCambiarPista, 
     listaPistas,
     controlesJuegoActivo,
-    user 
+    user,
+    onOpenGenerador // 🛠️ Nueva prop para abrir el generador a pantalla completa
 }) {
     const [esAdmin, setEsAdmin] = useState(false);
     const [seccionAdmin, setSeccionAdmin] = useState('usuarios'); // 'usuarios' o 'records'
@@ -22,7 +23,7 @@ export default function ConfiguracionModal({
     const [totoposRegalo, setTotoposRegalo] = useState({});
 
     // Estados para Gestión de Récords
-    const [coleccionSeleccionada, setColeccionSeleccionada] = useState('ranking'); // default memorama
+    const [coleccionSeleccionada, setColeccionSeleccionada] = useState('ranking');
     const [recordsLista, setRecordsLista] = useState([]);
     const [cargandoRecords, setCargandoRecords] = useState(false);
 
@@ -33,7 +34,6 @@ export default function ConfiguracionModal({
     const [tipoContenidoLocal, setTipoContenidoLocal] = useState('fauna');
 
     useEffect(() => {
-        // Cargar preferencia guardada en localStorage al abrir
         const modoGuardado = localStorage.getItem('tipoContenidoJuego') || 'fauna';
         setTipoContenidoLocal(modoGuardado);
 
@@ -67,7 +67,7 @@ export default function ConfiguracionModal({
 
         if (isOpen) {
             verificarRolAdmin();
-            setShowOpcionesReiniciar(false); // Reiniciar estado al abrir el modal principal
+            setShowOpcionesReiniciar(false);
         }
     }, [isOpen, user]);
 
@@ -75,7 +75,6 @@ export default function ConfiguracionModal({
         setTipoContenidoLocal(nuevoModo);
         localStorage.setItem('tipoContenidoJuego', nuevoModo);
         
-        // Si el juego activo provee una función para actualizar el modo al vuelo, la llamamos
         if (controlesJuegoActivo?.onCambiarTipoContenido) {
             controlesJuegoActivo.onCambiarTipoContenido(nuevoModo);
         }
@@ -124,9 +123,7 @@ export default function ConfiguracionModal({
         try {
             const userRef = doc(db, 'usuarios', targetUserId);
             const nuevosTotopos = (totoposActuales || 0) + cantidadAEnviar;
-            
             await updateDoc(userRef, { totopos: nuevosTotopos });
-            
             alert(`¡Se han enviado ${cantidadAEnviar} Totopos exitosamente!`);
             setTotoposRegalo({ ...totoposRegalo, [targetUserId]: '' });
             cargarUsuarios();
@@ -165,7 +162,7 @@ export default function ConfiguracionModal({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
             <div className="bg-amber-50 rounded-3xl shadow-2xl border-4 border-amber-600 w-full max-w-md relative overflow-hidden flex flex-col p-5 max-h-[90vh] overflow-y-auto">
                 
-                {/* --- SUB-PANEL FLOTANTE AL FRENTE PARA OPCIONES DE REINICIO --- */}
+                {/* --- SUB-PANEL FLOTANTE DE REINICIO --- */}
                 {showOpcionesReiniciar && (
                     <div className="absolute inset-0 bg-amber-50/95 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
                         <div className="bg-white p-5 rounded-3xl border-2 border-amber-500 shadow-xl w-full max-w-xs flex flex-col gap-3">
@@ -275,7 +272,7 @@ export default function ConfiguracionModal({
                     </div>
                 </div>
 
-                {/* --- PANEL DE ADMINISTRACIÓN DESPLEGABLE --- */}
+                {/* --- PANEL DE ADMINISTRACIÓN (SOLO PARA ADMINS) --- */}
                 {esAdmin && (
                     <details className="bg-amber-100/90 p-3 rounded-2xl border-2 border-amber-500 shadow-sm mb-3 group">
                         <summary className="font-black text-amber-950 text-xs uppercase tracking-wider flex items-center justify-between cursor-pointer list-none">
@@ -284,12 +281,13 @@ export default function ConfiguracionModal({
                         </summary>
 
                         <div className="mt-3 pt-2 border-t border-amber-300 flex flex-col gap-2.5">
-                            {/* Pestañas internas del Panel Admin */}
-                            <div className="grid grid-cols-2 gap-1.5 bg-amber-200/60 p-1 rounded-xl">
+                            
+                            {/* Pestañas internas del Panel Admin (Solo Usuarios y Récords) */}
+                            <div className="grid grid-cols-2 gap-1 bg-amber-200/60 p-1 rounded-xl">
                                 <button
                                     type="button"
                                     onClick={() => setSeccionAdmin('usuarios')}
-                                    className={`py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                                    className={`py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
                                         seccionAdmin === 'usuarios' ? 'bg-amber-600 text-white shadow-xs' : 'text-amber-900 hover:bg-amber-300/50'
                                     }`}
                                 >
@@ -298,19 +296,27 @@ export default function ConfiguracionModal({
                                 <button
                                     type="button"
                                     onClick={() => setSeccionAdmin('records')}
-                                    className={`py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                                    className={`py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
                                         seccionAdmin === 'records' ? 'bg-amber-600 text-white shadow-xs' : 'text-amber-900 hover:bg-amber-300/50'
                                     }`}
                                 >
-                                    <img 
-                                        src="/guiechachi.png" 
-                                        alt="Guiechachi" 
-                                        className="w-4 h-4 object-contain inline-block" 
-                                        onError={(e) => e.target.style.display='none'} 
-                                    />
-                                    <span>Récords / Rankings</span>
+                                    <span>🏆 Récords</span>
                                 </button>
                             </div>
+
+                            {/* 🛠️ Botón Directo para abrir el Generador en Pantalla Completa (Fuera del Modal) */}
+                            {onOpenGenerador && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        onClose();
+                                        onOpenGenerador();
+                                    }}
+                                    className="w-full bg-amber-800 hover:bg-amber-900 text-white py-2 px-3 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                                >
+                                    <span>🛠️ Abrir Generador (Pantalla Completa PC)</span>
+                                </button>
+                            )}
 
                             {/* SECCIÓN 1: GESTIÓN DE USUARIOS */}
                             {seccionAdmin === 'usuarios' && (
@@ -339,21 +345,11 @@ export default function ConfiguracionModal({
                                                         </span>
                                                         <div className="flex gap-2 font-bold text-amber-900 items-center">
                                                             <span className="flex items-center gap-1">
-                                                                <img 
-                                                                    src="/tuna-vida.png" 
-                                                                    alt="Vidas" 
-                                                                    className="w-4 h-4 object-contain inline-block" 
-                                                                    onError={(e) => e.target.style.display='none'} 
-                                                                />
+                                                                <img src="/tuna-vida.png" alt="Vidas" className="w-4 h-4 object-contain inline-block" onError={(e) => e.target.style.display='none'} />
                                                                 <span>{u.vidas ?? 3}</span>
                                                             </span>
                                                             <span className="flex items-center gap-1">
-                                                                <img 
-                                                                    src="/totopo.png" 
-                                                                    alt="Totopos" 
-                                                                    className="w-4 h-4 object-contain inline-block" 
-                                                                    onError={(e) => e.target.style.display='none'} 
-                                                                />
+                                                                <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block" onError={(e) => e.target.style.display='none'} />
                                                                 <span>{u.totopos ?? 0}</span>
                                                             </span>
                                                         </div>
@@ -381,7 +377,7 @@ export default function ConfiguracionModal({
                                 </div>
                             )}
 
-                            {/* SECCIÓN 2: GESTIÓN Y LIMPIEZA DE RÉCORDS */}
+                            {/* SECCIÓN 2: GESTIÓN DE RÉCORDS */}
                             {seccionAdmin === 'records' && (
                                 <div className="flex flex-col gap-2">
                                     <div className="flex flex-col gap-1">
@@ -463,7 +459,6 @@ export default function ConfiguracionModal({
                             </span>
                         </div>
 
-                        {/* Cuadrícula de 2 columnas para Guardar y Reiniciar */}
                         <div className="grid grid-cols-2 gap-1.5">
                             {onGuardarClick && (
                                 <button onClick={onGuardarClick} className="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-1 rounded-xl text-[11px] font-bold transition-all shadow-xs flex items-center justify-center cursor-pointer active:scale-95 text-center">
@@ -493,7 +488,7 @@ export default function ConfiguracionModal({
                     </div>
                 )}
 
-                {/* --- PANEL DE MÚSICA MINIMALISTA (EN UNA SOLA FILA) --- */}
+                {/* --- PANEL DE MÚSICA MINIMALISTA --- */}
                 <div className="bg-white p-3 rounded-2xl border border-amber-200 shadow-sm flex flex-col gap-2 mb-3">
                     <div className="flex justify-between items-center">
                         <h3 className="font-black text-amber-900 text-[11px] uppercase tracking-wider">
