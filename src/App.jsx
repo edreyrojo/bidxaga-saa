@@ -35,6 +35,84 @@ const calcularNivelRapido = (totalHistorico) => {
   return 5;
 };
 
+/* ==========================================
+   🎨 COMPONENTE AUXILIAR: RENDERIZADOR DE AVATAR EN APP (Soporta Objeto y Texto)
+   ========================================== */
+function RenderAvatarSuperior({ avatar }) {
+    const esPersonalizado = typeof avatar === 'object' && avatar !== null;
+
+    if (esPersonalizado) {
+        const personaje = avatar.tipo || 'personaje1';
+        return (
+            <div className="w-full h-full relative overflow-hidden bg-amber-50 flex items-center justify-center">
+                {/* 1. Silueta */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.silueta || '#1A1A1A',
+                        WebkitMaskImage: `url(/avatares/${personaje}/1silueta.svg)`,
+                        maskImage: `url(/avatares/${personaje}/1silueta.svg)`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
+                    }}
+                />
+                {/* 2. Piel */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.piel || '#F5C6A0',
+                        WebkitMaskImage: `url(/avatares/${personaje}/1piel.svg)`,
+                        maskImage: `url(/avatares/${personaje}/1piel.svg)`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
+                    }}
+                />
+                {/* 3. Cabello */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.cabello || '#4A3525',
+                        WebkitMaskImage: `url(/avatares/${personaje}/1cabello.svg)`,
+                        maskImage: `url(/avatares/${personaje}/1cabello.svg)`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
+                    }}
+                />
+            </div>
+        );
+    }
+
+    if (avatar && avatar !== 'default') {
+        return (
+            <img 
+                src={`/avatares/${avatar}.png`} 
+                alt={avatar}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                    e.target.style.display = 'none';
+                    if (e.target.nextSibling) {
+                        e.target.nextSibling.style.display = 'flex';
+                    }
+                }}
+            />
+        );
+    }
+
+    return null;
+}
+
 function App() {
   const [vistaActual, setVistaActual] = useState('menu');
   const [user, setUser] = useState(null);
@@ -63,12 +141,13 @@ function App() {
           let historico = data.totoposHistoricos || data.totopos || 0;
           if (data.totopos > historico) historico = data.totopos;
           const nivelCalc = calcularNivelRapido(historico);
-          const avatarId = data.avatar || 'default';
+          const avatarId = data.avatar !== undefined ? data.avatar : 'default';
+          const emojiCalc = typeof avatarId === 'object' ? '🎨' : (AVATAR_EMOJIS[avatarId] || '🌽');
 
           setPerfilInfo({
             nombre: data.nombre || '',
             avatar: avatarId,
-            emoji: AVATAR_EMOJIS[avatarId] || '🌽',
+            emoji: emojiCalc,
             nivel: nivelCalc
           });
         }
@@ -122,7 +201,7 @@ function App() {
     }
   };
 
-  const emojiAvatar = user ? (perfilInfo.emoji || AVATAR_EMOJIS[perfilInfo.avatar] || '🌽') : '👤';
+  const emojiAvatar = user ? (perfilInfo.emoji || (typeof perfilInfo.avatar === 'object' ? '🎨' : AVATAR_EMOJIS[perfilInfo.avatar]) || '🌽') : '👤';
   const displayNickname = user 
     ? (perfilInfo.nombre ? perfilInfo.nombre : user.email.split('@')[0]) 
     : 'Iniciar Sesión';
@@ -149,19 +228,7 @@ function App() {
           title={user ? "Ver Perfil" : "Iniciar Sesión"}
         >
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-50 text-amber-900 flex items-center justify-center text-lg sm:text-xl shadow-inner border-2 border-amber-300 flex-shrink-0 overflow-hidden relative">
-            {user && perfilInfo.avatar && perfilInfo.avatar !== 'default' ? (
-              <img 
-                src={`/avatares/${perfilInfo.avatar}.png`} 
-                alt={perfilInfo.avatar}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  if (e.target.nextSibling) {
-                    e.target.nextSibling.style.display = 'flex';
-                  }
-                }}
-              />
-            ) : null}
+            <RenderAvatarSuperior avatar={perfilInfo.avatar} />
             <span 
               style={{ display: (user && perfilInfo.avatar && perfilInfo.avatar !== 'default') ? 'none' : 'flex' }} 
               className="w-full h-full items-center justify-center"
@@ -182,7 +249,7 @@ function App() {
           </div>
         </button>
 
-        {/* 2.- Botón Menú Principal (Guarda el nivel actual al hacer clic) */}
+        {/* 2.- Botón Menú Principal */}
         {vistaActual !== 'menu' && (
           <button
             onClick={() => {
@@ -319,7 +386,7 @@ function App() {
             setPerfilInfo(prev => ({ 
               ...prev, 
               ...nuevosDatos, 
-              emoji: nuevosDatos.emoji || AVATAR_EMOJIS[nuevosDatos.avatar] || prev.emoji 
+              emoji: nuevosDatos.emoji || (typeof nuevosDatos.avatar === 'object' ? '🎨' : AVATAR_EMOJIS[nuevosDatos.avatar]) || prev.emoji 
             }));
           }}
         />
