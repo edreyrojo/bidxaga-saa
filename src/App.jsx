@@ -37,7 +37,7 @@ const calcularNivelRapido = (totalHistorico) => {
 };
 
 /* ==========================================
-   🎨 COMPONENTE AUXILIAR: RENDERIZADOR DE AVATAR EN APP (Soporta Objeto y Texto)
+   🎨 COMPONENTE AUXILIAR: RENDERIZADOR DE AVATAR DE 7 CAPAS EN APP
    ========================================== */
 function RenderAvatarSuperior({ avatar }) {
     const esPersonalizado = typeof avatar === 'object' && avatar !== null;
@@ -46,22 +46,17 @@ function RenderAvatarSuperior({ avatar }) {
         const personaje = avatar.tipo || 'personaje1';
         return (
             <div className="w-full h-full relative overflow-hidden bg-amber-50 flex items-center justify-center">
-                {/* 1. Silueta */}
+                {/* 1. Capa de Silueta / Ropa Base (Estática) */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.silueta || '#1A1A1A',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1silueta.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1silueta.svg)`,
-                        WebkitMaskSize: 'contain',
-                        maskSize: 'contain',
-                        WebkitMaskRepeat: 'no-repeat',
-                        maskRepeat: 'no-repeat',
-                        WebkitMaskPosition: 'center',
-                        maskPosition: 'center'
+                        backgroundImage: `url(/avatares/${personaje}/1silueta.svg)`,
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center'
                     }}
                 />
-                {/* 2. Piel */}
+                {/* 2. Capa de Piel */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -76,13 +71,68 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 3. Cabello */}
+                {/* 3. Capa de Rostro1 (Estática) */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.cabello || '#4A3525',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1cabello.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1cabello.svg)`,
+                        backgroundImage: `url(/avatares/${personaje}/1rostro1.svg)`,
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center'
+                    }}
+                />
+                {/* 4. Capa de Ojos1 */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.ojos1 || '#5d320e',
+                        WebkitMaskImage: `url(/avatares/${personaje}/1ojos1.svg)`,
+                        maskImage: `url(/avatares/${personaje}/1ojos1.svg)`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
+                    }}
+                />
+                {/* 5. Capa de Cabello1 */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.cabello1 || '#5c320f',
+                        WebkitMaskImage: `url(/avatares/${personaje}/1cabello1.svg)`,
+                        maskImage: `url(/avatares/${personaje}/1cabello1.svg)`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
+                    }}
+                />
+                {/* 6. Capa de Playera1 */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.playera1 || '#468b41',
+                        WebkitMaskImage: `url(/avatares/${personaje}/1playera1.svg)`,
+                        maskImage: `url(/avatares/${personaje}/1playera1.svg)`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
+                    }}
+                />
+                {/* 7. Capa de Shorts1 */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.shorts1 || '#5a968a',
+                        WebkitMaskImage: `url(/avatares/${personaje}/1shorts1.svg)`,
+                        maskImage: `url(/avatares/${personaje}/1shorts1.svg)`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',

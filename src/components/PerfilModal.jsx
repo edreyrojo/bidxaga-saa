@@ -57,7 +57,7 @@ const calcularProgresoNivel = (totalHistorico) => {
 };
 
 /* ==========================================
-   🎨 COMPONENTE AUXILIAR: RENDERIZADOR DE AVATAR (Soporta Objeto y Texto)
+   🎨 RENDERIZADOR DE AVATAR (Sincronizado con CreadorAvatar)
    ========================================== */
 function RenderAvatarVisual({ avatar }) {
     const esPersonalizado = typeof avatar === 'object' && avatar !== null;
@@ -66,19 +66,14 @@ function RenderAvatarVisual({ avatar }) {
         const personaje = avatar.tipo || 'personaje1';
         return (
             <div className="w-full h-full relative overflow-hidden bg-white flex items-center justify-center">
-                {/* 1. Silueta */}
+                {/* 1. Silueta / Ropa Base */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.silueta || '#1A1A1A',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1silueta.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1silueta.svg)`,
-                        WebkitMaskSize: 'contain',
-                        maskSize: 'contain',
-                        WebkitMaskRepeat: 'no-repeat',
-                        maskRepeat: 'no-repeat',
-                        WebkitMaskPosition: 'center',
-                        maskPosition: 'center'
+                        backgroundImage: `url(/avatares/${personaje}/1silueta.svg)`,
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center'
                     }}
                 />
                 {/* 2. Piel */}
@@ -96,13 +91,68 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 3. Cabello */}
+                {/* 3. Rostro */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.cabello || '#4A3525',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1cabello.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1cabello.svg)`,
+                        backgroundImage: `url(/avatares/${personaje}/1rostro1.svg)`,
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center'
+                    }}
+                />
+                {/* 4. Ojos */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.ojos1 || '#5d320e',
+                        WebkitMaskImage: `url(/avatares/${personaje}/1ojos1.svg)`,
+                        maskImage: `url(/avatares/${personaje}/1ojos1.svg)`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
+                    }}
+                />
+                {/* 5. Cabello */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.cabello1 || '#5c320f',
+                        WebkitMaskImage: `url(/avatares/${personaje}/1cabello1.svg)`,
+                        maskImage: `url(/avatares/${personaje}/1cabello1.svg)`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
+                    }}
+                />
+                {/* 6. Playera */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.playera1 || '#468b41',
+                        WebkitMaskImage: `url(/avatares/${personaje}/1playera1.svg)`,
+                        maskImage: `url(/avatares/${personaje}/1playera1.svg)`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
+                    }}
+                />
+                {/* 7. Shorts */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.shorts1 || '#5a968a',
+                        WebkitMaskImage: `url(/avatares/${personaje}/1shorts1.svg)`,
+                        maskImage: `url(/avatares/${personaje}/1shorts1.svg)`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',

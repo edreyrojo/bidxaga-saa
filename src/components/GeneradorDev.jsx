@@ -65,7 +65,7 @@ export default function GeneradorDev({ onBack }) {
     // 🕒 Historial de colores usados recientemente en toda la app
     const [coloresRecientes, setColoresRecientes] = useState(['#1A1A1A', '#F5C6A0', '#4A3525', '#FFFFFF', '#E65100', '#1976D2']);
 
-    // 🧠 Función para actualizar colores recientes
+    // 🧠 Función segura para actualizar colores recientes sin duplicados y manteniendo máximo 6
     const agregarColorReciente = (hex) => {
         if (!hex) return;
         setColoresRecientes(prev => {
@@ -265,7 +265,7 @@ export default function GeneradorDev({ onBack }) {
                 archivo: archivoGenerado, 
                 paleta: paletaArray,
                 previewUrl: nuevaCapa.previewUrl,
-                editable: true // Activo por defecto
+                editable: true
             };
 
             setCapas([...capas, nuevaCapaObj]);
@@ -312,7 +312,6 @@ export default function GeneradorDev({ onBack }) {
 
     const cambiarColorCapa = (idCapa, hex) => {
         setColoresVivos(prev => ({ ...prev, [idCapa]: hex }));
-        agregarColorReciente(hex);
     };
 
     // 🔒 Alternar entre Capa Coloreable y Capa Estática (Rostros, etc)
@@ -376,7 +375,6 @@ export default function GeneradorDev({ onBack }) {
                 codigo += `            WebkitMaskPosition: 'center',\n`;
                 codigo += `            maskPosition: 'center'\n`;
             } else {
-                // Si la capa no es editable, se renderiza como background-image directo (no usa máscara)
                 codigo += `            backgroundImage: \`url(/avatares/\${personajeBase}/${capa.archivo})\`,\n`;
                 codigo += `            backgroundSize: 'contain',\n`;
                 codigo += `            backgroundRepeat: 'no-repeat',\n`;
@@ -559,16 +557,20 @@ export default function GeneradorDev({ onBack }) {
                                                     type="color" 
                                                     value={coloresVivos[capa.id] || capa.colorDefault} 
                                                     onChange={(e) => cambiarColorCapa(capa.id, e.target.value)}
+                                                    onBlur={(e) => agregarColorReciente(e.target.value)}
                                                     className="w-6 h-6 rounded-md border border-amber-300 cursor-pointer bg-transparent"
                                                 />
                                             </div>
                                             {/* Minibarra de recientes al vuelo */}
                                             <div className="flex justify-end gap-1">
-                                                {coloresRecientes.slice(0, 5).map(hex => (
+                                                {coloresRecientes.slice(0, 5).map((hex, idx) => (
                                                     <button 
-                                                        key={hex} 
+                                                        key={`${hex}-${idx}`} 
                                                         type="button"
-                                                        onClick={() => cambiarColorCapa(capa.id, hex)}
+                                                        onClick={() => {
+                                                            cambiarColorCapa(capa.id, hex);
+                                                            agregarColorReciente(hex);
+                                                        }}
                                                         className="w-3.5 h-3.5 rounded-full border border-amber-300 hover:scale-125 cursor-pointer shadow-xs transition-transform"
                                                         style={{backgroundColor: hex}}
                                                         title={hex}
@@ -664,17 +666,22 @@ export default function GeneradorDev({ onBack }) {
                                             value={nuevaCapa.colorDefault} 
                                             onChange={(e) => {
                                                 setNuevaCapa({...nuevaCapa, colorDefault: e.target.value});
-                                                agregarColorReciente(e.target.value);
                                             }} 
+                                            onBlur={(e) => {
+                                                agregarColorReciente(e.target.value);
+                                            }}
                                             className="w-7 h-7 rounded-xl border border-amber-300 cursor-pointer bg-transparent ml-auto" 
                                         />
                                     </div>
                                     <div className="flex items-center gap-1.5 mt-2 px-1 border-t border-amber-100 pt-2">
                                         <span className="text-[9px] text-amber-600 font-bold uppercase">Recientes:</span>
-                                        {coloresRecientes.map(hex => (
+                                        {coloresRecientes.map((hex, idx) => (
                                             <button
-                                                key={hex} type="button"
-                                                onClick={() => setNuevaCapa({...nuevaCapa, colorDefault: hex})}
+                                                key={`${hex}-${idx}`} type="button"
+                                                onClick={() => {
+                                                    setNuevaCapa({...nuevaCapa, colorDefault: hex});
+                                                    agregarColorReciente(hex);
+                                                }}
                                                 className="w-4 h-4 rounded-full border border-amber-300 hover:scale-110 shadow-xs transition-transform cursor-pointer"
                                                 style={{ backgroundColor: hex }}
                                                 title={`Usar ${hex}`}
@@ -704,19 +711,24 @@ export default function GeneradorDev({ onBack }) {
                                             value={nuevaCapa.colorTemp} 
                                             onChange={(e) => {
                                                 setNuevaCapa({...nuevaCapa, colorTemp: e.target.value});
-                                                agregarColorReciente(e.target.value);
                                             }} 
+                                            onBlur={(e) => {
+                                                agregarColorReciente(e.target.value);
+                                            }}
                                             className="w-6 h-6 rounded-lg border border-amber-300 cursor-pointer bg-transparent" 
                                         />
                                     </div>
                                     
                                     <div className="flex items-center gap-1.5 border-l-2 border-amber-200 pl-2">
                                         <span className="text-[9px] text-amber-600 font-bold uppercase hidden sm:block">Recientes:</span>
-                                        {coloresRecientes.map(hex => (
+                                        {coloresRecientes.map((hex, idx) => (
                                             <button
-                                                key={hex}
+                                                key={`${hex}-${idx}`}
                                                 type="button"
-                                                onClick={() => setNuevaCapa({...nuevaCapa, colorTemp: hex})}
+                                                onClick={() => {
+                                                    setNuevaCapa({...nuevaCapa, colorTemp: hex});
+                                                    agregarColorReciente(hex);
+                                                }}
                                                 className="w-5 h-5 rounded-full border border-amber-300 hover:scale-110 shadow-xs transition-transform cursor-pointer"
                                                 style={{ backgroundColor: hex }}
                                                 title={`Usar color ${hex}`}
@@ -734,9 +746,9 @@ export default function GeneradorDev({ onBack }) {
                                 </div>
 
                                 <div className="flex flex-wrap gap-1.5 pt-1">
-                                    {nuevaCapa.paletaColors.map((hex) => (
+                                    {nuevaCapa.paletaColors.map((hex, idx) => (
                                         <div 
-                                            key={hex} 
+                                            key={`${hex}-${idx}`} 
                                             className="flex items-center gap-1 bg-amber-100 border border-amber-300 px-2 py-1 rounded-xl shadow-xs"
                                         >
                                             <span className="w-4 h-4 rounded-full border border-amber-950 shadow-xs" style={{ backgroundColor: hex }}></span>
