@@ -338,7 +338,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                                 <span>Progreso Nivel {nivel}</span>
                                 <span className="text-amber-700 flex items-center gap-1">
                                     {totoposHistoricos} / {progresoInfo.necesario}
-                                    <img src="/totopp.png" alt="Totopo" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
+                                    <img src="/totopo.png" alt="Totopo" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
                                 </span>
                             </div>
                             <div className="w-full bg-amber-100 rounded-full h-3.5 overflow-hidden border border-amber-300 shadow-inner">
@@ -349,7 +349,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         {/* CONTADORES */}
                         <div className="flex justify-center gap-3 mt-3">
                             <div className="flex items-center gap-1.5 bg-amber-200/80 px-3 py-1.5 rounded-xl border border-amber-400 shadow-sm">
-                                <img src="/totopp.png" alt="Totopo" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
+                                <img src="/totopo.png" alt="Totopo" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
                                 <span className="font-black text-amber-900 text-sm">{totopos}</span>
                             </div>
                             <div className="flex items-center gap-1.5 bg-red-100/80 px-3 py-1.5 rounded-xl border border-red-300 shadow-sm">

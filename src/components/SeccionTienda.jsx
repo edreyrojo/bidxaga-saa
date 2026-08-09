@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { db } from '../firebaseConfig';
-import { doc, updateDoc, increment } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 
-// 🛍️ Catálogo extendido a 10 Avatares
 const CATALOGO_AVATARES = [
     { id: 'default', nombre: 'Totopo Clásico', costo: 0 },
     { id: 'iguana', nombre: 'Iguana Istmeña', costo: 50 },
@@ -16,7 +15,6 @@ const CATALOGO_AVATARES = [
     { id: 'palmera', nombre: 'Palmera Real', costo: 400 },
 ];
 
-// ❤️ Catálogo de Vidas Extras optimizado en espacio
 const CATALOGO_VIDAS = [
     { id: 'vida_1', costo: 15, cantidad: 1 },
     { id: 'vida_3', costo: 40, cantidad: 3 },
@@ -37,14 +35,12 @@ export default function SeccionTienda({
     tiendaAbierta, 
     setTiendaAbierta
 }) {
-    const [pestanaActiva, setPestanaActiva] = useState('avatares'); // 'avatares' o 'vidas'
+    const [pestanaActiva, setPestanaActiva] = useState('avatares');
 
-    // Lógica para comprar o equipar avatares
     const handleComprarOEquiparAvatar = async (avatar) => {
         const desbloqueado = avataresDesbloqueados.includes(avatar.id);
 
         if (desbloqueado) {
-            // Equipar avatar
             setAvatarActual(avatar.id);
             if (user) {
                 try {
@@ -54,10 +50,9 @@ export default function SeccionTienda({
                     console.error("Error al equipar avatar en Firestore:", error);
                 }
             }
-            setMensaje(`¡Has equipado a ${avatar.nombre}!`);
+            setMensaje(`Has equipado a ${avatar.nombre}.`);
             setTimeout(() => setMensaje(''), 3000);
         } else {
-            // Intentar comprar avatar
             if (totopos < avatar.costo) {
                 setMensaje('No tienes suficientes totopos para este avatar.');
                 setTimeout(() => setMensaje(''), 3000);
@@ -84,12 +79,11 @@ export default function SeccionTienda({
                 }
             }
 
-            setMensaje(`¡Has comprado y equipado a ${avatar.nombre}!`);
+            setMensaje(`Has comprado y equipado a ${avatar.nombre}.`);
             setTimeout(() => setMensaje(''), 3000);
         }
     };
 
-    // Lógica para comprar paquetes de vidas
     const handleComprarVidas = async (paquete) => {
         if (totopos < paquete.costo) {
             setMensaje('No tienes suficientes totopos para comprar vidas.');
@@ -115,7 +109,7 @@ export default function SeccionTienda({
             }
         }
 
-        setMensaje(`¡Has adquirido ${paquete.cantidad} vida(s) extra!`);
+        setMensaje(`Has adquirido ${paquete.cantidad} vida(s) extra.`);
         setTimeout(() => setMensaje(''), 3000);
     };
 
@@ -142,7 +136,6 @@ export default function SeccionTienda({
 
             {tiendaAbierta && (
                 <div className="border-t border-amber-200 bg-amber-50/40">
-                    {/* Selector de pestañas internas */}
                     <div className="flex border-b border-amber-200 bg-amber-100/30">
                         <button
                             onClick={() => setPestanaActiva('avatares')}
@@ -167,7 +160,6 @@ export default function SeccionTienda({
                         </button>
                     </div>
 
-                    {/* Contenido de la Pestaña Avatares */}
                     {pestanaActiva === 'avatares' && (
                         <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto custom-scrollbar">
                             {CATALOGO_AVATARES.map((avatar) => {
@@ -211,7 +203,7 @@ export default function SeccionTienda({
                                             ) : (
                                                 <>
                                                     {avatar.costo}
-                                                    <img src="/totopp.png" alt="Totopo" className="w-3.5 h-3.5 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
+                                                    <img src="/totopo.png" alt="Totopo" className="w-3.5 h-3.5 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
                                                 </>
                                             )}
                                         </div>
@@ -235,7 +227,6 @@ export default function SeccionTienda({
                         </div>
                     )}
 
-                    {/* Contenido de la Pestaña Vidas (Optimizado en espacio) */}
                     {pestanaActiva === 'vidas' && (
                         <div className="p-4 flex flex-col gap-2.5 max-h-72 overflow-y-auto custom-scrollbar">
                             <p className="text-xs text-amber-800 font-medium text-center mb-1">
@@ -256,7 +247,7 @@ export default function SeccionTienda({
                                             </div>
                                             <div className="text-xs font-bold text-amber-700 flex items-center gap-1">
                                                 Costo: {paquete.costo} 
-                                                <img src="/totopp.png" alt="Totopo" className="w-3.5 h-3.5 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
+                                                <img src="/totopo.png" alt="Totopo" className="w-3.5 h-3.5 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
                                             </div>
                                         </div>
                                     </div>
