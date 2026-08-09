@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CATALOGO_ACCESORIOS } from '../data/catalogoActivos.js';
 
 export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, inventarioVariantes = [], avatarActual }) {
     // Verificar si el avatar actual es un objeto personalizado para cargar sus presets previos
@@ -67,10 +68,11 @@ export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, in
     ];
 
     // Catálogo de accesorios vinculados con el inventario
+    // 🔧 Generado desde el catálogo único compartido: cualquier accesorio nuevo que agregues
+    // ahí (en /data/catalogoActivos.js) aparece aquí automáticamente, ya con su costo real.
     const variantesAccesorios = [
         { id: "ninguno", nombre: "Sin Accesorio", archivo: "", costo: 0 },
-        { id: "collar1", nombre: "Collar Tradicional", archivo: "collar1.svg", costo: 120 },
-        { id: "gafas1", nombre: "Gafas de Sol", archivo: "gafas1.svg", costo: 150 }
+        ...CATALOGO_ACCESORIOS.map(a => ({ id: a.id, nombre: a.nombre, archivo: a.archivo, costo: a.costo }))
     ];
 
     // 3. PALETAS DE COLORES

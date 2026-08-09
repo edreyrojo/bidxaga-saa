@@ -1,24 +1,7 @@
 import React, { useState } from 'react';
 import { db } from '../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
-
-const CATALOGO_AVATARES = [
-    { id: 'default', nombre: 'Totopo Clásico', costo: 0 },
-    { id: 'iguana', nombre: 'Iguana Istmeña', costo: 50 },
-    { id: 'tortuga', nombre: 'Tortuga Lagunera', costo: 75 },
-    { id: 'huipil', nombre: 'Flor de Huipil', costo: 100 },
-    { id: 'colibri', nombre: 'Colibrí Dorado', costo: 150 },
-    { id: 'jaguar', nombre: 'Jaguar Zapoteco', costo: 200 },
-    { id: 'mezcal', nombre: 'Copa de Mezcal', costo: 250 },
-    { id: 'sol', nombre: 'Sol del Istmo', costo: 300 },
-    { id: 'guiechachi', nombre: 'Guiechachi', costo: 350 },
-    { id: 'palmera', nombre: 'Palmera Real', costo: 400 },
-];
-
-const CATALOGO_ACCESORIOS = [
-    { id: 'collar1', nombre: 'Collar Tradicional', costo: 120 },
-    { id: 'gafas1', nombre: 'Gafas de Sol', costo: 150 },
-];
+import { CATALOGO_AVATARES, CATALOGO_ACCESORIOS } from '../data/catalogoActivos.js';
 
 const CATALOGO_VIDAS = [
     { id: 'vida_1', costo: 15, cantidad: 1 },

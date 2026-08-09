@@ -1,22 +1,14 @@
 import React, { useState } from 'react';
 import { db } from '../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
+import { CATALOGO_AVATARES, CATALOGO_ACCESORIOS } from '../data/catalogoActivos.js';
 
 // Catálogo general de elementos disponibles en la plataforma (Avatares y Accesorios de Mercado)
+// 🔧 Se construye a partir del catálogo único compartido, así nunca vuelve a desincronizarse
+// con lo que se vende en la Tienda (antes 'guiechachi' y 'palmera' faltaban aquí).
 const CATALOGO_COMPLETO = [
-    // Avatares base y de pago
-    { id: 'default', nombre: 'Totopo Clásico', tipo: 'avatar', archivo: 'default' },
-    { id: 'iguana', nombre: 'Iguana Istmeña', tipo: 'avatar', archivo: 'iguana' },
-    { id: 'tortuga', nombre: 'Tortuga Lagunera', tipo: 'avatar', archivo: 'tortuga' },
-    { id: 'huipil', nombre: 'Flor de Huipil', tipo: 'avatar', archivo: 'huipil' },
-    { id: 'colibri', nombre: 'Colibrí Dorado', tipo: 'avatar', archivo: 'colibri' },
-    { id: 'jaguar', nombre: 'Jaguar Zapoteco', tipo: 'avatar', archivo: 'jaguar' },
-    { id: 'mezcal', nombre: 'Copa de Mezcal', tipo: 'avatar', archivo: 'mezcal' },
-    { id: 'sol', nombre: 'Sol del Istmo', tipo: 'avatar', archivo: 'sol' },
-
-    // Accesorios del mercado (Artículos SVG)
-    { id: 'gafas1', nombre: 'Gafas de Sol', tipo: 'accesorio', archivo: 'gafas1.svg' },
-    { id: 'collar1', nombre: 'Collar Tradicional', tipo: 'accesorio', archivo: 'collar1.svg' }
+    ...CATALOGO_AVATARES.map(a => ({ id: a.id, nombre: a.nombre, tipo: 'avatar', archivo: a.archivo })),
+    ...CATALOGO_ACCESORIOS.map(a => ({ id: a.id, nombre: a.nombre, tipo: 'accesorio', archivo: a.archivo })),
 ];
 
 export default function SeccionInventario({
@@ -27,7 +19,8 @@ export default function SeccionInventario({
     setAccesoriosDesbloqueados = () => {},
     avatarActual,
     setAvatarActual,
-    setMensaje
+    setMensaje,
+    onAbrirCreador = null // 🆕 Permite saltar directo al Creador de Avatar al pulsar "Usar" en un accesorio
 }) {
     const [filtroTipo, setFiltroTipo] = useState('todos'); // 'todos', 'avatar', 'accesorio'
 
@@ -46,7 +39,9 @@ export default function SeccionInventario({
         return item.tipo === filtroTipo;
     });
 
-    // Función para equipar un avatar o accesorio seleccionado
+    // Función para equipar un avatar, o para saltar al Creador en el caso de un accesorio
+    // (los accesorios no tienen un "slot" propio: siempre se aplican como capa DENTRO
+    // de un avatar personalizado, por eso aquí no se "equipan" directamente).
     const handleEquiparItem = async (item) => {
         try {
             if (item.tipo === 'avatar') {
@@ -60,7 +55,8 @@ export default function SeccionInventario({
                 }
                 if (setMensaje) setMensaje(`Has equipado el avatar: ${item.nombre}`);
             } else if (item.tipo === 'accesorio') {
-                if (setMensaje) setMensaje(`Accesorio ${item.nombre} listo para usar en el creador.`);
+                if (setMensaje) setMensaje(`Abriendo el Creador de Avatar para usar: ${item.nombre}...`);
+                if (onAbrirCreador) onAbrirCreador();
             }
         } catch (error) {
             console.error("Error al equipar el elemento:", error);
@@ -156,7 +152,9 @@ export default function SeccionInventario({
                                             : 'bg-amber-600 hover:bg-amber-700 text-white shadow'
                                     }`}
                                 >
-                                    {esEquipado ? 'Equipado' : 'Equipar'}
+                                    {item.tipo === 'accesorio'
+                                        ? 'Usar en Creador'
+                                        : (esEquipado ? 'Equipado' : 'Equipar')}
                                 </button>
                             </div>
                         );

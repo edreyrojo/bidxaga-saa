@@ -464,6 +464,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             setMensaje={setMensaje}
                             inventarioAbierto={inventarioAbierto}
                             setInventarioAbierto={setInventarioAbierto}
+                            onAbrirCreador={() => setShowCreador(true)}
                         />
                     </div>
 
@@ -494,6 +495,12 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
             {showCreador && (
                 <CreadorAvatar 
                     user={user}
+                    avatarActual={avatarActual}
+                    inventarioVariantes={accesoriosDesbloqueados}
+                    onOpenInventario={() => {
+                        setShowCreador(false);
+                        setInventarioAbierto(true);
+                    }}
                     onClose={() => setShowCreador(false)}
                     onGuardar={handleGuardarAvatarPersonalizado}
                 />
