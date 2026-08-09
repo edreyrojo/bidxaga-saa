@@ -3,35 +3,8 @@ import { db, auth } from '../firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import CreadorAvatar from './CreadorAvatar';
-
-// Catálogo extendido a 10 Avatares
-const CATALOGO_AVATARES = [
-    { id: 'default', nombre: 'Totopo Clásico', emoji: '🌽', costo: 0 },
-    { id: 'iguana', nombre: 'Iguana Istmeña', emoji: '🦎', costo: 50 },
-    { id: 'tortuga', nombre: 'Tortuga Lagunera', emoji: '🐢', costo: 75 },
-    { id: 'huipil', nombre: 'Flor de Huipil', emoji: '🌸', costo: 100 },
-    { id: 'colibri', nombre: 'Colibrí Dorado', emoji: '🐦', costo: 150 },
-    { id: 'jaguar', nombre: 'Jaguar Zapoteco', emoji: '🐆', costo: 200 },
-    { id: 'mezcal', nombre: 'Copa de Mezcal', emoji: '🥃', costo: 250 },
-    { id: 'sol', nombre: 'Sol del Istmo', emoji: '☀️', costo: 300 },
-    { id: 'bandera', nombre: 'Orgullo Istmeño', emoji: '🧵', costo: 400 },
-    { id: 'corona', nombre: 'Rey Zapoteco', emoji: '👑', costo: 500 },
-];
-
-// Catálogo de Vidas Extras
-const CATALOGO_VIDAS = [
-    { id: 'vida_1', nombre: '1 Vida', emoji: '❤️', costo: 15, cantidad: 1 },
-    { id: 'vida_3', nombre: '3 Vidas', emoji: '❤️', costo: 40, cantidad: 3 },
-    { id: 'vida_5', nombre: '5 Vidas', emoji: '❤️', costo: 60, cantidad: 5 },
-];
-
-// Catálogo de Logros e Insignias
-const CATALOGO_LOGROS = [
-    { id: 'logro_memoria_1', juego: 'Memorama', nombre: 'Memoria de Rayo', desc: 'Completa cualquier nivel de Memorama sin fallar.', emoji: '🧠' },
-    { id: 'logro_crucigrama_5', juego: 'Crucigrama', nombre: 'Erudito del Crucigrama', desc: 'Alcanza el Nivel 5 o superior en Crucigrama.', emoji: '🧩' },
-    { id: 'logro_sopa_10', juego: 'Sopa de Letras', nombre: 'Ojo de Águila', desc: 'Llega al Nivel 10 en Sopa de Letras.', emoji: '🔍' },
-    { id: 'logro_trivia_maestro', juego: 'Trivia', nombre: 'Sabio Zapoteco', desc: 'Termina la Trivia en Modo Difícil sin errores.', emoji: '⚡' },
-];
+import SeccionTienda from './SeccionTienda';
+import SeccionLogros from './SeccionLogros';
 
 // Funciones de Nivel y Progreso
 const calcularNivelYTitulo = (totalHistorico) => {
@@ -57,7 +30,7 @@ const calcularProgresoNivel = (totalHistorico) => {
 };
 
 /* ==========================================
-   RENDERIZADOR DE AVATAR (Sincronizado con CreadorAvatar)
+   RENDERIZADOR DE AVATAR
    ========================================== */
 function RenderAvatarVisual({ avatar }) {
     const esPersonalizado = typeof avatar === 'object' && avatar !== null;
@@ -74,7 +47,6 @@ function RenderAvatarVisual({ avatar }) {
 
         return (
             <div className="w-full h-full relative overflow-hidden bg-white flex items-center justify-center">
-                {/* 1. Silueta / Ropa Base */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -84,7 +56,6 @@ function RenderAvatarVisual({ avatar }) {
                         backgroundPosition: 'center'
                     }}
                 />
-                {/* 2. Piel */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -99,7 +70,6 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 3. Cabello */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -114,7 +84,6 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 4. Ojos */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -129,7 +98,6 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 5. Rostro */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -139,7 +107,6 @@ function RenderAvatarVisual({ avatar }) {
                         backgroundPosition: 'center'
                     }}
                 />
-                {/* 6. Ropa Inferior */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -154,7 +121,6 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 7. Ropa Superior */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -173,7 +139,6 @@ function RenderAvatarVisual({ avatar }) {
         );
     }
 
-    // Avatar estándar del catálogo (String)
     return (
         <img 
             src={`/avatares/${avatar}.png`} 
@@ -182,107 +147,14 @@ function RenderAvatarVisual({ avatar }) {
             onError={(e) => {
                 e.target.onerror = null;
                 e.target.style.display = 'none';
-                const fallback = document.createElement('span');
-                fallback.className = "text-4xl";
-                fallback.innerText = '🎨';
-                e.target.parentNode.appendChild(fallback);
+                if (!e.target.parentNode.querySelector('.fallback-text')) {
+                    const fallback = document.createElement('span');
+                    fallback.className = "fallback-text text-xs font-bold flex items-center justify-center w-full h-full text-amber-900";
+                    fallback.innerText = 'Avatar';
+                    e.target.parentNode.appendChild(fallback);
+                }
             }}
         />
-    );
-}
-
-/* ==========================================
-   SUB-COMPONENTE: SECCIÓN DE TIENDA
-   ========================================== */
-function SeccionTienda({ tiendaAbierta, setTiendaAbierta, CATALOGO_AVATARES, avataresDesbloqueados, avatarActual, handleComprarOEquipar }) {
-    return (
-        <div className="mb-6 bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-            <button
-                type="button"
-                onClick={() => setTiendaAbierta(!tiendaAbierta)}
-                className="w-full p-4 flex items-center justify-between bg-amber-100/50 hover:bg-amber-100 transition-colors cursor-pointer"
-            >
-                <span className="font-black text-amber-900 text-base flex items-center gap-2">
-                    <img src="/tehuana.png" alt="Tehuana" className="w-6 h-6 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
-                    Tienda de Avatares
-                </span>
-                <span className="text-amber-950 font-bold text-xs bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-sm">
-                    {tiendaAbierta ? '▲ Ocultar Tienda' : '▼'}
-                </span>
-            </button>
-            {tiendaAbierta && (
-                <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto custom-scrollbar border-t border-amber-200 bg-amber-50/40">
-                    {CATALOGO_AVATARES.map((avatar) => {
-                        const desbloqueado = avataresDesbloqueados.includes(avatar.id);
-                        const equipado = avatarActual === avatar.id;
-
-                        return (
-                            <div key={avatar.id} className={`p-3 rounded-3xl border-2 flex flex-col items-center justify-between transition-all duration-200 ${equipado ? 'border-amber-600 bg-amber-100 ring-2 ring-amber-400 shadow-lg' : 'border-amber-300 bg-white hover:border-amber-400'}`}>
-                                <div className={`w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-2 rounded-full flex items-center justify-center border-4 shadow-inner overflow-hidden ${equipado ? 'border-amber-500 bg-white' : 'border-amber-200 bg-amber-50'}`}>
-                                    <img src={`/avatares/${avatar.id}.png`} alt={avatar.nombre} className="w-full h-full object-contain p-1" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }} />
-                                </div>
-                                <div className="font-black text-xs text-center text-amber-950 mb-1 leading-tight h-8 flex items-center justify-center">{avatar.nombre}</div>
-                                <div className={`text-[11px] font-black mb-2 px-2.5 py-0.5 rounded-full ${desbloqueado ? 'text-green-900 bg-green-100 border border-green-300' : 'text-amber-800 bg-amber-100 border border-amber-300'}`}>
-                                    {desbloqueado ? 'Adquirido' : `${avatar.costo} 🌽`}
-                                </div>
-                                <button
-                                    onClick={() => handleComprarOEquipar(avatar)}
-                                    disabled={equipado}
-                                    className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all active:scale-95 shadow ${equipado ? 'bg-amber-500 text-white opacity-90' : desbloqueado ? 'bg-amber-700 hover:bg-amber-800 text-white cursor-pointer' : 'bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'}`}
-                                >
-                                    {equipado ? 'Equipado' : desbloqueado ? 'Equipar' : 'Comprar'}
-                                </button>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
-    );
-}
-
-/* ==========================================
-   SUB-COMPONENTE: SECCIÓN DE LOGROS
-   ========================================== */
-function SeccionLogros({ logrosAbiertos, setLogrosAbiertos, CATALOGO_LOGROS, logrosDesbloqueados }) {
-    return (
-        <div className="mb-6 bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-            <button
-                type="button"
-                onClick={() => setLogrosAbiertos(!logrosAbiertos)}
-                className="w-full p-4 flex items-center justify-between bg-amber-100/50 hover:bg-amber-100 transition-colors cursor-pointer"
-            >
-                <span className="font-black text-amber-900 text-base flex items-center gap-2">
-                    <img src="/guiechachi.png" alt="Guiechachi" className="w-6 h-6 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
-                    Logros y Trofeos de Juegos
-                </span>
-                <span className="text-amber-950 font-bold text-xs bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-sm">
-                    {logrosAbiertos ? '▲ Ocultar Logros' : '▼'}
-                </span>
-            </button>
-            {logrosAbiertos && (
-                <div className="p-4 space-y-2 max-h-72 overflow-y-auto custom-scrollbar border-t border-amber-200 bg-amber-50/40">
-                    {CATALOGO_LOGROS.map((logro) => {
-                        const conseguido = logrosDesbloqueados.includes(logro.id);
-                        return (
-                            <div key={logro.id} className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${conseguido ? 'bg-white border-amber-300 shadow-sm' : 'bg-gray-100 border-gray-300 opacity-60 grayscale'}`}>
-                                <div className="text-3xl bg-amber-100 p-2 rounded-xl border border-amber-200 flex-shrink-0">
-                                    {conseguido ? logro.emoji : '🔒'}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between">
-                                        <span className={`font-bold text-xs px-2 py-0.5 rounded-md ${conseguido ? 'bg-amber-200 text-amber-900' : 'bg-gray-200 text-gray-700'}`}>{logro.juego}</span>
-                                        <span className={`text-xs font-bold ${conseguido ? 'text-green-700' : 'text-gray-500'}`}>{conseguido ? 'Conseguido' : 'Bloqueado'}</span>
-                                    </div>
-                                    <h4 className={`font-black text-sm mt-1 truncate ${conseguido ? 'text-amber-950' : 'text-gray-600'}`}>{logro.nombre}</h4>
-                                    <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">{logro.desc}</p>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
     );
 }
 
@@ -336,11 +208,9 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
                     if (onProfileUpdate) {
                         const calc = calcularNivelYTitulo(historico);
-                        const emojiAvatar = typeof avatarId === 'object' ? '🎨' : (CATALOGO_AVATARES.find(a => a.id === avatarId)?.emoji || '🌽');
                         onProfileUpdate({
                             nombre: data.nombre || '',
                             avatar: avatarId,
-                            emoji: emojiAvatar,
                             nivel: calc.nivel
                         });
                     }
@@ -360,65 +230,11 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
         try {
             const docRef = doc(db, 'usuarios', user.uid);
             await updateDoc(docRef, { nombre: nombreLimpio });
-            setMensaje('¡Nombre actualizado con éxito!');
+            setMensaje('Nombre actualizado con éxito');
             setTimeout(() => setMensaje(''), 3000);
         } catch (error) {
             console.error("Error actualizando nombre:", error);
             setMensaje('Error al actualizar el nombre.');
-        }
-    };
-
-    const handleComprarVidas = async (paquete) => {
-        if (totopos < paquete.costo) {
-            setMensaje(`¡Te faltan ${paquete.costo - totopos} totopos para comprar este paquete!`);
-            setTimeout(() => setMensaje(''), 4000);
-            return;
-        }
-        const nuevosTotopos = totopos - paquete.costo;
-        const nuevasVidas = vidas + paquete.cantidad;
-        try {
-            const docRef = doc(db, 'usuarios', user.uid);
-            await updateDoc(docRef, { totopos: nuevosTotopos, vidas: nuevasVidas });
-            setTotopos(nuevosTotopos);
-            setVidas(nuevasVidas);
-            setMensaje(`¡Compraste ${paquete.cantidad} vida(s) extra!`);
-            setTimeout(() => setMensaje(''), 3000);
-        } catch (error) {
-            console.error("Error comprando vidas:", error);
-        }
-    };
-
-    const handleComprarOEquipar = async (avatarItem) => {
-        const yaDesbloqueado = avataresDesbloqueados.includes(avatarItem.id);
-        if (!yaDesbloqueado) {
-            if (totopos < avatarItem.costo) {
-                setMensaje(`¡Te faltan ${avatarItem.costo - totopos} totopos!`);
-                setTimeout(() => setMensaje(''), 4000);
-                return;
-            }
-            const nuevosTotopos = totopos - avatarItem.costo;
-            const nuevosDesbloqueados = [...avataresDesbloqueados, avatarItem.id];
-            try {
-                const docRef = doc(db, 'usuarios', user.uid);
-                await updateDoc(docRef, { totopos: nuevosTotopos, avataresDesbloqueados: nuevosDesbloqueados, avatar: avatarItem.id });
-                setTotopos(nuevosTotopos);
-                setAvataresDesbloqueados(nuevosDesbloqueados);
-                setAvatarActual(avatarItem.id);
-                setMensaje(`¡Compraste y equipaste ${avatarItem.nombre}!`);
-                setTimeout(() => setMensaje(''), 3000);
-            } catch (error) {
-                console.error("Error en compra:", error);
-            }
-        } else {
-            try {
-                const docRef = doc(db, 'usuarios', user.uid);
-                await updateDoc(docRef, { avatar: avatarItem.id });
-                setAvatarActual(avatarItem.id);
-                setMensaje(`Avatar cambiado a ${avatarItem.nombre}`);
-                setTimeout(() => setMensaje(''), 3000);
-            } catch (error) {
-                console.error("Error equipando:", error);
-            }
         }
     };
 
@@ -428,14 +244,13 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
             const docRef = doc(db, 'usuarios', user.uid);
             await updateDoc(docRef, { avatar: configuracionAvatar });
             setAvatarActual(configuracionAvatar);
-            setMensaje('¡Avatar personalizado guardado con éxito!');
+            setMensaje('Avatar personalizado guardado con éxito.');
             
             const calc = calcularNivelYTitulo(totoposHistoricos);
             if (onProfileUpdate) {
                 onProfileUpdate({
                     nombre,
                     avatar: configuracionAvatar,
-                    emoji: '🎨',
                     nivel: calc.nivel
                 });
             }
@@ -465,13 +280,12 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
                 <div className="absolute top-3 right-3 z-20">
                     <button onClick={onClose} className="text-amber-900 hover:bg-amber-200/80 font-bold text-xl w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center transition-colors border border-amber-200 shadow-sm cursor-pointer">
-                        ✕
+                        X
                     </button>
                 </div>
 
                 {showConfirmLogout && (
                     <div className="absolute inset-0 bg-white/95 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-                        <div className="text-5xl mb-3">⚠️</div>
                         <h3 className="text-2xl font-bold text-red-600 mb-2">¿Cerrar Sesión?</h3>
                         <p className="text-amber-900 text-sm mb-6 font-medium">Tendrás que volver a ingresar para conservar tu progreso en la nube.</p>
                         <div className="flex gap-3 w-full">
@@ -492,7 +306,6 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     {/* ENCABEZADO DE PERFIL */}
                     <div className="text-center mb-6 mt-2 relative">
                         <div className="relative inline-block mx-auto">
-                            {/* Círculo contenedor del avatar */}
                             <div className="w-24 h-24 bg-amber-600 rounded-full flex items-center justify-center border-4 border-white shadow-lg overflow-hidden relative">
                                 <RenderAvatarVisual avatar={avatarActual} />
                             </div>
@@ -524,7 +337,8 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             <div className="flex justify-between items-center text-xs font-black text-amber-900 mb-1.5">
                                 <span>Progreso Nivel {nivel}</span>
                                 <span className="text-amber-700 flex items-center gap-1">
-                                    {totoposHistoricos} / {progresoInfo.necesario} 🌽
+                                    {totoposHistoricos} / {progresoInfo.necesario}
+                                    <img src="/totopp.png" alt="Totopo" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
                                 </span>
                             </div>
                             <div className="w-full bg-amber-100 rounded-full h-3.5 overflow-hidden border border-amber-300 shadow-inner">
@@ -535,11 +349,11 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         {/* CONTADORES */}
                         <div className="flex justify-center gap-3 mt-3">
                             <div className="flex items-center gap-1.5 bg-amber-200/80 px-3 py-1.5 rounded-xl border border-amber-400 shadow-sm">
-                                <span>🌽</span>
+                                <img src="/totopp.png" alt="Totopo" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
                                 <span className="font-black text-amber-900 text-sm">{totopos}</span>
                             </div>
                             <div className="flex items-center gap-1.5 bg-red-100/80 px-3 py-1.5 rounded-xl border border-red-300 shadow-sm">
-                                <span>❤️</span>
+                                <img src="/tuna-vida.png" alt="Vida" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
                                 <span className="font-black text-red-700 text-sm">{vidas} Vidas</span>
                             </div>
                         </div>
@@ -568,42 +382,26 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     </form>
 
-                    {/* COMPRAR VIDAS */}
-                    <div className="mb-6">
-                        <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">Comprar Vidas Extras</h3>
-                        <div className="grid grid-cols-3 gap-2">
-                            {CATALOGO_VIDAS.map((paquete) => (
-                                <button
-                                    key={paquete.id}
-                                    onClick={() => handleComprarVidas(paquete)}
-                                    className="p-2.5 bg-white rounded-xl border border-amber-200 flex flex-col items-center justify-center hover:bg-amber-50 hover:border-amber-400 transition-all shadow-sm active:scale-95 cursor-pointer"
-                                >
-                                    <div className="flex items-center gap-1 font-black text-red-600 text-sm mb-1">
-                                        <span>❤️ × {paquete.cantidad}</span>
-                                    </div>
-                                    <div className="text-[11px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded text-center w-full">
-                                        {paquete.costo} 🌽
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* TIENDA DE AVATARES */}
+                    {/* TIENDA DE AVATARES Y VIDAS (DELEGADO A SECCIONTIENDA) */}
                     <SeccionTienda 
+                        user={user}
+                        totopos={totopos}
+                        setTotopos={setTotopos}
+                        vidas={vidas}
+                        setVidas={setVidas}
+                        avatarActual={avatarActual}
+                        setAvatarActual={setAvatarActual}
+                        avataresDesbloqueados={avataresDesbloqueados}
+                        setAvataresDesbloqueados={setAvataresDesbloqueados}
+                        setMensaje={setMensaje}
                         tiendaAbierta={tiendaAbierta}
                         setTiendaAbierta={setTiendaAbierta}
-                        CATALOGO_AVATARES={CATALOGO_AVATARES}
-                        avataresDesbloqueados={avataresDesbloqueados}
-                        avatarActual={avatarActual}
-                        handleComprarOEquipar={handleComprarOEquipar}
                     />
 
                     {/* LOGROS Y TROFEOS */}
                     <SeccionLogros 
                         logrosAbiertos={logrosAbiertos}
                         setLogrosAbiertos={setLogrosAbiertos}
-                        CATALOGO_LOGROS={CATALOGO_LOGROS}
                         logrosDesbloqueados={logrosDesbloqueados}
                     />
 
