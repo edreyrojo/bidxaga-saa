@@ -11,34 +11,38 @@ export default function GeneradorDev({ onBack }) {
 
     const [nombrePersonaje, setNombrePersonaje] = useState('personaje1');
     
-    // Lista de capas dinámicas con orden de apilamiento (el primero va al fondo)
+    // Lista de capas dinámicas con soporte de múltiples variantes por capa (orden de apilamiento: primero fondo)
     const [capas, setCapas] = useState([
         { 
             id: 'silueta', 
             nombreCapa: 'Silueta / Ropa Base', 
             colorDefault: '#1A1A1A', 
-            archivo: '1silueta.svg',
             paleta: ['#1A1A1A', '#333333', '#555555', '#7F8C8D', '#BDC3C7', '#FFFFFF'],
-            previewUrl: null,
-            editable: true
+            editable: true,
+            variantes: [
+                { id: 'var1', nombre: 'Ropa Clásica', archivo: '1silueta.svg', costo: 0, previewUrl: null }
+            ]
         },
         { 
             id: 'piel', 
             nombreCapa: 'Tono de Piel', 
             colorDefault: '#F5C6A0', 
-            archivo: '1piel.svg',
             paleta: ['#F5C6A0', '#E0AC69', '#C68642', '#8D5524', '#ffdbac', '#f1c27d'],
-            previewUrl: null,
-            editable: true
+            editable: true,
+            variantes: [
+                { id: 'var1', nombre: 'Piel Base', archivo: '1piel.svg', costo: 0, previewUrl: null }
+            ]
         },
         { 
             id: 'cabello', 
             nombreCapa: 'Cabello', 
             colorDefault: '#4A3525', 
-            archivo: '1cabello.svg',
             paleta: ['#4A3525', '#2C3E50', '#8E44AD', '#D35400', '#C0392B', '#F39C12'],
-            previewUrl: null,
-            editable: true
+            editable: true,
+            variantes: [
+                { id: 'var1', nombre: 'Cabello Clásico', archivo: '1cabello.svg', costo: 0, previewUrl: null },
+                { id: 'var2', nombre: 'Cabello Corto', archivo: '2cabello.svg', costo: 50, previewUrl: null }
+            ]
         },
     ]);
 
@@ -49,14 +53,22 @@ export default function GeneradorDev({ onBack }) {
         cabello: '#4A3525'
     });
 
-    // Estado temporal para agregar o editar capas con constructor interactivo de paleta
+    // Estado para la variante activa seleccionada por cada capa en la previsualización en vivo
+    const [variantesActivas, setVariantesActivas] = useState({
+        silueta: '1silueta.svg',
+        piel: '1piel.svg',
+        cabello: '1cabello.svg'
+    });
+
+    // Estado temporal para agregar o editar capas con soporte de variantes y constructor interactivo de paleta
     const [nuevaCapa, setNuevaCapa] = useState({ 
         nombreCapa: '', 
         colorDefault: '#E65100', 
         colorTemp: '#E65100', 
         paletaColors: ['#E65100', '#D32F2F', '#1976D2', '#388E3C', '#7B1FA2'], 
-        archivoFile: null,
-        previewUrl: null
+        variantesTemp: [
+            { id: 'v1', nombre: 'Principal', archivo: '1archivo.svg', costo: 0, archivoFile: null, previewUrl: null }
+        ]
     });
 
     // ID de la capa que se está editando actualmente (null si estamos creando una nueva)
@@ -104,32 +116,67 @@ export default function GeneradorDev({ onBack }) {
         setNombrePersonaje(folderLimpio);
         setCapas([]);
         setColoresVivos({});
+        setVariantesActivas({});
         setCapaEditandoId(null);
         setNuevaCapa({
             nombreCapa: '', 
             colorDefault: '#E65100', 
             colorTemp: '#E65100', 
             paletaColors: ['#E65100', '#D32F2F', '#1976D2', '#388E3C'], 
-            archivoFile: null,
-            previewUrl: null
+            variantesTemp: [
+                { id: 'v1', nombre: 'Principal', archivo: '1principal.svg', costo: 0, archivoFile: null, previewUrl: null }
+            ]
         });
     };
 
-    // 📁 Manejar la subida del archivo SVG para previsualización
-    const handleFileChange = (e) => {
+    // 📁 Manejar subida de archivo SVG para una variante específica
+    const handleVarianteFileChange = (indexVar, e) => {
         const file = e.target.files[0];
         if (file) {
             const tempUrl = URL.createObjectURL(file);
-            let nombreSugerido = file.name.replace(/\.[^/.]+$/, "").replace(/^\d+/, '');
+            let nombreSugerido = file.name.replace(/\.[^/.]+$/, "");
             nombreSugerido = nombreSugerido.charAt(0).toUpperCase() + nombreSugerido.slice(1);
 
-            setNuevaCapa(prev => ({
-                ...prev,
-                archivoFile: file,
-                previewUrl: tempUrl,
-                nombreCapa: prev.nombreCapa || nombreSugerido
-            }));
+            setNuevaCapa(prev => {
+                const nuevasVariantes = [...prev.variantesTemp];
+                nuevasVariantes[indexVar] = {
+                    ...nuevasVariantes[indexVar],
+                    archivoFile: file,
+                    archivo: file.name,
+                    previewUrl: tempUrl,
+                    nombre: nuevasVariantes[indexVar].nombre || nombreSugerido
+                };
+                return { 
+                    ...prev, 
+                    variantesTemp: nuevasVariantes,
+                    nombreCapa: prev.nombreCapa || nombreSugerido // Sugerir nombre a la capa si está vacía
+                };
+            });
         }
+    };
+
+    // ➕ Agregar variante temporal al formulario
+    const agregarVarianteTemp = () => {
+        const num = nuevaCapa.variantesTemp.length + 1;
+        setNuevaCapa(prev => ({
+            ...prev,
+            variantesTemp: [
+                ...prev.variantesTemp,
+                { id: `v${num}`, nombre: `Variante ${num}`, archivo: `${num}archivo.svg`, costo: 0, archivoFile: null, previewUrl: null }
+            ]
+        }));
+    };
+
+    // 🗑️ Eliminar variante temporal del formulario
+    const eliminarVarianteTemp = (indexVar) => {
+        if (nuevaCapa.variantesTemp.length <= 1) {
+            alert('La capa debe tener al menos una variante SVG.');
+            return;
+        }
+        setNuevaCapa(prev => ({
+            ...prev,
+            variantesTemp: prev.variantesTemp.filter((_, idx) => idx !== indexVar)
+        }));
     };
 
     // 🎨 Añadir un color interactivo a la lista de la paleta nueva
@@ -172,9 +219,9 @@ export default function GeneradorDev({ onBack }) {
             colorDefault: capa.colorDefault,
             colorTemp: capa.colorDefault,
             paletaColors: [...(capa.paleta || [capa.colorDefault])],
-            archivoFile: null,
-            previewUrl: capa.previewUrl || null,
-            archivoOriginal: capa.archivo
+            variantesTemp: capa.variantes && capa.variantes.length > 0 
+                ? capa.variantes.map(v => ({ ...v, archivoFile: null })) 
+                : [{ id: 'v1', nombre: 'Principal', archivo: capa.archivo || '1archivo.svg', costo: 0, archivoFile: null, previewUrl: capa.previewUrl || null }]
         });
     };
 
@@ -186,11 +233,10 @@ export default function GeneradorDev({ onBack }) {
             colorDefault: '#E65100', 
             colorTemp: '#E65100', 
             paletaColors: ['#E65100', '#D32F2F', '#1976D2', '#388E3C'], 
-            archivoFile: null,
-            previewUrl: null
+            variantesTemp: [
+                { id: 'v1', nombre: 'Principal', archivo: '1archivo.svg', costo: 0, archivoFile: null, previewUrl: null }
+            ]
         });
-        const fileInput = document.getElementById('svgFileInput');
-        if(fileInput) fileInput.value = '';
     };
 
     // 💾 Guardar Capa
@@ -215,25 +261,34 @@ export default function GeneradorDev({ onBack }) {
             ? nuevaCapa.paletaColors 
             : [nuevaCapa.colorDefault];
 
+        // Mapear variantes temporales a variantes finales
+        const variantesFinales = nuevaCapa.variantesTemp.map((v, i) => ({
+            id: v.id || `v${i + 1}`,
+            nombre: v.nombre.trim() || `Variante ${i + 1}`,
+            archivo: v.archivoFile ? v.archivoFile.name : (v.archivo || `${i + 1}${idGenerado}.svg`),
+            costo: Number(v.costo) || 0,
+            previewUrl: v.previewUrl || null
+        }));
+
         if (capaEditandoId !== null) {
             setCapas(capas.map(c => {
                 if (c.id === capaEditandoId) {
-                    const archivoFinal = nuevaCapa.archivoFile 
-                        ? nuevaCapa.archivoFile.name 
-                        : (c.archivo || `${idGenerado}.svg`);
-                    
                     return {
                         ...c,
                         id: idGenerado,
                         nombreCapa: nuevaCapa.nombreCapa.trim(),
                         colorDefault: nuevaCapa.colorDefault,
-                        archivo: archivoFinal,
                         paleta: paletaArray,
-                        previewUrl: nuevaCapa.previewUrl || c.previewUrl
+                        variantes: variantesFinales
                     };
                 }
                 return c;
             }));
+
+            // Si cambiamos el ID, ajustamos las variantes activas
+            if (!variantesActivas[idGenerado] && variantesFinales.length > 0) {
+                setVariantesActivas(prev => ({ ...prev, [idGenerado]: variantesFinales[0].archivo }));
+            }
 
             if (capaEditandoId !== idGenerado) {
                 setColoresVivos(prev => {
@@ -241,6 +296,15 @@ export default function GeneradorDev({ onBack }) {
                     const colorActual = copy[capaEditandoId] || nuevaCapa.colorDefault;
                     delete copy[capaEditandoId];
                     copy[idGenerado] = colorActual;
+                    return copy;
+                });
+                
+                // Actualizar variante activa al nuevo ID
+                setVariantesActivas(prev => {
+                    const copy = { ...prev };
+                    const varActiva = copy[capaEditandoId];
+                    delete copy[capaEditandoId];
+                    if(varActiva) copy[idGenerado] = varActiva;
                     return copy;
                 });
             } else {
@@ -254,22 +318,20 @@ export default function GeneradorDev({ onBack }) {
                 return;
             }
 
-            const archivoGenerado = nuevaCapa.archivoFile 
-                ? nuevaCapa.archivoFile.name 
-                : `${idGenerado}.svg`;
-
             const nuevaCapaObj = {
                 id: idGenerado,
                 nombreCapa: nuevaCapa.nombreCapa.trim(),
                 colorDefault: nuevaCapa.colorDefault,
-                archivo: archivoGenerado, 
                 paleta: paletaArray,
-                previewUrl: nuevaCapa.previewUrl,
-                editable: true
+                editable: true,
+                variantes: variantesFinales
             };
 
             setCapas([...capas, nuevaCapaObj]);
             setColoresVivos(prev => ({ ...prev, [idGenerado]: nuevaCapa.colorDefault }));
+            if (variantesFinales.length > 0) {
+                setVariantesActivas(prev => ({ ...prev, [idGenerado]: variantesFinales[0].archivo }));
+            }
         }
         
         setNuevaCapa({ 
@@ -277,12 +339,10 @@ export default function GeneradorDev({ onBack }) {
             colorDefault: '#E65100', 
             colorTemp: '#E65100',
             paletaColors: ['#E65100', '#D32F2F', '#1976D2', '#388E3C'], 
-            archivoFile: null, 
-            previewUrl: null 
+            variantesTemp: [
+                { id: 'v1', nombre: 'Principal', archivo: '1principal.svg', costo: 0, archivoFile: null, previewUrl: null }
+            ]
         });
-        
-        const fileInput = document.getElementById('svgFileInput');
-        if(fileInput) fileInput.value = '';
     };
 
     const eliminarCapa = (idABorrar) => {
@@ -291,9 +351,14 @@ export default function GeneradorDev({ onBack }) {
             return;
         }
         setCapas(capas.filter(capa => capa.id !== idABorrar));
-        const copy = { ...coloresVivos };
-        delete copy[idABorrar];
-        setColoresVivos(copy);
+        const copyColores = { ...coloresVivos };
+        delete copyColores[idABorrar];
+        setColoresVivos(copyColores);
+        
+        const copyVariantes = { ...variantesActivas };
+        delete copyVariantes[idABorrar];
+        setVariantesActivas(copyVariantes);
+        
         if (capaEditandoId === idABorrar) {
             cancelarEdicion();
         }
@@ -314,28 +379,58 @@ export default function GeneradorDev({ onBack }) {
         setColoresVivos(prev => ({ ...prev, [idCapa]: hex }));
     };
 
+    const cambiarVarianteActiva = (idCapa, archivoSvg) => {
+        setVariantesActivas(prev => ({ ...prev, [idCapa]: archivoSvg }));
+    };
+
     // 🔒 Alternar entre Capa Coloreable y Capa Estática (Rostros, etc)
     const toggleCapaEditable = (id) => {
         setCapas(capas.map(c => c.id === id ? { ...c, editable: c.editable === false ? true : false } : c));
     };
 
-    // 🚀 EL MOTOR DEL GENERADOR DE CÓDIGO CON CONTENEDOR ABSOLUTO MAESTRO
+    // Helpers para obtener el archivo activo en previsualización
+    const getArchivoActivo = (capa) => {
+        if (!capa.variantes || capa.variantes.length === 0) return capa.archivo || '1archivo.svg';
+        const activo = variantesActivas[capa.id];
+        if (activo && capa.variantes.some(v => v.archivo === activo)) {
+            return activo;
+        }
+        return capa.variantes[0].archivo;
+    };
+
+    const getPreviewUrlActivo = (capa) => {
+        if (!capa.variantes || capa.variantes.length === 0) return capa.previewUrl || null;
+        const archivoActual = getArchivoActivo(capa);
+        const varianteEncontrada = capa.variantes.find(v => v.archivo === archivoActual);
+        return varianteEncontrada ? varianteEncontrada.previewUrl : null;
+    };
+
+    // 🚀 EL MOTOR DEL GENERADOR DE CÓDIGO CON MULTI-VARIANTES
     const generarCodigoJSX = () => {
         let codigo = `/* =============================================================\n`;
-        codigo += `   🎨 CÓDIGO GENERADO PARA: ${nombrePersonaje}\n`;
+        codigo += `   🎨 CÓDIGO GENERADO PARA: ${nombrePersonaje} (Con Variantes Múltiples)\n`;
         codigo += `   Estructura estricta con Contenedor Absoluto (inset-0)\n`;
         codigo += `   ============================================================= */\n\n`;
 
         codigo += `// 🔄 1. ESTADOS\n`;
         codigo += `const [personajeBase, setPersonajeBase] = useState('${nombrePersonaje}');\n`;
         capas.forEach(capa => {
+            const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
             if (capa.editable !== false) {
-                const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
                 codigo += `const [color${idCap}, setColor${idCap}] = useState('${coloresVivos[capa.id] || capa.colorDefault}');\n`;
             }
+            const varianteDefault = capa.variantes && capa.variantes.length > 0 ? capa.variantes[0].archivo : (capa.archivo || '1archivo.svg');
+            codigo += `const [variante${idCap}, setVariante${idCap}] = useState('${varianteDefault}');\n`;
         });
 
-        codigo += `\n// 🎨 2. PALETAS DE COLORES\n`;
+        codigo += `\n// 📚 2. CATÁLOGO DE VARIANTES POR CAPA\n`;
+        capas.forEach(capa => {
+            const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
+            const variantesJson = JSON.stringify(capa.variantes || [], null, 4);
+            codigo += `const variantes${idCap} = ${variantesJson};\n`;
+        });
+
+        codigo += `\n// 🎨 3. PALETAS DE COLORES\n`;
         capas.forEach(capa => {
             if (capa.editable !== false) {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
@@ -344,19 +439,20 @@ export default function GeneradorDev({ onBack }) {
             }
         });
 
-        codigo += `\n// 💾 3. OBJETO PARA GUARDAR\n`;
+        codigo += `\n// 💾 4. OBJETO PARA GUARDAR\n`;
         codigo += `const configuracionAvatar = {\n`;
         codigo += `    tipo: personajeBase,\n`;
         capas.forEach(capa => {
+            const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
             if (capa.editable !== false) {
-                const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
                 codigo += `    ${capa.id}: color${idCap},\n`;
             }
+            codigo += `    variante${idCap}: variante${idCap},\n`;
         });
         codigo += `    rutaBase: \`/avatares/\${personajeBase}/\`\n`;
         codigo += `};\n`;
 
-        codigo += `\n// 🖼️ 4. VISOR DE CAPAS (Contenedor Absoluto Milimétrico)\n`;
+        codigo += `\n// 🖼️ 5. VISOR DE CAPAS (Contenedor Absoluto Milimétrico)\n`;
         codigo += `<div className="relative w-48 h-48 mx-auto bg-white rounded-3xl border-4 border-amber-300 overflow-hidden shadow-inner flex items-center justify-center select-none">\n`;
         capas.forEach((capa, index) => {
             const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
@@ -366,8 +462,8 @@ export default function GeneradorDev({ onBack }) {
             codigo += `        style={{\n`;
             if (capa.editable !== false) {
                 codigo += `            backgroundColor: color${idCap},\n`;
-                codigo += `            WebkitMaskImage: \`url(/avatares/\${personajeBase}/${capa.archivo})\`,\n`;
-                codigo += `            maskImage: \`url(/avatares/\${personajeBase}/${capa.archivo})\`,\n`;
+                codigo += `            WebkitMaskImage: \`url(/avatares/\${personajeBase}/\${variante${idCap}})\`,\n`;
+                codigo += `            maskImage: \`url(/avatares/\${personajeBase}/\${variante${idCap}})\`,\n`;
                 codigo += `            WebkitMaskSize: 'contain',\n`;
                 codigo += `            maskSize: 'contain',\n`;
                 codigo += `            WebkitMaskRepeat: 'no-repeat',\n`;
@@ -375,7 +471,7 @@ export default function GeneradorDev({ onBack }) {
                 codigo += `            WebkitMaskPosition: 'center',\n`;
                 codigo += `            maskPosition: 'center'\n`;
             } else {
-                codigo += `            backgroundImage: \`url(/avatares/\${personajeBase}/${capa.archivo})\`,\n`;
+                codigo += `            backgroundImage: \`url(/avatares/\${personajeBase}/\${variante${idCap}})\`,\n`;
                 codigo += `            backgroundSize: 'contain',\n`;
                 codigo += `            backgroundRepeat: 'no-repeat',\n`;
                 codigo += `            backgroundPosition: 'center'\n`;
@@ -387,7 +483,7 @@ export default function GeneradorDev({ onBack }) {
 
         const capasEditables = capas.filter(c => c.editable !== false);
         if (capasEditables.length > 0) {
-            codigo += `\n// 🎚️ 5. SELECTORES DE COLOR\n`;
+            codigo += `\n// 🎚️ 6. SELECTORES DE COLOR\n`;
             codigo += `<div className="space-y-4 bg-white/80 p-4 rounded-2xl border border-amber-200 shadow-sm">\n`;
             capasEditables.forEach((capa) => {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
@@ -437,7 +533,7 @@ export default function GeneradorDev({ onBack }) {
                         </button>
                     )}
                     <h2 className="text-2xl font-black flex items-center gap-2">
-                        Constructor NGASI
+                        Constructor NGASI (Multi-Variantes)
                     </h2>
                 </div>
                 <div className="flex items-center gap-2">
@@ -445,7 +541,7 @@ export default function GeneradorDev({ onBack }) {
                         onClick={handleNuevoPersonaje}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"
                     >
-                        Nuevo
+                        Nuevo Personaje
                     </button>
                     <span className="text-xs font-bold bg-amber-200 text-amber-900 px-3 py-2 rounded-xl border border-amber-300">
                         edrey ngasi
@@ -507,7 +603,9 @@ export default function GeneradorDev({ onBack }) {
                                 </div>
                             ) : (
                                 capas.map((capa) => {
-                                    const maskUrl = capa.previewUrl ? `url(${capa.previewUrl})` : `url(/avatares/${nombrePersonaje}/${capa.archivo})`;
+                                    const previewUrlActiva = getPreviewUrlActivo(capa);
+                                    const archivoActivo = getArchivoActivo(capa);
+                                    const maskUrl = previewUrlActiva ? `url(${previewUrlActiva})` : `url(/avatares/${nombrePersonaje}/${archivoActivo})`;
                                     
                                     if (capa.editable === false) {
                                         return (
@@ -545,40 +643,51 @@ export default function GeneradorDev({ onBack }) {
                             )}
                         </div>
 
-                        {capasEditablesVuelo.length > 0 && (
-                            <div className="w-full space-y-2">
-                                <label className="block text-[11px] font-bold text-amber-800 uppercase">Ajustar Colores:</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {capasEditablesVuelo.map(capa => (
-                                        <div key={capa.id} className="flex flex-col bg-amber-50 p-2 rounded-xl border border-amber-200 text-xs">
-                                            <div className="flex items-center justify-between mb-1.5">
-                                                <span className="font-bold truncate max-w-[90px]">{capa.nombreCapa}</span>
-                                                <input 
-                                                    type="color" 
-                                                    value={coloresVivos[capa.id] || capa.colorDefault} 
-                                                    onChange={(e) => cambiarColorCapa(capa.id, e.target.value)}
-                                                    onBlur={(e) => agregarColorReciente(e.target.value)}
-                                                    className="w-6 h-6 rounded-md border border-amber-300 cursor-pointer bg-transparent"
-                                                />
+                        {/* SELECTOR EN TIEMPO REAL DE VARIANTES Y COLORES */}
+                        {capas.length > 0 && (
+                            <div className="w-full space-y-3">
+                                <label className="block text-[11px] font-bold text-amber-800 uppercase">Ajustar Estilos y Colores:</label>
+                                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                                    {capas.map(capa => {
+                                        const archivoActual = getArchivoActivo(capa);
+                                        return (
+                                            <div key={capa.id} className="flex flex-col bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-xs gap-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-black text-amber-900">{capa.nombreCapa}</span>
+                                                    {capa.editable !== false && (
+                                                        <input 
+                                                            type="color" 
+                                                            value={coloresVivos[capa.id] || capa.colorDefault} 
+                                                            onChange={(e) => cambiarColorCapa(capa.id, e.target.value)}
+                                                            onBlur={(e) => agregarColorReciente(e.target.value)}
+                                                            className="w-6 h-6 rounded-md border border-amber-300 cursor-pointer bg-transparent"
+                                                            title="Color de capa"
+                                                        />
+                                                    )}
+                                                </div>
+
+                                                {/* Botones de Selector de Variantes (si hay más de 1) */}
+                                                {capa.variantes && capa.variantes.length > 1 && (
+                                                    <div className="flex flex-wrap gap-1 pt-1 border-t border-amber-200/60">
+                                                        {capa.variantes.map(v => (
+                                                            <button
+                                                                key={v.id || v.archivo}
+                                                                type="button"
+                                                                onClick={() => cambiarVarianteActiva(capa.id, v.archivo)}
+                                                                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                                                                    archivoActual === v.archivo
+                                                                        ? 'bg-amber-700 text-white shadow-xs'
+                                                                        : 'bg-white text-amber-900 border border-amber-300 hover:bg-amber-100'
+                                                                }`}
+                                                            >
+                                                                {v.nombre} {v.costo > 0 ? `(🌽${v.costo})` : ''}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
-                                            {/* Minibarra de recientes al vuelo */}
-                                            <div className="flex justify-end gap-1">
-                                                {coloresRecientes.slice(0, 5).map((hex, idx) => (
-                                                    <button 
-                                                        key={`${hex}-${idx}`} 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            cambiarColorCapa(capa.id, hex);
-                                                            agregarColorReciente(hex);
-                                                        }}
-                                                        className="w-3.5 h-3.5 rounded-full border border-amber-300 hover:scale-125 cursor-pointer shadow-xs transition-transform"
-                                                        style={{backgroundColor: hex}}
-                                                        title={hex}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -587,13 +696,13 @@ export default function GeneradorDev({ onBack }) {
                     {/* Gestor de Capas y Nuevo Formulario */}
                     <div className="bg-white p-5 rounded-3xl border-2 border-amber-300 shadow-md">
                         <h3 className="font-bold text-xs mb-1 text-amber-900 flex justify-between items-center">
-                            <span>📚 CAPAS ({capas.length})</span>
+                            <span>📚 CATEGORÍAS ({capas.length})</span>
                         </h3>
                         <p className="text-[10px] text-amber-700 mb-3">El elemento 1 queda al fondo. Haz clic en 👁️/🎨 para bloquear el color (ej. rostros).</p>
                         
                         {capas.length === 0 ? (
                             <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-center text-xs text-amber-800 mb-4 font-medium">
-                                Tu personaje está vacío. Comienza cargando tu archivo SVG.
+                                Tu personaje está vacío. Comienza cargando tu primera capa abajo.
                             </div>
                         ) : (
                             <ul className="space-y-2 mb-4 max-h-48 overflow-y-auto pr-1">
@@ -602,7 +711,7 @@ export default function GeneradorDev({ onBack }) {
                                         <div className="flex items-center gap-1.5 truncate">
                                             <b className="bg-amber-200 px-1.5 py-0.5 rounded text-[11px]">{i + 1}</b>
                                             <span className="font-medium text-amber-900 truncate">
-                                                {c.nombreCapa} <code className="bg-white px-1 py-0.5 rounded border border-amber-200 text-[10px] ml-1">{c.archivo}</code>
+                                                {c.nombreCapa} <span className="text-[10px] text-amber-700">({c.variantes ? c.variantes.length : 1} var.)</span>
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-1 shrink-0">
@@ -623,77 +732,130 @@ export default function GeneradorDev({ onBack }) {
                             </ul>
                         )}
 
-                        {/* FORMULARIO DE NUEVA / EDITAR CAPA */}
+                        {/* FORMULARIO DE NUEVA / EDITAR CAPA Y VARIANTES */}
                         <div className={`p-4 rounded-3xl border-2 shadow-sm space-y-3 ${capaEditandoId ? 'bg-gradient-to-br from-amber-200/90 to-amber-100 border-amber-500' : 'bg-gradient-to-br from-amber-100/70 to-orange-50 border-amber-300/80'}`}>
                             <div className="flex items-center justify-between border-b border-amber-200 pb-2">
                                 <p className="text-xs font-black uppercase text-amber-950 flex items-center gap-1.5">
-                                    <span>{capaEditandoId ? '✏️' : '✨'}</span> {capaEditandoId ? `Editando: ${nuevaCapa.nombreCapa}` : 'Nueva Capa'}
+                                    <span>{capaEditandoId ? '✏️' : '✨'}</span> {capaEditandoId ? `Editando: ${nuevaCapa.nombreCapa}` : 'Nueva Categoría / Capa'}
                                 </p>
-                                <span className="text-[10px] font-bold bg-amber-200/80 text-amber-800 px-2 py-0.5 rounded-full">Modular</span>
-                            </div>
-                            
-                            <div>
-                                <label className="block text-[11px] font-bold text-amber-900 mb-1">1. Archivo SVG del accesorio:</label>
-                                <div className="border-2 border-dashed border-amber-300 hover:border-amber-500 bg-white/60 p-2.5 rounded-2xl transition-colors text-center cursor-pointer">
-                                    <input 
-                                        type="file" 
-                                        id="svgFileInput"
-                                        accept=".svg" 
-                                        onChange={handleFileChange}
-                                        className="w-full text-xs file:mr-2 file:py-1 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer text-amber-900"
-                                    />
-                                </div>
-                                {nuevaCapa.previewUrl && (
-                                    <p className="text-[10px] text-emerald-700 mt-1 font-bold text-center">✓ SVG listo</p>
-                                )}
+                                <span className="text-[10px] font-bold bg-amber-200/80 text-amber-800 px-2 py-0.5 rounded-full">Multi-Variante 🌽</span>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[11px] font-bold text-amber-900">2. Detalles de la Capa:</label>
+                                <label className="block text-[11px] font-bold text-amber-900">1. Nombre de la Categoría (ej: Silueta, Sombrero):</label>
                                 <input 
                                     type="text" 
-                                    placeholder="Nombre (ej: Silueta, Sombrero, Zapatos)" 
+                                    placeholder="Nombre general" 
                                     value={nuevaCapa.nombreCapa} 
                                     onChange={(e) => setNuevaCapa({...nuevaCapa, nombreCapa: e.target.value})} 
                                     className="w-full px-3 py-2 border-2 border-amber-300 rounded-2xl text-xs bg-white text-amber-950 outline-none focus:border-amber-500 font-medium shadow-inner" 
                                 />
-                                
-                                <div className="bg-white p-2 rounded-2xl border-2 border-amber-300 shadow-inner">
-                                    <div className="flex items-center gap-2 px-1">
-                                        <span className="text-[11px] font-bold text-amber-900">Color por defecto:</span>
-                                        <input 
-                                            type="color" 
-                                            value={nuevaCapa.colorDefault} 
-                                            onChange={(e) => {
-                                                setNuevaCapa({...nuevaCapa, colorDefault: e.target.value});
-                                            }} 
-                                            onBlur={(e) => {
-                                                agregarColorReciente(e.target.value);
+                            </div>
+                            
+                            {/* GESTOR DE VARIANTES TEMPORALES */}
+                            <div className="space-y-2 bg-white/80 p-3 rounded-2xl border border-amber-300">
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="text-[11px] font-black text-amber-900 uppercase">2. Variantes SVG:</label>
+                                    <button
+                                        type="button"
+                                        onClick={agregarVarianteTemp}
+                                        className="bg-amber-700 hover:bg-amber-800 text-white font-bold px-2.5 py-1 rounded-xl text-[10px] shadow-xs cursor-pointer"
+                                    >
+                                        + Añadir Variante
+                                    </button>
+                                </div>
+
+                                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                    {nuevaCapa.variantesTemp.map((v, indexVar) => (
+                                        <div key={v.id || indexVar} className="bg-amber-50 p-2.5 rounded-xl border border-amber-200 space-y-2">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <input 
+                                                    type="text"
+                                                    placeholder="Nombre visual (ej: Estilo Corto)"
+                                                    value={v.nombre}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setNuevaCapa(prev => {
+                                                            const copy = [...prev.variantesTemp];
+                                                            copy[indexVar].nombre = val;
+                                                            return { ...prev, variantesTemp: copy };
+                                                        });
+                                                    }}
+                                                    className="flex-1 px-2 py-1 border border-amber-300 rounded-lg text-xs bg-white outline-none focus:border-amber-500"
+                                                />
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] font-bold text-amber-800">🌽</span>
+                                                    <input 
+                                                        type="number"
+                                                        placeholder="Costo"
+                                                        value={v.costo}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            setNuevaCapa(prev => {
+                                                                const copy = [...prev.variantesTemp];
+                                                                copy[indexVar].costo = val;
+                                                                return { ...prev, variantesTemp: copy };
+                                                            });
+                                                        }}
+                                                        className="w-14 px-1.5 py-1 border border-amber-300 rounded-lg text-xs bg-white text-center outline-none focus:border-amber-500"
+                                                        title="Costo en totopos para la tienda"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => eliminarVarianteTemp(indexVar)}
+                                                    className="text-red-600 hover:bg-red-100 p-1 rounded-lg text-xs font-bold cursor-pointer"
+                                                    title="Eliminar variante"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <input 
+                                                    type="file"
+                                                    accept=".svg"
+                                                    onChange={(e) => handleVarianteFileChange(indexVar, e)}
+                                                    className="w-full text-[10px] file:mr-2 file:py-0.5 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-amber-600 file:text-white cursor-pointer hover:file:bg-amber-700"
+                                                />
+                                                {v.previewUrl && <span className="text-[10px] text-emerald-700 font-bold shrink-0">✓ SVG</span>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            <div className="bg-white p-2 rounded-2xl border-2 border-amber-300 shadow-inner">
+                                <div className="flex items-center gap-2 px-1">
+                                    <span className="text-[11px] font-bold text-amber-900">Color por defecto:</span>
+                                    <input 
+                                        type="color" 
+                                        value={nuevaCapa.colorDefault} 
+                                        onChange={(e) => setNuevaCapa({...nuevaCapa, colorDefault: e.target.value})} 
+                                        onBlur={(e) => agregarColorReciente(e.target.value)}
+                                        className="w-7 h-7 rounded-xl border border-amber-300 cursor-pointer bg-transparent ml-auto" 
+                                    />
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-2 px-1 border-t border-amber-100 pt-2">
+                                    <span className="text-[9px] text-amber-600 font-bold uppercase">Recientes:</span>
+                                    {coloresRecientes.map((hex, idx) => (
+                                        <button
+                                            key={`${hex}-${idx}`} type="button"
+                                            onClick={() => {
+                                                setNuevaCapa({...nuevaCapa, colorDefault: hex});
+                                                agregarColorReciente(hex);
                                             }}
-                                            className="w-7 h-7 rounded-xl border border-amber-300 cursor-pointer bg-transparent ml-auto" 
+                                            className="w-4 h-4 rounded-full border border-amber-300 hover:scale-110 shadow-xs transition-transform cursor-pointer"
+                                            style={{ backgroundColor: hex }}
+                                            title={`Usar ${hex}`}
                                         />
-                                    </div>
-                                    <div className="flex items-center gap-1.5 mt-2 px-1 border-t border-amber-100 pt-2">
-                                        <span className="text-[9px] text-amber-600 font-bold uppercase">Recientes:</span>
-                                        {coloresRecientes.map((hex, idx) => (
-                                            <button
-                                                key={`${hex}-${idx}`} type="button"
-                                                onClick={() => {
-                                                    setNuevaCapa({...nuevaCapa, colorDefault: hex});
-                                                    agregarColorReciente(hex);
-                                                }}
-                                                className="w-4 h-4 rounded-full border border-amber-300 hover:scale-110 shadow-xs transition-transform cursor-pointer"
-                                                style={{ backgroundColor: hex }}
-                                                title={`Usar ${hex}`}
-                                            />
-                                        ))}
-                                    </div>
+                                    ))}
                                 </div>
                             </div>
 
                             <div className="bg-white/80 p-3 rounded-2xl border-2 border-amber-200 shadow-xs space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <label className="block text-[11px] font-black text-amber-900 uppercase">3. Paleta:</label>
+                                    <label className="block text-[11px] font-black text-amber-900 uppercase">3. Paleta de Colores:</label>
                                     <button 
                                         type="button"
                                         onClick={handleVaciarPaleta}
@@ -780,7 +942,7 @@ export default function GeneradorDev({ onBack }) {
                                     onClick={handleGuardarCapa} 
                                     className="flex-1 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-black py-3 rounded-2xl text-xs transition-all cursor-pointer shadow-md uppercase tracking-wider"
                                 >
-                                    {capaEditandoId ? '💾 Guardar Cambios' : '🚀 Añadir Capa'}
+                                    {capaEditandoId ? '💾 Guardar Cambios' : '🚀 Añadir Categoría'}
                                 </button>
                             </div>
                         </div>
@@ -792,7 +954,7 @@ export default function GeneradorDev({ onBack }) {
                     <div className="bg-[#1e1e1e] p-5 rounded-3xl border-2 border-amber-500 shadow-xl flex flex-col h-full">
                         <div className="flex justify-between items-center mb-3">
                             <label className="text-xs font-black text-amber-400 uppercase tracking-wider">
-                                Código JSX
+                                Código JSX Generado
                             </label>
                             <span className="text-[10px] text-gray-400 font-mono">Actualización en tiempo real</span>
                         </div>
@@ -805,11 +967,11 @@ export default function GeneradorDev({ onBack }) {
                             type="button"
                             onClick={() => {
                                 navigator.clipboard.writeText(generarCodigoJSX());
-                                alert('¡Código copiado al portapapeles! 📋 Recuerda también copiar los archivos SVG reales a tu carpeta public/avatares.');
+                                alert('¡Código copiado al portapapeles! 📋');
                             }}
                             className="mt-4 w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3.5 rounded-2xl shadow-md transition-transform active:scale-95 cursor-pointer text-sm flex items-center justify-center gap-2"
                         >
-                            <span>📋</span> Copiar Código
+                            <span>📋</span> Copiar Código (Con Multi-Variantes)
                         </button>
                     </div>
                 </div>

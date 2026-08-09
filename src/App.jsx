@@ -8,13 +8,13 @@ import Memorama from './components/Memorama';
 import SopaLetras from './components/SopaLetras';
 import Crucigrama from './components/Crucigrama';
 import Trivia from './components/Trivia';
-import GeneradorDev from './components/GeneradorDev'; // 🛠️ Importamos el generador a pantalla completa
+import GeneradorDev from './components/GeneradorDev';
 import AudioFondo, { LISTA_PISTAS } from './components/AudioFondo';
 import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
 import ConfiguracionModal from './components/ConfiguracionModal';
 
-// 🛍️ Catálogo completo de emojis para sincronizar con la tienda
+// Catálogo completo de emojis para sincronizar con la tienda
 const AVATAR_EMOJIS = {
   default: '🌽',
   iguana: '🦎',
@@ -37,20 +37,33 @@ const calcularNivelRapido = (totalHistorico) => {
 };
 
 /* ==========================================
-   🎨 COMPONENTE AUXILIAR: RENDERIZADOR DE AVATAR DE 7 CAPAS EN APP
+   COMPONENTE AUXILIAR: RENDERIZADOR DE AVATAR DE 7 CAPAS EN APP (Blindado y Compatible)
    ========================================== */
 function RenderAvatarSuperior({ avatar }) {
     const esPersonalizado = typeof avatar === 'object' && avatar !== null;
 
     if (esPersonalizado) {
         const personaje = avatar.tipo || 'personaje1';
+        const varSilueta = avatar.varianteSiluetaropabase || '1silueta.svg';
+        const colorPiel = avatar.piel || '#F5C6A0';
+        const varPiel = avatar.variantePiel || '1piel.svg';
+        const colorCabello = avatar.cabello || '#4A3525';
+        const varCabello = avatar.varianteCabello || '1cabello1_1.svg';
+        const colorOjos = avatar.ojos || '#4a3525';
+        const varOjos = avatar.varianteOjos || '1ojos1.svg';
+        const varRostro = avatar.varianteRostro || '1rostro1.svg';
+        const colorRopainferior = avatar.ropainferior || '#E65100';
+        const varRopainferior = avatar.varianteRopainferior || '1shorts1.svg';
+        const colorRopasuperior = avatar.ropasuperior || '#97d398';
+        const varRopasuperior = avatar.varianteRopasuperior || '1playera1.svg';
+
         return (
-            <div className="w-full h-full relative overflow-hidden bg-amber-50 flex items-center justify-center">
+            <div className="w-full h-full relative overflow-hidden bg-white flex items-center justify-center">
                 {/* 1. Capa de Silueta / Ropa Base (Estática) */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundImage: `url(/avatares/${personaje}/1silueta.svg)`,
+                        backgroundImage: `url(/avatares/${personaje}/${varSilueta})`,
                         backgroundSize: 'contain',
                         backgroundRepeat: 'no-repeat',
                         backgroundPosition: 'center'
@@ -60,9 +73,9 @@ function RenderAvatarSuperior({ avatar }) {
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.piel || '#F5C6A0',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1piel.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1piel.svg)`,
+                        backgroundColor: colorPiel,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varPiel})`,
+                        maskImage: `url(/avatares/${personaje}/${varPiel})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -71,23 +84,53 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 3. Capa de Rostro1 (Estática) */}
+                {/* 3. Capa de Cabello */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundImage: `url(/avatares/${personaje}/1rostro1.svg)`,
+                        backgroundColor: colorCabello,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varCabello})`,
+                        maskImage: `url(/avatares/${personaje}/${varCabello})`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
+                    }}
+                />
+                {/* 4. Capa de Ojos */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: colorOjos,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varOjos})`,
+                        maskImage: `url(/avatares/${personaje}/${varOjos})`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
+                    }}
+                />
+                {/* 5. Capa de Rostro (Estática) */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundImage: `url(/avatares/${personaje}/${varRostro})`,
                         backgroundSize: 'contain',
                         backgroundRepeat: 'no-repeat',
                         backgroundPosition: 'center'
                     }}
                 />
-                {/* 4. Capa de Ojos1 */}
+                {/* 6. Capa de Ropa Inferior */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.ojos1 || '#5d320e',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1ojos1.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1ojos1.svg)`,
+                        backgroundColor: colorRopainferior,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varRopainferior})`,
+                        maskImage: `url(/avatares/${personaje}/${varRopainferior})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -96,43 +139,13 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 5. Capa de Cabello1 */}
+                {/* 7. Capa de Ropa Superior */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.cabello1 || '#5c320f',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1cabello1.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1cabello1.svg)`,
-                        WebkitMaskSize: 'contain',
-                        maskSize: 'contain',
-                        WebkitMaskRepeat: 'no-repeat',
-                        maskRepeat: 'no-repeat',
-                        WebkitMaskPosition: 'center',
-                        maskPosition: 'center'
-                    }}
-                />
-                {/* 6. Capa de Playera1 */}
-                <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                        backgroundColor: avatar.playera1 || '#468b41',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1playera1.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1playera1.svg)`,
-                        WebkitMaskSize: 'contain',
-                        maskSize: 'contain',
-                        WebkitMaskRepeat: 'no-repeat',
-                        maskRepeat: 'no-repeat',
-                        WebkitMaskPosition: 'center',
-                        maskPosition: 'center'
-                    }}
-                />
-                {/* 7. Capa de Shorts1 */}
-                <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                        backgroundColor: avatar.shorts1 || '#5a968a',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1shorts1.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1shorts1.svg)`,
+                        backgroundColor: colorRopasuperior,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varRopasuperior})`,
+                        maskImage: `url(/avatares/${personaje}/${varRopasuperior})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -178,10 +191,10 @@ function App() {
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [indicePista, setIndicePista] = useState(0);
 
-  // 🎮 Estado global para almacenar los controles del juego activo en curso
+  // Estado global para almacenar los controles del juego activo en curso
   const [controlesJuegoActivo, setControlesJuegoActivo] = useState(null);
 
-  // 🔄 Función reutilizable para cargar el perfil del usuario desde Firestore
+  // Función reutilizable para cargar el perfil del usuario desde Firestore
   const cargarPerfil = async (currentUser) => {
     if (currentUser) {
       try {
@@ -236,7 +249,7 @@ function App() {
     setIndicePista(siguiente);
   };
 
-  // 💾 Función auxiliar para guardar el nivel actual en localStorage antes de volver al menú
+  // Función auxiliar para guardar el nivel actual en localStorage antes de volver al menú
   const guardarNivelActual = () => {
     if (controlesJuegoActivo?.level !== undefined && controlesJuegoActivo?.level !== null) {
       const nivelActual = controlesJuegoActivo.level;
@@ -269,7 +282,7 @@ function App() {
         onPlayStateChange={setIsPlayingMusic} 
       />
 
-      {/* 🚀 PANEL SUPERIOR FLOTANTE */}
+      {/* PANEL SUPERIOR FLOTANTE */}
       <div className="fixed top-3 left-3 sm:top-4 sm:left-4 z-40 flex items-center gap-2">
         
         {/* 1.- Botón / Tarjeta de Perfil Modal */}
@@ -358,7 +371,7 @@ function App() {
 
       </div>
 
-      {/* 🎮 CONTENEDOR DE VISTAS */}
+      {/* CONTENEDOR DE VISTAS */}
       <main className="pt-16 sm:pt-20">
         {vistaActual === 'menu' && (
           <MenuPrincipal setVistaActual={(vista) => {
@@ -419,7 +432,6 @@ function App() {
           />
         )}
 
-        {/* 🛠️ Vista de Generador a Pantalla Completa */}
         {vistaActual === 'generador' && (
           <GeneradorDev 
             onBack={() => {

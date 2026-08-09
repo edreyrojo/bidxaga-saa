@@ -4,7 +4,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import CreadorAvatar from './CreadorAvatar';
 
-// 🛍️ Catálogo extendido a 10 Avatares
+// Catálogo extendido a 10 Avatares
 const CATALOGO_AVATARES = [
     { id: 'default', nombre: 'Totopo Clásico', emoji: '🌽', costo: 0 },
     { id: 'iguana', nombre: 'Iguana Istmeña', emoji: '🦎', costo: 50 },
@@ -18,14 +18,14 @@ const CATALOGO_AVATARES = [
     { id: 'corona', nombre: 'Rey Zapoteco', emoji: '👑', costo: 500 },
 ];
 
-// ❤️ Catálogo de Vidas Extras
+// Catálogo de Vidas Extras
 const CATALOGO_VIDAS = [
     { id: 'vida_1', nombre: '1 Vida', emoji: '❤️', costo: 15, cantidad: 1 },
     { id: 'vida_3', nombre: '3 Vidas', emoji: '❤️', costo: 40, cantidad: 3 },
     { id: 'vida_5', nombre: '5 Vidas', emoji: '❤️', costo: 60, cantidad: 5 },
 ];
 
-// 🏆 Catálogo de Logros e Insignias
+// Catálogo de Logros e Insignias
 const CATALOGO_LOGROS = [
     { id: 'logro_memoria_1', juego: 'Memorama', nombre: 'Memoria de Rayo', desc: 'Completa cualquier nivel de Memorama sin fallar.', emoji: '🧠' },
     { id: 'logro_crucigrama_5', juego: 'Crucigrama', nombre: 'Erudito del Crucigrama', desc: 'Alcanza el Nivel 5 o superior en Crucigrama.', emoji: '🧩' },
@@ -33,13 +33,13 @@ const CATALOGO_LOGROS = [
     { id: 'logro_trivia_maestro', juego: 'Trivia', nombre: 'Sabio Zapoteco', desc: 'Termina la Trivia en Modo Difícil sin errores.', emoji: '⚡' },
 ];
 
-// 📊 Funciones de Nivel y Progreso
+// Funciones de Nivel y Progreso
 const calcularNivelYTitulo = (totalHistorico) => {
-    if (totalHistorico < 100) return { nivel: 1, titulo: "Recién Llegado 🌱" };
-    if (totalHistorico < 300) return { nivel: 2, titulo: "Explorador Istmeño 🚶🏽" };
-    if (totalHistorico < 600) return { nivel: 3, titulo: "Estudiante Zapoteco 📖" };
-    if (totalHistorico < 1000) return { nivel: 4, titulo: "Conocedor Diidxazá 🗣️" };
-    return { nivel: 5, titulo: "Maestro Zapoteco 👑" };
+    if (totalHistorico < 100) return { nivel: 1, titulo: "Recién Llegado" };
+    if (totalHistorico < 300) return { nivel: 2, titulo: "Explorador Istmeño" };
+    if (totalHistorico < 600) return { nivel: 3, titulo: "Estudiante Zapoteco" };
+    if (totalHistorico < 1000) return { nivel: 4, titulo: "Conocedor Diidxazá" };
+    return { nivel: 5, titulo: "Maestro Zapoteco" };
 };
 
 const calcularProgresoNivel = (totalHistorico) => {
@@ -57,20 +57,28 @@ const calcularProgresoNivel = (totalHistorico) => {
 };
 
 /* ==========================================
-   🎨 RENDERIZADOR DE AVATAR (Sincronizado con CreadorAvatar)
+   RENDERIZADOR DE AVATAR (Sincronizado con CreadorAvatar)
    ========================================== */
 function RenderAvatarVisual({ avatar }) {
     const esPersonalizado = typeof avatar === 'object' && avatar !== null;
 
     if (esPersonalizado) {
         const personaje = avatar.tipo || 'personaje1';
+        const varSilueta = avatar.varianteSiluetaropabase || '1silueta.svg';
+        const varPiel = avatar.variantePiel || '1piel.svg';
+        const varCabello = avatar.varianteCabello || '1cabello1_1.svg';
+        const varOjos = avatar.varianteOjos || '1ojos1.svg';
+        const varRostro = avatar.varianteRostro || '1rostro1.svg';
+        const varRopainferior = avatar.varianteRopainferior || '1shorts1.svg';
+        const varRopasuperior = avatar.varianteRopasuperior || '1playera1.svg';
+
         return (
             <div className="w-full h-full relative overflow-hidden bg-white flex items-center justify-center">
                 {/* 1. Silueta / Ropa Base */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundImage: `url(/avatares/${personaje}/1silueta.svg)`,
+                        backgroundImage: `url(/avatares/${personaje}/${varSilueta})`,
                         backgroundSize: 'contain',
                         backgroundRepeat: 'no-repeat',
                         backgroundPosition: 'center'
@@ -81,8 +89,8 @@ function RenderAvatarVisual({ avatar }) {
                     className="absolute inset-0 pointer-events-none"
                     style={{
                         backgroundColor: avatar.piel || '#F5C6A0',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1piel.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1piel.svg)`,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varPiel})`,
+                        maskImage: `url(/avatares/${personaje}/${varPiel})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -91,23 +99,28 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 3. Rostro */}
+                {/* 3. Cabello */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundImage: `url(/avatares/${personaje}/1rostro1.svg)`,
-                        backgroundSize: 'contain',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'center'
+                        backgroundColor: avatar.cabello || '#4A3525',
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varCabello})`,
+                        maskImage: `url(/avatares/${personaje}/${varCabello})`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center'
                     }}
                 />
                 {/* 4. Ojos */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.ojos1 || '#5d320e',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1ojos1.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1ojos1.svg)`,
+                        backgroundColor: avatar.ojos || '#4a3525',
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varOjos})`,
+                        maskImage: `url(/avatares/${personaje}/${varOjos})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -116,13 +129,23 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 5. Cabello */}
+                {/* 5. Rostro */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.cabello1 || '#5c320f',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1cabello1.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1cabello1.svg)`,
+                        backgroundImage: `url(/avatares/${personaje}/${varRostro})`,
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center'
+                    }}
+                />
+                {/* 6. Ropa Inferior */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: avatar.ropainferior || '#E65100',
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varRopainferior})`,
+                        maskImage: `url(/avatares/${personaje}/${varRopainferior})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -131,28 +154,13 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 6. Playera */}
+                {/* 7. Ropa Superior */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.playera1 || '#468b41',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1playera1.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1playera1.svg)`,
-                        WebkitMaskSize: 'contain',
-                        maskSize: 'contain',
-                        WebkitMaskRepeat: 'no-repeat',
-                        maskRepeat: 'no-repeat',
-                        WebkitMaskPosition: 'center',
-                        maskPosition: 'center'
-                    }}
-                />
-                {/* 7. Shorts */}
-                <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                        backgroundColor: avatar.shorts1 || '#5a968a',
-                        WebkitMaskImage: `url(/avatares/${personaje}/1shorts1.svg)`,
-                        maskImage: `url(/avatares/${personaje}/1shorts1.svg)`,
+                        backgroundColor: avatar.ropasuperior || '#97d398',
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varRopasuperior})`,
+                        maskImage: `url(/avatares/${personaje}/${varRopasuperior})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -215,7 +223,7 @@ function SeccionTienda({ tiendaAbierta, setTiendaAbierta, CATALOGO_AVATARES, ava
                                 </div>
                                 <div className="font-black text-xs text-center text-amber-950 mb-1 leading-tight h-8 flex items-center justify-center">{avatar.nombre}</div>
                                 <div className={`text-[11px] font-black mb-2 px-2.5 py-0.5 rounded-full ${desbloqueado ? 'text-green-900 bg-green-100 border border-green-300' : 'text-amber-800 bg-amber-100 border border-amber-300'}`}>
-                                    {desbloqueado ? '✓ Adquirido' : `${avatar.costo} 🌽`}
+                                    {desbloqueado ? 'Adquirido' : `${avatar.costo} 🌽`}
                                 </div>
                                 <button
                                     onClick={() => handleComprarOEquipar(avatar)}
@@ -264,7 +272,7 @@ function SeccionLogros({ logrosAbiertos, setLogrosAbiertos, CATALOGO_LOGROS, log
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between">
                                         <span className={`font-bold text-xs px-2 py-0.5 rounded-md ${conseguido ? 'bg-amber-200 text-amber-900' : 'bg-gray-200 text-gray-700'}`}>{logro.juego}</span>
-                                        <span className={`text-xs font-bold ${conseguido ? 'text-green-700' : 'text-gray-500'}`}>{conseguido ? '¡Conseguido! ✅' : 'Bloqueado'}</span>
+                                        <span className={`text-xs font-bold ${conseguido ? 'text-green-700' : 'text-gray-500'}`}>{conseguido ? 'Conseguido' : 'Bloqueado'}</span>
                                     </div>
                                     <h4 className={`font-black text-sm mt-1 truncate ${conseguido ? 'text-amber-950' : 'text-gray-600'}`}>{logro.nombre}</h4>
                                     <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">{logro.desc}</p>
@@ -373,7 +381,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
             await updateDoc(docRef, { totopos: nuevosTotopos, vidas: nuevasVidas });
             setTotopos(nuevosTotopos);
             setVidas(nuevasVidas);
-            setMensaje(`¡Compraste ${paquete.cantidad} vida(s) extra! ❤️`);
+            setMensaje(`¡Compraste ${paquete.cantidad} vida(s) extra!`);
             setTimeout(() => setMensaje(''), 3000);
         } catch (error) {
             console.error("Error comprando vidas:", error);
@@ -396,7 +404,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                 setTotopos(nuevosTotopos);
                 setAvataresDesbloqueados(nuevosDesbloqueados);
                 setAvatarActual(avatarItem.id);
-                setMensaje(`¡Compraste y equipaste ${avatarItem.nombre}! 🎉`);
+                setMensaje(`¡Compraste y equipaste ${avatarItem.nombre}!`);
                 setTimeout(() => setMensaje(''), 3000);
             } catch (error) {
                 console.error("Error en compra:", error);
@@ -406,7 +414,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                 const docRef = doc(db, 'usuarios', user.uid);
                 await updateDoc(docRef, { avatar: avatarItem.id });
                 setAvatarActual(avatarItem.id);
-                setMensaje(`Avatar cambiado a ${avatarItem.nombre} 👍`);
+                setMensaje(`Avatar cambiado a ${avatarItem.nombre}`);
                 setTimeout(() => setMensaje(''), 3000);
             } catch (error) {
                 console.error("Error equipando:", error);
@@ -420,7 +428,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
             const docRef = doc(db, 'usuarios', user.uid);
             await updateDoc(docRef, { avatar: configuracionAvatar });
             setAvatarActual(configuracionAvatar);
-            setMensaje('¡Avatar personalizado guardado con éxito! ✨');
+            setMensaje('¡Avatar personalizado guardado con éxito!');
             
             const calc = calcularNivelYTitulo(totoposHistoricos);
             if (onProfileUpdate) {
@@ -477,7 +485,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
                     {loading && (
                         <div className="absolute inset-x-0 top-0 bg-amber-600/90 text-white text-[11px] font-bold py-1 text-center z-10 flex items-center justify-center gap-1.5 shadow-sm animate-pulse">
-                            <span>🔄 Sincronizando datos con la nube...</span>
+                            <span>Sincronizando datos con la nube...</span>
                         </div>
                     )}
 
@@ -506,7 +514,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                                     onClick={() => setShowCreador(true)}
                                     className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-4 rounded-xl text-sm shadow-md transition-transform transform active:scale-95 cursor-pointer flex items-center justify-center gap-2 border border-amber-500"
                                 >
-                                    🎨 Diseñar mi Avatar
+                                    Diseñar mi Avatar
                                 </button>
                             </div>
                         )}
@@ -562,7 +570,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
                     {/* COMPRAR VIDAS */}
                     <div className="mb-6">
-                        <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">❤️ Comprar Vidas Extras</h3>
+                        <h3 className="font-black text-amber-900 mb-3 text-base flex items-center gap-2">Comprar Vidas Extras</h3>
                         <div className="grid grid-cols-3 gap-2">
                             {CATALOGO_VIDAS.map((paquete) => (
                                 <button
