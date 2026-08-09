@@ -1,26 +1,33 @@
 import React, { useState } from 'react';
 
-export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, inventarioVariantes = [] }) {
-    // 1. ESTADOS COMPLETOS DE CAPAS Y VARIANTES
-    const [personajeBase, setPersonajeBase] = useState('personaje1');
-    const [varianteSiluetaropabase, setVarianteSiluetaropabase] = useState('1silueta.svg');
+export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, inventarioVariantes = [], avatarActual }) {
+    // Verificar si el avatar actual es un objeto personalizado para cargar sus presets previos
+    const esPersonalizado = typeof avatarActual === 'object' && avatarActual !== null;
+
+    // 1. ESTADOS COMPLETOS DE CAPAS Y VARIANTES (cargando presets si existen)
+    const [personajeBase, setPersonajeBase] = useState(esPersonalizado ? avatarActual.tipo || 'personaje1' : 'personaje1');
+    const [varianteSiluetaropabase, setVarianteSiluetaropabase] = useState(esPersonalizado ? avatarActual.varianteSiluetaropabase || '1silueta.svg' : '1silueta.svg');
     
-    const [colorTonodepiel, setColorTonodepiel] = useState('#F5C6A0');
-    const [varianteTonodepiel, setVarianteTonodepiel] = useState('piel.svg');
+    const [colorTonodepiel, setColorTonodepiel] = useState(esPersonalizado ? avatarActual.tonodepiel || '#F5C6A0' : '#F5C6A0');
+    const [varianteTonodepiel, setVarianteTonodepiel] = useState(esPersonalizado ? avatarActual.varianteTonodepiel || 'piel.svg' : 'piel.svg');
 
-    const [colorSuperior, setColorSuperior] = useState('#E65100');
-    const [varianteSuperior, setVarianteSuperior] = useState('1playera1.svg');
+    const [colorSuperior, setColorSuperior] = useState(esPersonalizado ? avatarActual.superior || '#E65100' : '#E65100');
+    const [varianteSuperior, setVarianteSuperior] = useState(esPersonalizado ? avatarActual.varianteSuperior || '1playera1.svg' : '1playera1.svg');
 
-    const [varianteRostro, setVarianteRostro] = useState('1rostro1.svg');
+    const [varianteRostro, setVarianteRostro] = useState(esPersonalizado ? avatarActual.varianteRostro || '1rostro1.svg' : '1rostro1.svg');
 
-    const [colorOjos, setColorOjos] = useState('#000000');
-    const [varianteOjos, setVarianteOjos] = useState('1ojos1.svg');
+    const [colorOjos, setColorOjos] = useState(esPersonalizado ? avatarActual.ojos || '#000000' : '#000000');
+    const [varianteOjos, setVarianteOjos] = useState(esPersonalizado ? avatarActual.varianteOjos || '1ojos1.svg' : '1ojos1.svg');
 
-    const [colorCabello, setColorCabello] = useState('#4A3525');
-    const [varianteCabello, setVarianteCabello] = useState('1cabello1.svg');
+    const [colorCabello, setColorCabello] = useState(esPersonalizado ? avatarActual.cabello || '#4A3525' : '#4A3525');
+    const [varianteCabello, setVarianteCabello] = useState(esPersonalizado ? avatarActual.varianteCabello || '1cabello1.svg' : '1cabello1.svg');
 
-    const [colorInferior, setColorInferior] = useState('#4A3525');
-    const [varianteInferior, setVarianteInferior] = useState('1shorts1.svg');
+    const [colorInferior, setColorInferior] = useState(esPersonalizado ? avatarActual.inferior || '#4A3525' : '#4A3525');
+    const [varianteInferior, setVarianteInferior] = useState(esPersonalizado ? avatarActual.varianteInferior || '1shorts1.svg' : '1shorts1.svg');
+
+    // Estado para accesorios (al frente)
+    const [varianteAccesorio, setVarianteAccesorio] = useState(esPersonalizado ? avatarActual.varianteAccesorio || '' : '');
+    const [colorAccesorio, setColorAccesorio] = useState(esPersonalizado ? avatarActual.accesorio || '#E65100' : '#E65100');
 
     // 2. CATÁLOGOS DE VARIANTES POR CAPA
     const variantesSiluetaropabase = [
@@ -59,16 +66,24 @@ export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, in
         { id: "v2", nombre: "Pantalon", archivo: "pantalon1.svg", costo: 0 }
     ];
 
+    // Catálogo de accesorios vinculados con el inventario
+    const variantesAccesorios = [
+        { id: "ninguno", nombre: "Sin Accesorio", archivo: "", costo: 0 },
+        { id: "collar1", nombre: "Collar Tradicional", archivo: "collar1.svg", costo: 120 },
+        { id: "gafas1", nombre: "Gafas de Sol", archivo: "gafas1.svg", costo: 150 }
+    ];
+
     // 3. PALETAS DE COLORES
     const paletaTonodepiel = ["#F5C6A0", "#E0AC69", "#C68642", "#8D5524", "#ffdbac", "#f1c27d"];
     const paletaSuperior = ["#E65100", "#D32F2F", "#1976D2", "#388E3C"];
     const paletaOjos = ["#000000", "#4A3525", "#1976D2", "#19d27b", "#c7c7c7"];
     const paletaCabello = ["#000000", "#4A3525", "#c7c7c7"];
     const paletaInferior = ["#E65100", "#D32F2F", "#1976D2", "#388E3C", "#675246", "#221849"];
+    const paletaAccesorio = ["#E65100", "#D32F2F", "#1976D2", "#388E3C", "#D4AF37", "#000000"];
 
     // Validación de propiedad en el inventario del usuario
     const esDesbloqueado = (costo, id) => {
-        if (costo === 0) return true;
+        if (costo === 0 || id === "ninguno") return true;
         return inventarioVariantes.includes(id);
     };
 
@@ -88,6 +103,8 @@ export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, in
             varianteCabello: varianteCabello,
             inferior: colorInferior,
             varianteInferior: varianteInferior,
+            varianteAccesorio: varianteAccesorio,
+            accesorio: colorAccesorio,
             rutaBase: `/avatares/${personajeBase}/`
         };
 
@@ -172,7 +189,23 @@ export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, in
                             }}
                         />
 
-                        {/* 3. Capa Superior (Dinámica) */}
+                        {/* 3. Capa Inferior (Dinámica) */}
+                        <div
+                            className="absolute inset-0 pointer-events-none transition-colors duration-250"
+                            style={{
+                                backgroundColor: colorInferior,
+                                WebkitMaskImage: `url(/avatares/${personajeBase}/${varianteInferior})`,
+                                maskImage: `url(/avatares/${personajeBase}/${varianteInferior})`,
+                                WebkitMaskSize: 'contain',
+                                maskSize: 'contain',
+                                WebkitMaskRepeat: 'no-repeat',
+                                maskRepeat: 'no-repeat',
+                                WebkitMaskPosition: 'center',
+                                maskPosition: 'center'
+                            }}
+                        />
+
+                        {/* 4. Capa Superior (Dinámica) */}
                         <div
                             className="absolute inset-0 pointer-events-none transition-colors duration-250"
                             style={{
@@ -188,7 +221,7 @@ export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, in
                             }}
                         />
 
-                        {/* 4. Capa de Rostro (Estática) */}
+                        {/* 5. Capa de Rostro (Estática) */}
                         <div
                             className="absolute inset-0 pointer-events-none transition-colors duration-250"
                             style={{
@@ -199,7 +232,7 @@ export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, in
                             }}
                         />
 
-                        {/* 5. Capa de Ojos (Dinámica) */}
+                        {/* 6. Capa de Ojos (Dinámica) */}
                         <div
                             className="absolute inset-0 pointer-events-none transition-colors duration-250"
                             style={{
@@ -215,7 +248,7 @@ export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, in
                             }}
                         />
 
-                        {/* 6. Capa de Cabello (Dinámica) */}
+                        {/* 7. Capa de Cabello (Dinámica) */}
                         <div
                             className="absolute inset-0 pointer-events-none transition-colors duration-250"
                             style={{
@@ -231,26 +264,74 @@ export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, in
                             }}
                         />
 
-                        {/* 7. Capa Inferior (Dinámica) */}
-                        <div
-                            className="absolute inset-0 pointer-events-none transition-colors duration-250"
-                            style={{
-                                backgroundColor: colorInferior,
-                                WebkitMaskImage: `url(/avatares/${personajeBase}/${varianteInferior})`,
-                                maskImage: `url(/avatares/${personajeBase}/${varianteInferior})`,
-                                WebkitMaskSize: 'contain',
-                                maskSize: 'contain',
-                                WebkitMaskRepeat: 'no-repeat',
-                                maskRepeat: 'no-repeat',
-                                WebkitMaskPosition: 'center',
-                                maskPosition: 'center'
-                            }}
-                        />
+                        {/* 8. Capa de Accesorio (Hasta el frente) */}
+                        {varianteAccesorio && (
+                            <div
+                                className="absolute inset-0 pointer-events-none transition-colors duration-250"
+                                style={{
+                                    backgroundColor: colorAccesorio,
+                                    WebkitMaskImage: `url(/avatares/${personajeBase}/${varianteAccesorio})`,
+                                    maskImage: `url(/avatares/${personajeBase}/${varianteAccesorio})`,
+                                    WebkitMaskSize: 'contain',
+                                    maskSize: 'contain',
+                                    WebkitMaskRepeat: 'no-repeat',
+                                    maskRepeat: 'no-repeat',
+                                    WebkitMaskPosition: 'center',
+                                    maskPosition: 'center'
+                                }}
+                            />
+                        )}
                     </div>
 
                     {/* Controles de Variantes y Colores */}
                     <div className="space-y-4 bg-white/80 p-4 rounded-2xl border border-amber-200 shadow-sm">
                         
+                        {/* Selector de Accesorio (Al frente) */}
+                        <div>
+                            <label className="block text-xs font-black text-amber-900 uppercase mb-1.5">
+                                Accesorio (Al Frente)
+                            </label>
+                            <select
+                                value={varianteAccesorio}
+                                onChange={(e) => setVarianteAccesorio(e.target.value)}
+                                className="w-full px-3 py-2 border border-amber-300 rounded-xl text-xs bg-white text-amber-950 outline-none font-bold"
+                            >
+                                {variantesAccesorios.map((v) => {
+                                    const desbloqueado = esDesbloqueado(v.costo, v.id);
+                                    return (
+                                        <option key={v.id} value={v.archivo} disabled={!desbloqueado}>
+                                            {v.nombre} {desbloqueado ? '' : `(Bloqueado - ${v.costo} Totopos)`}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+
+                        {/* Selector Color Accesorio */}
+                        {varianteAccesorio && (
+                            <div>
+                                <label className="block text-xs font-black text-amber-900 uppercase mb-1.5 flex items-center justify-between">
+                                    <span>Color Accesorio</span>
+                                    <span className="text-[10px] text-amber-700 font-medium">({colorAccesorio})</span>
+                                </label>
+                                <div className="flex gap-2.5 flex-wrap">
+                                    {paletaAccesorio.map((hex) => (
+                                        <button
+                                            key={hex}
+                                            type="button"
+                                            onClick={() => setColorAccesorio(hex)}
+                                            className={`w-8 h-8 rounded-full border-2 transition-transform cursor-pointer shadow-sm ${
+                                                colorAccesorio === hex 
+                                                    ? 'scale-110 border-amber-950 ring-2 ring-amber-400' 
+                                                    : 'border-amber-300 hover:scale-105'
+                                            }`}
+                                            style={{ backgroundColor: hex }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Selector de Variante: Cabello */}
                         <div>
                             <label className="block text-xs font-black text-amber-900 uppercase mb-1.5">
