@@ -14,18 +14,21 @@ import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
 import ConfiguracionModal from './components/ConfiguracionModal';
 
-// Catálogo de respaldos para tienda y emojis
+// Ruta de mercado para accesorios sincronizada
+const RUTA_MERCADO_ACCESORIOS = '/avatares/mercado/';
+
+// Catalogo de respaldos para tienda y identificadores
 const AVATAR_EMOJIS = {
-    default: '🌽',
-    iguana: '🦎',
-    tortuga: '🐢',
-    huipil: '🌸',
-    colibri: '🐦',
-    jaguar: '🐆',
-    mezcal: '🥃',
-    sol: '☀️',
-    bandera: '🧵',
-    corona: '👑'
+    default: 'Coraza',
+    iguana: 'Iguana',
+    tortuga: 'Tortuga',
+    huipil: 'Huipil',
+    colibri: 'Colibri',
+    jaguar: 'Jaguar',
+    mezcal: 'Mezcal',
+    sol: 'Sol',
+    bandera: 'Bandera',
+    corona: 'Corona'
 };
 
 const calcularNivelRapido = (totalHistorico) => {
@@ -37,7 +40,7 @@ const calcularNivelRapido = (totalHistorico) => {
 };
 
 /* ==========================================
-   RENDERIZADOR DE AVATAR SUPERIOR (Compatible con Variantes Múltiples)
+   RENDERIZADOR DE AVATAR SUPERIOR (8 Capas con Accesorios)
    ========================================== */
 function RenderAvatarSuperior({ avatar }) {
     const esPersonalizado = typeof avatar === 'object' && avatar !== null;
@@ -56,6 +59,8 @@ function RenderAvatarSuperior({ avatar }) {
         const colorCabello = avatar.cabello || '#1A1A1A';
         const varInferior = avatar.varianteInferior || avatar.varianteRopainferior || '1shorts1.svg';
         const colorInferior = avatar.inferior || avatar.ropainferior || '#4A3525';
+        const varAccesorio = avatar.varianteAccesorio || '';
+        const colorAccesorio = avatar.accesorio || '#E65100';
 
         return (
             <div className="w-full h-full relative overflow-hidden bg-white flex items-center justify-center">
@@ -154,6 +159,23 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
+                {/* 8. Capa de Accesorio */}
+                {varAccesorio && (
+                    <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                            backgroundColor: colorAccesorio,
+                            WebkitMaskImage: `url(${RUTA_MERCADO_ACCESORIOS}${varAccesorio})`,
+                            maskImage: `url(${RUTA_MERCADO_ACCESORIOS}${varAccesorio})`,
+                            WebkitMaskSize: 'contain',
+                            maskSize: 'contain',
+                            WebkitMaskRepeat: 'no-repeat',
+                            maskRepeat: 'no-repeat',
+                            WebkitMaskPosition: 'center',
+                            maskPosition: 'center'
+                        }}
+                    />
+                )}
             </div>
         );
     }
@@ -181,20 +203,17 @@ function App() {
   const [vistaActual, setVistaActual] = useState('menu');
   const [user, setUser] = useState(null);
   
-  const [perfilInfo, setPerfilInfo] = useState({ nombre: '', avatar: 'default', emoji: '🌽', nivel: 1 });
+  const [perfilInfo, setPerfilInfo] = useState({ nombre: '', avatar: 'default', nivel: 1 });
   
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showPerfilModal, setShowPerfilModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
 
-  // Estados globales de la música
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [indicePista, setIndicePista] = useState(0);
 
-  // Estado global para almacenar los controles del juego activo en curso
   const [controlesJuegoActivo, setControlesJuegoActivo] = useState(null);
 
-  // Función reutilizable para cargar el perfil del usuario desde Firestore
   const cargarPerfil = async (currentUser) => {
     if (currentUser) {
       try {
@@ -206,12 +225,10 @@ function App() {
           if (data.totopos > historico) historico = data.totopos;
           const nivelCalc = calcularNivelRapido(historico);
           const avatarId = data.avatar !== undefined ? data.avatar : 'default';
-          const emojiCalc = typeof avatarId === 'object' ? '🎨' : (AVATAR_EMOJIS[avatarId] || '🌽');
 
           setPerfilInfo({
             nombre: data.nombre || '',
             avatar: avatarId,
-            emoji: emojiCalc,
             nivel: nivelCalc
           });
         }
@@ -219,11 +236,10 @@ function App() {
         console.error("Error cargando perfil superior:", error);
       }
     } else {
-      setPerfilInfo({ nombre: '', avatar: 'default', emoji: '🌽', nivel: 1 });
+      setPerfilInfo({ nombre: '', avatar: 'default', nivel: 1 });
     }
   };
 
-  // Escuchar sesión y cargar datos iniciales de Firestore
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -249,7 +265,6 @@ function App() {
     setIndicePista(siguiente);
   };
 
-  // Función auxiliar para guardar el nivel actual en localStorage antes de volver al menú
   const guardarNivelActual = () => {
     if (controlesJuegoActivo?.level !== undefined && controlesJuegoActivo?.level !== null) {
       const nivelActual = controlesJuegoActivo.level;
@@ -265,7 +280,6 @@ function App() {
     }
   };
 
-  const emojiAvatar = user ? (perfilInfo.emoji || (typeof perfilInfo.avatar === 'object' ? '🎨' : AVATAR_EMOJIS[perfilInfo.avatar]) || '🌽') : '👤';
   const displayNickname = user 
     ? (perfilInfo.nombre ? perfilInfo.nombre : user.email.split('@')[0]) 
     : 'Iniciar Sesion';
@@ -275,17 +289,14 @@ function App() {
   return (
     <div className="min-h-screen bg-orange-50/50 font-sans text-amber-950 pb-10 relative">
 
-      {/* Reproductor de audio global persistente */}
       <AudioFondo 
         isPlaying={isPlayingMusic} 
         indicePista={indicePista} 
         onPlayStateChange={setIsPlayingMusic} 
       />
 
-      {/* PANEL SUPERIOR FLOTANTE */}
       <div className="fixed top-3 left-3 sm:top-4 sm:left-4 z-40 flex items-center gap-2">
         
-        {/* 1.- Botón / Tarjeta de Perfil Modal */}
         <button
           onClick={handlePanelSuperiorClick}
           className="bg-amber-100/90 hover:bg-amber-200/90 backdrop-blur-md text-amber-950 px-3 py-1.5 rounded-2xl font-bold shadow-md transition-transform transform active:scale-95 flex items-center gap-2.5 cursor-pointer border-2 border-amber-300 hover:border-amber-400 text-xs sm:text-sm"
@@ -307,7 +318,6 @@ function App() {
           </div>
         </button>
 
-        {/* 2.- Botón Menú Principal */}
         {vistaActual !== 'menu' && (
           <button
             onClick={() => {
@@ -322,24 +332,21 @@ function App() {
             className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-2.5 sm:px-3.5 rounded-2xl shadow-md transition-transform transform active:scale-95 text-xs sm:text-sm cursor-pointer flex items-center justify-center gap-1.5 border-2 border-amber-500 whitespace-nowrap"
             title="Volver al Menu Principal"
           >
-            <span className="sm:hidden text-base leading-none">☰</span>
+            <span className="sm:hidden text-base leading-none">Menu</span>
             <span className="hidden sm:inline">Menu Principal</span>
           </button>
         )}
 
-        {/* 3.- Botón Flotante de Guardar Récord */}
         {onGuardarClick && (
           <button
             onClick={onGuardarClick}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2.5 sm:px-3.5 rounded-2xl shadow-md transition-transform transform active:scale-95 text-xs sm:text-sm cursor-pointer flex items-center justify-center gap-1.5 border-2 border-emerald-500 whitespace-nowrap"
             title="Guardar Record"
           >
-            <span className="text-base leading-none">💾</span>
             <span className="hidden sm:inline">Guardar Record</span>
           </button>
         )}
 
-        {/* 4.- Botón de Configuración */}
         <button
           onClick={() => setShowConfigModal(true)}
           className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center shadow-md transition-transform transform active:scale-95 border-2 cursor-pointer overflow-hidden p-2 ${
@@ -359,13 +366,12 @@ function App() {
             }}
           />
           <span style={{ display: 'none' }} className="w-full h-full items-center justify-center text-lg">
-            ⚙️
+            Config
           </span>
         </button>
 
       </div>
 
-      {/* CONTENEDOR DE VISTAS */}
       <main className="pt-16 sm:pt-20">
         {vistaActual === 'menu' && (
           <MenuPrincipal setVistaActual={(vista) => {
@@ -436,12 +442,10 @@ function App() {
         )}
       </main>
 
-      {/* Modal de Inicio de Sesión / Registro */}
       {showLoginModal && (
         <LoginModal user={user} onClose={() => setShowLoginModal(false)} />
       )}
 
-      {/* Modal de Perfil, Edición y Tienda */}
       {showPerfilModal && (
         <PerfilModal 
           user={user} 
@@ -452,14 +456,12 @@ function App() {
           onProfileUpdate={(nuevosDatos) => {
             setPerfilInfo(prev => ({ 
               ...prev, 
-              ...nuevosDatos, 
-              emoji: nuevosDatos.emoji || (typeof nuevosDatos.avatar === 'object' ? '🎨' : AVATAR_EMOJIS[nuevosDatos.avatar]) || prev.emoji 
+              ...nuevosDatos
             }));
           }}
         />
       )}
 
-      {/* Modal de Configuración, Música y Panel Admin */}
       <ConfiguracionModal
         isOpen={showConfigModal}
         onClose={() => setShowConfigModal(false)}

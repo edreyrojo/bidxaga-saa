@@ -7,6 +7,9 @@ import SeccionTienda from './SeccionTienda';
 import SeccionLogros from './SeccionLogros';
 import SeccionInventario from './SeccionInventario';
 
+// 🗂️ Misma carpeta que usan SeccionTienda/SeccionInventario/CreadorAvatar para accesorios
+const RUTA_MERCADO_ACCESORIOS = '/avatares/mercado/';
+
 // Funciones de Nivel y Progreso
 const calcularNivelYTitulo = (totalHistorico) => {
     if (totalHistorico < 100) return { nivel: 1, titulo: "Recién Llegado" };
@@ -50,6 +53,8 @@ function RenderAvatarVisual({ avatar }) {
         const colorCabello = avatar.cabello || '#1A1A1A';
         const varInferior = avatar.varianteInferior || avatar.varianteRopainferior || '1shorts1.svg';
         const colorInferior = avatar.inferior || avatar.ropainferior || '#4A3525';
+        const varAccesorio = avatar.varianteAccesorio || '';
+        const colorAccesorio = avatar.accesorio || '#E65100';
 
         return (
             <div className="w-full h-full relative overflow-hidden bg-white flex items-center justify-center">
@@ -148,6 +153,23 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
+                {/* 8. Capa de Accesorio (Hasta el frente) — 🆕 antes faltaba por completo aquí */}
+                {varAccesorio && (
+                    <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                            backgroundColor: colorAccesorio,
+                            WebkitMaskImage: `url(${RUTA_MERCADO_ACCESORIOS}${varAccesorio})`,
+                            maskImage: `url(${RUTA_MERCADO_ACCESORIOS}${varAccesorio})`,
+                            WebkitMaskSize: 'contain',
+                            maskSize: 'contain',
+                            WebkitMaskRepeat: 'no-repeat',
+                            maskRepeat: 'no-repeat',
+                            WebkitMaskPosition: 'center',
+                            maskPosition: 'center'
+                        }}
+                    />
+                )}
             </div>
         );
     }
