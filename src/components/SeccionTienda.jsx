@@ -15,6 +15,11 @@ const CATALOGO_AVATARES = [
     { id: 'palmera', nombre: 'Palmera Real', costo: 400 },
 ];
 
+const CATALOGO_ACCESORIOS = [
+    { id: 'collar1', nombre: 'Collar Tradicional', costo: 120 },
+    { id: 'gafas1', nombre: 'Gafas de Sol', costo: 150 },
+];
+
 const CATALOGO_VIDAS = [
     { id: 'vida_1', costo: 15, cantidad: 1 },
     { id: 'vida_3', costo: 40, cantidad: 3 },
@@ -31,6 +36,8 @@ export default function SeccionTienda({
     setAvatarActual,
     avataresDesbloqueados,
     setAvataresDesbloqueados,
+    accesoriosDesbloqueados = [],
+    setAccesoriosDesbloqueados = () => {},
     setMensaje,
     tiendaAbierta, 
     setTiendaAbierta
@@ -82,6 +89,43 @@ export default function SeccionTienda({
             setMensaje(`Has comprado y equipado a ${avatar.nombre}.`);
             setTimeout(() => setMensaje(''), 3000);
         }
+    };
+
+    const handleComprarAccesorio = async (accesorio) => {
+        const desbloqueado = accesoriosDesbloqueados.includes(accesorio.id);
+
+        if (desbloqueado) {
+            setMensaje(`Ya cuentas con ${accesorio.nombre} en tu inventario.`);
+            setTimeout(() => setMensaje(''), 3000);
+            return;
+        }
+
+        if (totopos < accesorio.costo) {
+            setMensaje('No tienes suficientes totopos para este accesorio.');
+            setTimeout(() => setMensaje(''), 3000);
+            return;
+        }
+
+        const nuevosTotopos = totopos - accesorio.costo;
+        const nuevosAccesorios = [...accesoriosDesbloqueados, accesorio.id];
+
+        setTotopos(nuevosTotopos);
+        setAccesoriosDesbloqueados(nuevosAccesorios);
+
+        if (user) {
+            try {
+                const userRef = doc(db, 'usuarios', user.uid);
+                await updateDoc(userRef, {
+                    totopos: nuevosTotopos,
+                    accesoriosDesbloqueados: nuevosAccesorios
+                });
+            } catch (error) {
+                console.error("Error al guardar compra de accesorio en Firestore:", error);
+            }
+        }
+
+        setMensaje(`Has comprado ${accesorio.nombre}.`);
+        setTimeout(() => setMensaje(''), 3000);
     };
 
     const handleComprarVidas = async (paquete) => {
@@ -145,7 +189,17 @@ export default function SeccionTienda({
                                     : 'text-amber-700 hover:bg-amber-100/50'
                             }`}
                         >
-                            Avatares (10)
+                            Avatares
+                        </button>
+                        <button
+                            onClick={() => setPestanaActiva('accesorios')}
+                            className={`flex-1 py-2.5 text-xs font-black transition-colors cursor-pointer ${
+                                pestanaActiva === 'accesorios'
+                                    ? 'bg-white text-amber-900 border-b-2 border-amber-600 shadow-sm'
+                                    : 'text-amber-700 hover:bg-amber-100/50'
+                            }`}
+                        >
+                            Accesorios
                         </button>
                         <button
                             onClick={() => setPestanaActiva('vidas')}
@@ -156,7 +210,7 @@ export default function SeccionTienda({
                             }`}
                         >
                             <img src="/tuna-vida.png" alt="Vida" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
-                            Comprar Vidas
+                            Vidas
                         </button>
                     </div>
 
@@ -220,6 +274,64 @@ export default function SeccionTienda({
                                             }`}
                                         >
                                             {equipado ? 'Equipado' : desbloqueado ? 'Equipar' : 'Comprar'}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {pestanaActiva === 'accesorios' && (
+                        <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto custom-scrollbar">
+                            {CATALOGO_ACCESORIOS.map((accesorio) => {
+                                const desbloqueado = accesoriosDesbloqueados.includes(accesorio.id);
+
+                                return (
+                                    <div 
+                                        key={accesorio.id} 
+                                        className="p-3 rounded-3xl border-2 border-amber-300 bg-white hover:border-amber-400 flex flex-col items-center justify-between transition-all duration-200"
+                                    >
+                                        <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-2 rounded-full flex items-center justify-center border-4 border-amber-200 bg-amber-50 shadow-inner overflow-hidden">
+                                            <img 
+                                                src={`/avatares/mercado/${accesorio.id}.svg`} 
+                                                alt={accesorio.nombre} 
+                                                className="w-full h-full object-contain p-1" 
+                                                onError={(e) => { 
+                                                    e.target.onerror = null; 
+                                                    e.target.style.display = 'none'; 
+                                                }} 
+                                            />
+                                        </div>
+
+                                        <div className="font-black text-xs text-center text-amber-950 mb-1 leading-tight h-8 flex items-center justify-center">
+                                            {accesorio.nombre}
+                                        </div>
+
+                                        <div className={`text-[11px] font-black mb-2 px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
+                                            desbloqueado 
+                                                ? 'text-green-900 bg-green-100 border border-green-300' 
+                                                : 'text-amber-800 bg-amber-100 border border-amber-300'
+                                        }`}>
+                                            {desbloqueado ? (
+                                                'Adquirido'
+                                            ) : (
+                                                <>
+                                                    {accesorio.costo}
+                                                    <img src="/totopo.png" alt="Totopo" className="w-3.5 h-3.5 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
+                                                </>
+                                            )}
+                                        </div>
+
+                                        <button
+                                            onClick={() => handleComprarAccesorio(accesorio)}
+                                            disabled={desbloqueado}
+                                            className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all active:scale-95 shadow ${
+                                                desbloqueado 
+                                                    ? 'bg-green-700 text-white opacity-90 cursor-default' 
+                                                    : 'bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
+                                            }`}
+                                        >
+                                            {desbloqueado ? 'Adquirido' : 'Comprar'}
                                         </button>
                                     </div>
                                 );

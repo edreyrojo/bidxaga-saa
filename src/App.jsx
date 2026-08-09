@@ -14,30 +14,30 @@ import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
 import ConfiguracionModal from './components/ConfiguracionModal';
 
-// Catálogo completo de emojis para sincronizar con la tienda
+// Catálogo de respaldos para tienda y emojis
 const AVATAR_EMOJIS = {
-  default: '🌽',
-  iguana: '🦎',
-  tortuga: '🐢',
-  huipil: '🌸',
-  colibri: '🐦',
-  jaguar: '🐆',
-  mezcal: '🥃',
-  sol: '☀️',
-  bandera: '🧵',
-  corona: '👑'
+    default: '🌽',
+    iguana: '🦎',
+    tortuga: '🐢',
+    huipil: '🌸',
+    colibri: '🐦',
+    jaguar: '🐆',
+    mezcal: '🥃',
+    sol: '☀️',
+    bandera: '🧵',
+    corona: '👑'
 };
 
 const calcularNivelRapido = (totalHistorico) => {
-  if (totalHistorico < 100) return 1;
-  if (totalHistorico < 300) return 2;
-  if (totalHistorico < 600) return 3;
-  if (totalHistorico < 1000) return 4;
-  return 5;
+    if (totalHistorico < 100) return 1;
+    if (totalHistorico < 300) return 2;
+    if (totalHistorico < 600) return 3;
+    if (totalHistorico < 1000) return 4;
+    return 5;
 };
 
 /* ==========================================
-   COMPONENTE AUXILIAR: RENDERIZADOR DE AVATAR DE 7 CAPAS EN APP (Blindado y Compatible)
+   RENDERIZADOR DE AVATAR SUPERIOR (Compatible con Variantes Múltiples)
    ========================================== */
 function RenderAvatarSuperior({ avatar }) {
     const esPersonalizado = typeof avatar === 'object' && avatar !== null;
@@ -45,21 +45,21 @@ function RenderAvatarSuperior({ avatar }) {
     if (esPersonalizado) {
         const personaje = avatar.tipo || 'personaje1';
         const varSilueta = avatar.varianteSiluetaropabase || '1silueta.svg';
-        const colorPiel = avatar.piel || '#F5C6A0';
-        const varPiel = avatar.variantePiel || '1piel.svg';
-        const colorCabello = avatar.cabello || '#4A3525';
-        const varCabello = avatar.varianteCabello || '1cabello1_1.svg';
-        const colorOjos = avatar.ojos || '#4a3525';
-        const varOjos = avatar.varianteOjos || '1ojos1.svg';
+        const varTonodepiel = avatar.varianteTonodepiel || avatar.variantePiel || 'piel.svg';
+        const colorTonodepiel = avatar.tonodepiel || avatar.piel || '#F5C6A0';
+        const varSuperior = avatar.varianteSuperior || avatar.varianteRopasuperior || '1playera1.svg';
+        const colorSuperior = avatar.superior || avatar.ropasuperior || '#E65100';
         const varRostro = avatar.varianteRostro || '1rostro1.svg';
-        const colorRopainferior = avatar.ropainferior || '#E65100';
-        const varRopainferior = avatar.varianteRopainferior || '1shorts1.svg';
-        const colorRopasuperior = avatar.ropasuperior || '#97d398';
-        const varRopasuperior = avatar.varianteRopasuperior || '1playera1.svg';
+        const varOjos = avatar.varianteOjos || '1ojos1.svg';
+        const colorOjos = avatar.ojos || '#1A1A1A';
+        const varCabello = avatar.varianteCabello || '1cabello1.svg';
+        const colorCabello = avatar.cabello || '#1A1A1A';
+        const varInferior = avatar.varianteInferior || avatar.varianteRopainferior || '1shorts1.svg';
+        const colorInferior = avatar.inferior || avatar.ropainferior || '#4A3525';
 
         return (
             <div className="w-full h-full relative overflow-hidden bg-white flex items-center justify-center">
-                {/* 1. Capa de Silueta / Ropa Base (Estática) */}
+                {/* 1. Capa de Silueta / Ropa Base */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -69,13 +69,13 @@ function RenderAvatarSuperior({ avatar }) {
                         backgroundPosition: 'center'
                     }}
                 />
-                {/* 2. Capa de Piel */}
+                {/* 2. Capa de Tono de Piel */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: colorPiel,
-                        WebkitMaskImage: `url(/avatares/${personaje}/${varPiel})`,
-                        maskImage: `url(/avatares/${personaje}/${varPiel})`,
+                        backgroundColor: colorTonodepiel,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varTonodepiel})`,
+                        maskImage: `url(/avatares/${personaje}/${varTonodepiel})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -84,13 +84,13 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 3. Capa de Cabello */}
+                {/* 3. Capa Superior */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: colorCabello,
-                        WebkitMaskImage: `url(/avatares/${personaje}/${varCabello})`,
-                        maskImage: `url(/avatares/${personaje}/${varCabello})`,
+                        backgroundColor: colorSuperior,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varSuperior})`,
+                        maskImage: `url(/avatares/${personaje}/${varSuperior})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -99,7 +99,17 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 4. Capa de Ojos */}
+                {/* 4. Capa de Rostro */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundImage: `url(/avatares/${personaje}/${varRostro})`,
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center'
+                    }}
+                />
+                {/* 5. Capa de Ojos */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -114,23 +124,13 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 5. Capa de Rostro (Estática) */}
+                {/* 6. Capa de Cabello */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundImage: `url(/avatares/${personaje}/${varRostro})`,
-                        backgroundSize: 'contain',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'center'
-                    }}
-                />
-                {/* 6. Capa de Ropa Inferior */}
-                <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                        backgroundColor: colorRopainferior,
-                        WebkitMaskImage: `url(/avatares/${personaje}/${varRopainferior})`,
-                        maskImage: `url(/avatares/${personaje}/${varRopainferior})`,
+                        backgroundColor: colorCabello,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varCabello})`,
+                        maskImage: `url(/avatares/${personaje}/${varCabello})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -139,13 +139,13 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 7. Capa de Ropa Superior */}
+                {/* 7. Capa Inferior */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: colorRopasuperior,
-                        WebkitMaskImage: `url(/avatares/${personaje}/${varRopasuperior})`,
-                        maskImage: `url(/avatares/${personaje}/${varRopasuperior})`,
+                        backgroundColor: colorInferior,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varInferior})`,
+                        maskImage: `url(/avatares/${personaje}/${varInferior})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -158,23 +158,23 @@ function RenderAvatarSuperior({ avatar }) {
         );
     }
 
-    if (avatar && avatar !== 'default') {
-        return (
-            <img 
-                src={`/avatares/${avatar}.png`} 
-                alt={avatar}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                    e.target.style.display = 'none';
-                    if (e.target.nextSibling) {
-                        e.target.nextSibling.style.display = 'flex';
-                    }
-                }}
-            />
-        );
-    }
-
-    return null;
+    return (
+        <img 
+            src={`/avatares/${avatar}.png`} 
+            alt="Avatar Equipado"
+            className="w-full h-full object-contain p-1 bg-amber-50"
+            onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = 'none';
+                if (!e.target.parentNode.querySelector('.fallback-text')) {
+                    const fallback = document.createElement('span');
+                    fallback.className = "fallback-text text-xs font-bold flex items-center justify-center w-full h-full text-amber-900";
+                    fallback.innerText = 'Avatar';
+                    e.target.parentNode.appendChild(fallback);
+                }
+            }}
+        />
+    );
 }
 
 function App() {
@@ -268,7 +268,7 @@ function App() {
   const emojiAvatar = user ? (perfilInfo.emoji || (typeof perfilInfo.avatar === 'object' ? '🎨' : AVATAR_EMOJIS[perfilInfo.avatar]) || '🌽') : '👤';
   const displayNickname = user 
     ? (perfilInfo.nombre ? perfilInfo.nombre : user.email.split('@')[0]) 
-    : 'Iniciar Sesión';
+    : 'Iniciar Sesion';
 
   const onGuardarClick = controlesJuegoActivo?.onGuardarClick;
 
@@ -289,16 +289,10 @@ function App() {
         <button
           onClick={handlePanelSuperiorClick}
           className="bg-amber-100/90 hover:bg-amber-200/90 backdrop-blur-md text-amber-950 px-3 py-1.5 rounded-2xl font-bold shadow-md transition-transform transform active:scale-95 flex items-center gap-2.5 cursor-pointer border-2 border-amber-300 hover:border-amber-400 text-xs sm:text-sm"
-          title={user ? "Ver Perfil" : "Iniciar Sesión"}
+          title={user ? "Ver Perfil" : "Iniciar Sesion"}
         >
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-50 text-amber-900 flex items-center justify-center text-lg sm:text-xl shadow-inner border-2 border-amber-300 flex-shrink-0 overflow-hidden relative">
             <RenderAvatarSuperior avatar={perfilInfo.avatar} />
-            <span 
-              style={{ display: (user && perfilInfo.avatar && perfilInfo.avatar !== 'default') ? 'none' : 'flex' }} 
-              className="w-full h-full items-center justify-center"
-            >
-              {emojiAvatar}
-            </span>
           </div>
 
           <div className="flex flex-col text-left leading-tight">
@@ -326,10 +320,10 @@ function App() {
               }
             }}
             className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-2.5 sm:px-3.5 rounded-2xl shadow-md transition-transform transform active:scale-95 text-xs sm:text-sm cursor-pointer flex items-center justify-center gap-1.5 border-2 border-amber-500 whitespace-nowrap"
-            title="Volver al Menú Principal"
+            title="Volver al Menu Principal"
           >
             <span className="sm:hidden text-base leading-none">☰</span>
-            <span className="hidden sm:inline">Menú Principal</span>
+            <span className="hidden sm:inline">Menu Principal</span>
           </button>
         )}
 
@@ -338,10 +332,10 @@ function App() {
           <button
             onClick={onGuardarClick}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2.5 sm:px-3.5 rounded-2xl shadow-md transition-transform transform active:scale-95 text-xs sm:text-sm cursor-pointer flex items-center justify-center gap-1.5 border-2 border-emerald-500 whitespace-nowrap"
-            title="Guardar Récord"
+            title="Guardar Record"
           >
             <span className="text-base leading-none">💾</span>
-            <span className="hidden sm:inline">Guardar Récord</span>
+            <span className="hidden sm:inline">Guardar Record</span>
           </button>
         )}
 
@@ -353,11 +347,11 @@ function App() {
               ? 'bg-amber-100/90 hover:bg-amber-200/90 text-amber-900 border-amber-300 hover:border-amber-400' 
               : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
           }`}
-          title="Abrir Configuración y Música"
+          title="Abrir Configuracion y Musica"
         >
           <img 
             src="/engrane.png" 
-            alt="Configuración" 
+            alt="Configuracion" 
             className="w-full h-full object-contain animate-spin-slow"
             onError={(e) => {
               e.target.style.display = 'none';

@@ -1,42 +1,43 @@
 import React, { useState } from 'react';
 
-export default function CreadorAvatar({ onClose, onGuardar }) {
-    // 🔄 1. ESTADOS COMPLETOS DE CAPAS Y VARIANTES
+export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, inventarioVariantes = [] }) {
+    // 1. ESTADOS COMPLETOS DE CAPAS Y VARIANTES
     const [personajeBase, setPersonajeBase] = useState('personaje1');
     const [varianteSiluetaropabase, setVarianteSiluetaropabase] = useState('1silueta.svg');
     
-    const [colorPiel, setColorPiel] = useState('#F5C6A0');
-    const [variantePiel, setVariantePiel] = useState('1piel.svg');
+    const [colorTonodepiel, setColorTonodepiel] = useState('#F5C6A0');
+    const [varianteTonodepiel, setVarianteTonodepiel] = useState('piel.svg');
 
-    const [colorCabello, setColorCabello] = useState('#4A3525');
-    const [varianteCabello, setVarianteCabello] = useState('1cabello1_1.svg');
-
-    const [colorOjos, setColorOjos] = useState('#4a3525');
-    const [varianteOjos, setVarianteOjos] = useState('1ojos1.svg');
+    const [colorSuperior, setColorSuperior] = useState('#E65100');
+    const [varianteSuperior, setVarianteSuperior] = useState('1playera1.svg');
 
     const [varianteRostro, setVarianteRostro] = useState('1rostro1.svg');
 
-    const [colorRopainferior, setColorRopainferior] = useState('#E65100');
-    const [varianteRopainferior, setVarianteRopainferior] = useState('1shorts1.svg');
+    const [colorOjos, setColorOjos] = useState('#000000');
+    const [varianteOjos, setVarianteOjos] = useState('1ojos1.svg');
 
-    const [colorRopasuperior, setColorRopasuperior] = useState('#97d398');
-    const [varianteRopasuperior, setVarianteRopasuperior] = useState('1playera1.svg');
+    const [colorCabello, setColorCabello] = useState('#4A3525');
+    const [varianteCabello, setVarianteCabello] = useState('1cabello1.svg');
 
-    // 📚 2. CATÁLOGOS DE VARIANTES POR CAPA
+    const [colorInferior, setColorInferior] = useState('#4A3525');
+    const [varianteInferior, setVarianteInferior] = useState('1shorts1.svg');
+
+    // 2. CATÁLOGOS DE VARIANTES POR CAPA
     const variantesSiluetaropabase = [
-        { id: "var1", nombre: "silueta", archivo: "1silueta.svg", costo: 0 }
+        { id: "var1", nombre: "Ropa Clásica", archivo: "1silueta.svg", costo: 0 }
     ];
 
-    const variantesPiel = [
-        { id: "v1", nombre: "Principal", archivo: "1piel.svg", costo: 0 }
+    const variantesTonodepiel = [
+        { id: "var1", nombre: "Piel Base", archivo: "piel.svg", costo: 0 }
     ];
 
-    const variantesCabello = [
-        { id: "v1", nombre: "Estilo 1", archivo: "1cabello1_1.svg", costo: 0 },
-        { id: "v2", nombre: "Estilo 2", archivo: "1cabello2.svg", costo: 0 },
-        { id: "v3", nombre: "Estilo 3", archivo: "cabello3.svg", costo: 0 },
-        { id: "v4", nombre: "Estilo 4", archivo: "cabello4.svg", costo: 0 },
-        { id: "v5", nombre: "Estilo 5", archivo: "cabello 5.svg", costo: 0 }
+    const variantesSuperior = [
+        { id: "v1", nombre: "Principal", archivo: "1playera1.svg", costo: 0 },
+        { id: "v2", nombre: "Camisa", archivo: "camisa1.svg", costo: 0 }
+    ];
+
+    const variantesRostro = [
+        { id: "v1", nombre: "Principal", archivo: "1rostro1.svg", costo: 0 }
     ];
 
     const variantesOjos = [
@@ -45,41 +46,48 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
         { id: "v3", nombre: "Variante 3", archivo: "1ojos3.svg", costo: 0 }
     ];
 
-    const variantesRostro = [
-        { id: "v1", nombre: "Principal", archivo: "1rostro1.svg", costo: 0 }
+    const variantesCabello = [
+        { id: "v1", nombre: "Principal", archivo: "1cabello1.svg", costo: 0 },
+        { id: "v2", nombre: "Variante 2", archivo: "1cabello2.svg", costo: 0 },
+        { id: "v3", nombre: "Variante 3", archivo: "cabello3.svg", costo: 0 },
+        { id: "v4", nombre: "Variante 4", archivo: "cabello4.svg", costo: 0 },
+        { id: "v5", nombre: "Variante 5", archivo: "cabello 5.svg", costo: 0 }
     ];
 
-    const variantesRopainferior = [
-        { id: "v1", nombre: "Shorts", archivo: "1shorts1.svg", costo: 0 }
+    const variantesInferior = [
+        { id: "v1", nombre: "Principal", archivo: "1shorts1.svg", costo: 0 },
+        { id: "v2", nombre: "Pantalon", archivo: "pantalon1.svg", costo: 0 }
     ];
 
-    const variantesRopasuperior = [
-        { id: "v1", nombre: "Playera", archivo: "1playera1.svg", costo: 0 }
-    ];
+    // 3. PALETAS DE COLORES
+    const paletaTonodepiel = ["#F5C6A0", "#E0AC69", "#C68642", "#8D5524", "#ffdbac", "#f1c27d"];
+    const paletaSuperior = ["#E65100", "#D32F2F", "#1976D2", "#388E3C"];
+    const paletaOjos = ["#000000", "#4A3525", "#1976D2", "#19d27b", "#c7c7c7"];
+    const paletaCabello = ["#000000", "#4A3525", "#c7c7c7"];
+    const paletaInferior = ["#E65100", "#D32F2F", "#1976D2", "#388E3C", "#675246", "#221849"];
 
-    // 🎨 3. PALETAS DE COLORES
-    const paletaPiel = ["#F5C6A0", "#f5d99e", "#ddc797", "#ddbc97", "#a06e46", "#7b4b24"];
-    const paletaCabello = ["#E65100", "#D32F2F", "#1976D2", "#388E3C", "#4A3525", "#1A1A1A"];
-    const paletaOjos = ["#1976D2", "#388E3C", "#4A3525", "#1A1A1A", "#E65100"];
-    const paletaRopainferior = ["#E65100", "#D32F2F", "#1976D2", "#388E3C", "#00e604", "#0026e6"];
-    const paletaRopasuperior = ["#E65100", "#D32F2F", "#1976D2", "#388E3C", "#00e604", "#0026e6"];
+    // Validación de propiedad en el inventario del usuario
+    const esDesbloqueado = (costo, id) => {
+        if (costo === 0) return true;
+        return inventarioVariantes.includes(id);
+    };
 
-    // 💾 4. FUNCIÓN DE GUARDADO COMPATIBLE CON FIREBASE
+    // 4. FUNCIÓN DE GUARDADO COMPATIBLE CON FIREBASE
     const handleGuardarCambios = () => {
         const configuracionAvatar = {
             tipo: personajeBase,
             varianteSiluetaropabase: varianteSiluetaropabase,
-            piel: colorPiel,
-            variantePiel: variantePiel,
-            cabello: colorCabello,
-            varianteCabello: varianteCabello,
+            tonodepiel: colorTonodepiel,
+            varianteTonodepiel: varianteTonodepiel,
+            superior: colorSuperior,
+            varianteSuperior: varianteSuperior,
+            varianteRostro: varianteRostro,
             ojos: colorOjos,
             varianteOjos: varianteOjos,
-            varianteRostro: varianteRostro,
-            ropainferior: colorRopainferior,
-            varianteRopainferior: varianteRopainferior,
-            ropasuperior: colorRopasuperior,
-            varianteRopasuperior: varianteRopasuperior,
+            cabello: colorCabello,
+            varianteCabello: varianteCabello,
+            inferior: colorInferior,
+            varianteInferior: varianteInferior,
             rutaBase: `/avatares/${personajeBase}/`
         };
 
@@ -95,22 +103,35 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
 
                 {/* Cabecera del Modal */}
                 <div className="bg-amber-200 px-6 py-4 flex justify-between items-center border-b-2 border-amber-300">
-                    <h2 className="text-amber-950 font-extrabold text-lg sm:text-xl">
-                        Estudio de Avatar Zapoteco
-                    </h2>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="text-amber-800 hover:text-amber-950 font-bold text-xl w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                        ✕
-                    </button>
+                    <div>
+                        <h2 className="text-amber-950 font-extrabold text-lg sm:text-xl">
+                            Estudio de Avatar Zapoteco
+                        </h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {onOpenInventario && (
+                            <button
+                                type="button"
+                                onClick={onOpenInventario}
+                                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-colors cursor-pointer"
+                            >
+                                Inventario
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="text-amber-800 hover:text-amber-950 font-bold text-xl w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center transition-colors cursor-pointer"
+                        >
+                            ✕
+                        </button>
+                    </div>
                 </div>
 
                 {/* Contenido Principal con Scroll fluido */}
                 <div className="p-6 overflow-y-auto space-y-5 flex-1">
 
-                    {/* SELECTOR DE ESTILO / BASE */}
+                    {/* Selector de Estilo / Base */}
                     <div className="flex justify-center gap-3">
                         <button
                             type="button"
@@ -121,7 +142,7 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                         </button>
                     </div>
 
-                    {/* 🖼️ 5. VISOR DE CAPAS (Contenedor Absoluto Milimétrico) */}
+                    {/* Visor de Capas Milimétrico */}
                     <div className="relative w-48 h-48 mx-auto bg-white rounded-3xl border-4 border-amber-300 overflow-hidden shadow-inner flex items-center justify-center select-none">
                         
                         {/* 1. Capa de Silueta / Ropa Base (Estática) */}
@@ -135,13 +156,13 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                             }}
                         />
 
-                        {/* 2. Capa de Piel (Dinámica) */}
+                        {/* 2. Capa de Tono de Piel (Dinámica) */}
                         <div
                             className="absolute inset-0 pointer-events-none transition-colors duration-250"
                             style={{
-                                backgroundColor: colorPiel,
-                                WebkitMaskImage: `url(/avatares/${personajeBase}/${variantePiel})`,
-                                maskImage: `url(/avatares/${personajeBase}/${variantePiel})`,
+                                backgroundColor: colorTonodepiel,
+                                WebkitMaskImage: `url(/avatares/${personajeBase}/${varianteTonodepiel})`,
+                                maskImage: `url(/avatares/${personajeBase}/${varianteTonodepiel})`,
                                 WebkitMaskSize: 'contain',
                                 maskSize: 'contain',
                                 WebkitMaskRepeat: 'no-repeat',
@@ -151,13 +172,13 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                             }}
                         />
 
-                        {/* 3. Capa de Cabello (Dinámica) */}
+                        {/* 3. Capa Superior (Dinámica) */}
                         <div
                             className="absolute inset-0 pointer-events-none transition-colors duration-250"
                             style={{
-                                backgroundColor: colorCabello,
-                                WebkitMaskImage: `url(/avatares/${personajeBase}/${varianteCabello})`,
-                                maskImage: `url(/avatares/${personajeBase}/${varianteCabello})`,
+                                backgroundColor: colorSuperior,
+                                WebkitMaskImage: `url(/avatares/${personajeBase}/${varianteSuperior})`,
+                                maskImage: `url(/avatares/${personajeBase}/${varianteSuperior})`,
                                 WebkitMaskSize: 'contain',
                                 maskSize: 'contain',
                                 WebkitMaskRepeat: 'no-repeat',
@@ -167,7 +188,18 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                             }}
                         />
 
-                        {/* 4. Capa de Ojos (Dinámica) */}
+                        {/* 4. Capa de Rostro (Estática) */}
+                        <div
+                            className="absolute inset-0 pointer-events-none transition-colors duration-250"
+                            style={{
+                                backgroundImage: `url(/avatares/${personajeBase}/${varianteRostro})`,
+                                backgroundSize: 'contain',
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'center'
+                            }}
+                        />
+
+                        {/* 5. Capa de Ojos (Dinámica) */}
                         <div
                             className="absolute inset-0 pointer-events-none transition-colors duration-250"
                             style={{
@@ -183,24 +215,13 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                             }}
                         />
 
-                        {/* 5. Capa de Rostro (Estática) */}
+                        {/* 6. Capa de Cabello (Dinámica) */}
                         <div
                             className="absolute inset-0 pointer-events-none transition-colors duration-250"
                             style={{
-                                backgroundImage: `url(/avatares/${personajeBase}/${varianteRostro})`,
-                                backgroundSize: 'contain',
-                                backgroundRepeat: 'no-repeat',
-                                backgroundPosition: 'center'
-                            }}
-                        />
-
-                        {/* 6. Capa de Ropa Inferior (Dinámica) */}
-                        <div
-                            className="absolute inset-0 pointer-events-none transition-colors duration-250"
-                            style={{
-                                backgroundColor: colorRopainferior,
-                                WebkitMaskImage: `url(/avatares/${personajeBase}/${varianteRopainferior})`,
-                                maskImage: `url(/avatares/${personajeBase}/${varianteRopainferior})`,
+                                backgroundColor: colorCabello,
+                                WebkitMaskImage: `url(/avatares/${personajeBase}/${varianteCabello})`,
+                                maskImage: `url(/avatares/${personajeBase}/${varianteCabello})`,
                                 WebkitMaskSize: 'contain',
                                 maskSize: 'contain',
                                 WebkitMaskRepeat: 'no-repeat',
@@ -210,13 +231,13 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                             }}
                         />
 
-                        {/* 7. Capa de Ropa Superior (Dinámica) */}
+                        {/* 7. Capa Inferior (Dinámica) */}
                         <div
                             className="absolute inset-0 pointer-events-none transition-colors duration-250"
                             style={{
-                                backgroundColor: colorRopasuperior,
-                                WebkitMaskImage: `url(/avatares/${personajeBase}/${varianteRopasuperior})`,
-                                maskImage: `url(/avatares/${personajeBase}/${varianteRopasuperior})`,
+                                backgroundColor: colorInferior,
+                                WebkitMaskImage: `url(/avatares/${personajeBase}/${varianteInferior})`,
+                                maskImage: `url(/avatares/${personajeBase}/${varianteInferior})`,
                                 WebkitMaskSize: 'contain',
                                 maskSize: 'contain',
                                 WebkitMaskRepeat: 'no-repeat',
@@ -227,7 +248,7 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                         />
                     </div>
 
-                    {/* 🎚️ 6. CONTROLES DE VARIANTES Y COLORES */}
+                    {/* Controles de Variantes y Colores */}
                     <div className="space-y-4 bg-white/80 p-4 rounded-2xl border border-amber-200 shadow-sm">
                         
                         {/* Selector de Variante: Cabello */}
@@ -240,11 +261,14 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                                 onChange={(e) => setVarianteCabello(e.target.value)}
                                 className="w-full px-3 py-2 border border-amber-300 rounded-xl text-xs bg-white text-amber-950 outline-none font-bold"
                             >
-                                {variantesCabello.map((v) => (
-                                    <option key={v.id} value={v.archivo}>
-                                        {v.nombre}
-                                    </option>
-                                ))}
+                                {variantesCabello.map((v) => {
+                                    const desbloqueado = esDesbloqueado(v.costo, v.id);
+                                    return (
+                                        <option key={v.id} value={v.archivo} disabled={!desbloqueado}>
+                                            {v.nombre} {desbloqueado ? '' : `(Bloqueado - ${v.costo} Totopos)`}
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
 
@@ -281,11 +305,14 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                                 onChange={(e) => setVarianteOjos(e.target.value)}
                                 className="w-full px-3 py-2 border border-amber-300 rounded-xl text-xs bg-white text-amber-950 outline-none font-bold"
                             >
-                                {variantesOjos.map((v) => (
-                                    <option key={v.id} value={v.archivo}>
-                                        {v.nombre}
-                                    </option>
-                                ))}
+                                {variantesOjos.map((v) => {
+                                    const desbloqueado = esDesbloqueado(v.costo, v.id);
+                                    return (
+                                        <option key={v.id} value={v.archivo} disabled={!desbloqueado}>
+                                            {v.nombre} {desbloqueado ? '' : `(Bloqueado - ${v.costo} Totopos)`}
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
 
@@ -312,20 +339,41 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                             </div>
                         </div>
 
-                        {/* Selector Color Piel */}
+                        {/* Selector de Variante: Superior */}
+                        <div>
+                            <label className="block text-xs font-black text-amber-900 uppercase mb-1.5">
+                                Estilo Superior
+                            </label>
+                            <select
+                                value={varianteSuperior}
+                                onChange={(e) => setVarianteSuperior(e.target.value)}
+                                className="w-full px-3 py-2 border border-amber-300 rounded-xl text-xs bg-white text-amber-950 outline-none font-bold"
+                            >
+                                {variantesSuperior.map((v) => {
+                                    const desbloqueado = esDesbloqueado(v.costo, v.id);
+                                    return (
+                                        <option key={v.id} value={v.archivo} disabled={!desbloqueado}>
+                                            {v.nombre} {desbloqueado ? '' : `(Bloqueado - ${v.costo} Totopos)`}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+
+                        {/* Selector Color Superior */}
                         <div>
                             <label className="block text-xs font-black text-amber-900 uppercase mb-1.5 flex items-center justify-between">
-                                <span>Color Piel</span>
-                                <span className="text-[10px] text-amber-700 font-medium">({colorPiel})</span>
+                                <span>Color Superior</span>
+                                <span className="text-[10px] text-amber-700 font-medium">({colorSuperior})</span>
                             </label>
                             <div className="flex gap-2.5 flex-wrap">
-                                {paletaPiel.map((hex) => (
+                                {paletaSuperior.map((hex) => (
                                     <button
                                         key={hex}
                                         type="button"
-                                        onClick={() => setColorPiel(hex)}
+                                        onClick={() => setColorSuperior(hex)}
                                         className={`w-8 h-8 rounded-full border-2 transition-transform cursor-pointer shadow-sm ${
-                                            colorPiel === hex 
+                                            colorSuperior === hex 
                                                 ? 'scale-110 border-amber-950 ring-2 ring-amber-400' 
                                                 : 'border-amber-300 hover:scale-105'
                                         }`}
@@ -335,20 +383,41 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                             </div>
                         </div>
 
-                        {/* Selector Color Ropa Superior */}
+                        {/* Selector de Variante: Inferior */}
+                        <div>
+                            <label className="block text-xs font-black text-amber-900 uppercase mb-1.5">
+                                Estilo Inferior
+                            </label>
+                            <select
+                                value={varianteInferior}
+                                onChange={(e) => setVarianteInferior(e.target.value)}
+                                className="w-full px-3 py-2 border border-amber-300 rounded-xl text-xs bg-white text-amber-950 outline-none font-bold"
+                            >
+                                {variantesInferior.map((v) => {
+                                    const desbloqueado = esDesbloqueado(v.costo, v.id);
+                                    return (
+                                        <option key={v.id} value={v.archivo} disabled={!desbloqueado}>
+                                            {v.nombre} {desbloqueado ? '' : `(Bloqueado - ${v.costo} Totopos)`}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+
+                        {/* Selector Color Inferior */}
                         <div>
                             <label className="block text-xs font-black text-amber-900 uppercase mb-1.5 flex items-center justify-between">
-                                <span>Color Ropa Superior</span>
-                                <span className="text-[10px] text-amber-700 font-medium">({colorRopasuperior})</span>
+                                <span>Color Inferior</span>
+                                <span className="text-[10px] text-amber-700 font-medium">({colorInferior})</span>
                             </label>
                             <div className="flex gap-2.5 flex-wrap">
-                                {paletaRopasuperior.map((hex) => (
+                                {paletaInferior.map((hex) => (
                                     <button
                                         key={hex}
                                         type="button"
-                                        onClick={() => setColorRopasuperior(hex)}
+                                        onClick={() => setColorInferior(hex)}
                                         className={`w-8 h-8 rounded-full border-2 transition-transform cursor-pointer shadow-sm ${
-                                            colorRopasuperior === hex 
+                                            colorInferior === hex 
                                                 ? 'scale-110 border-amber-950 ring-2 ring-amber-400' 
                                                 : 'border-amber-300 hover:scale-105'
                                         }`}
@@ -358,20 +427,20 @@ export default function CreadorAvatar({ onClose, onGuardar }) {
                             </div>
                         </div>
 
-                        {/* Selector Color Ropa Inferior */}
+                        {/* Selector Tono de Piel */}
                         <div>
                             <label className="block text-xs font-black text-amber-900 uppercase mb-1.5 flex items-center justify-between">
-                                <span>Color Ropa Inferior</span>
-                                <span className="text-[10px] text-amber-700 font-medium">({colorRopainferior})</span>
+                                <span>Tono de Piel</span>
+                                <span className="text-[10px] text-amber-700 font-medium">({colorTonodepiel})</span>
                             </label>
                             <div className="flex gap-2.5 flex-wrap">
-                                {paletaRopainferior.map((hex) => (
+                                {paletaTonodepiel.map((hex) => (
                                     <button
                                         key={hex}
                                         type="button"
-                                        onClick={() => setColorRopainferior(hex)}
+                                        onClick={() => setColorTonodepiel(hex)}
                                         className={`w-8 h-8 rounded-full border-2 transition-transform cursor-pointer shadow-sm ${
-                                            colorRopainferior === hex 
+                                            colorTonodepiel === hex 
                                                 ? 'scale-110 border-amber-950 ring-2 ring-amber-400' 
                                                 : 'border-amber-300 hover:scale-105'
                                         }`}

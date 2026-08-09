@@ -5,6 +5,7 @@ import { signOut } from 'firebase/auth';
 import CreadorAvatar from './CreadorAvatar';
 import SeccionTienda from './SeccionTienda';
 import SeccionLogros from './SeccionLogros';
+import SeccionInventario from './SeccionInventario';
 
 // Funciones de Nivel y Progreso
 const calcularNivelYTitulo = (totalHistorico) => {
@@ -30,7 +31,7 @@ const calcularProgresoNivel = (totalHistorico) => {
 };
 
 /* ==========================================
-   RENDERIZADOR DE AVATAR
+   RENDERIZADOR DE AVATAR (Compatible con Variantes y SVG)
    ========================================== */
 function RenderAvatarVisual({ avatar }) {
     const esPersonalizado = typeof avatar === 'object' && avatar !== null;
@@ -38,15 +39,21 @@ function RenderAvatarVisual({ avatar }) {
     if (esPersonalizado) {
         const personaje = avatar.tipo || 'personaje1';
         const varSilueta = avatar.varianteSiluetaropabase || '1silueta.svg';
-        const varPiel = avatar.variantePiel || '1piel.svg';
-        const varCabello = avatar.varianteCabello || '1cabello1_1.svg';
-        const varOjos = avatar.varianteOjos || '1ojos1.svg';
+        const varTonodepiel = avatar.varianteTonodepiel || avatar.variantePiel || 'piel.svg';
+        const colorTonodepiel = avatar.tonodepiel || avatar.piel || '#F5C6A0';
+        const varSuperior = avatar.varianteSuperior || avatar.varianteRopasuperior || '1playera1.svg';
+        const colorSuperior = avatar.superior || avatar.ropasuperior || '#E65100';
         const varRostro = avatar.varianteRostro || '1rostro1.svg';
-        const varRopainferior = avatar.varianteRopainferior || '1shorts1.svg';
-        const varRopasuperior = avatar.varianteRopasuperior || '1playera1.svg';
+        const varOjos = avatar.varianteOjos || '1ojos1.svg';
+        const colorOjos = avatar.ojos || '#1A1A1A';
+        const varCabello = avatar.varianteCabello || '1cabello1.svg';
+        const colorCabello = avatar.cabello || '#1A1A1A';
+        const varInferior = avatar.varianteInferior || avatar.varianteRopainferior || '1shorts1.svg';
+        const colorInferior = avatar.inferior || avatar.ropainferior || '#4A3525';
 
         return (
             <div className="w-full h-full relative overflow-hidden bg-white flex items-center justify-center">
+                {/* 1. Capa de Silueta / Ropa Base */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -56,12 +63,13 @@ function RenderAvatarVisual({ avatar }) {
                         backgroundPosition: 'center'
                     }}
                 />
+                {/* 2. Capa de Tono de Piel */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.piel || '#F5C6A0',
-                        WebkitMaskImage: `url(/avatares/${personaje}/${varPiel})`,
-                        maskImage: `url(/avatares/${personaje}/${varPiel})`,
+                        backgroundColor: colorTonodepiel,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varTonodepiel})`,
+                        maskImage: `url(/avatares/${personaje}/${varTonodepiel})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -70,12 +78,13 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
+                {/* 3. Capa Superior */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.cabello || '#4A3525',
-                        WebkitMaskImage: `url(/avatares/${personaje}/${varCabello})`,
-                        maskImage: `url(/avatares/${personaje}/${varCabello})`,
+                        backgroundColor: colorSuperior,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varSuperior})`,
+                        maskImage: `url(/avatares/${personaje}/${varSuperior})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -84,10 +93,21 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
+                {/* 4. Capa de Rostro */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.ojos || '#4a3525',
+                        backgroundImage: `url(/avatares/${personaje}/${varRostro})`,
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center'
+                    }}
+                />
+                {/* 5. Capa de Ojos */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundColor: colorOjos,
                         WebkitMaskImage: `url(/avatares/${personaje}/${varOjos})`,
                         maskImage: `url(/avatares/${personaje}/${varOjos})`,
                         WebkitMaskSize: 'contain',
@@ -98,21 +118,13 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
+                {/* 6. Capa de Cabello */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundImage: `url(/avatares/${personaje}/${varRostro})`,
-                        backgroundSize: 'contain',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'center'
-                    }}
-                />
-                <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                        backgroundColor: avatar.ropainferior || '#E65100',
-                        WebkitMaskImage: `url(/avatares/${personaje}/${varRopainferior})`,
-                        maskImage: `url(/avatares/${personaje}/${varRopainferior})`,
+                        backgroundColor: colorCabello,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varCabello})`,
+                        maskImage: `url(/avatares/${personaje}/${varCabello})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -121,12 +133,13 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
+                {/* 7. Capa Inferior */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                        backgroundColor: avatar.ropasuperior || '#97d398',
-                        WebkitMaskImage: `url(/avatares/${personaje}/${varRopasuperior})`,
-                        maskImage: `url(/avatares/${personaje}/${varRopasuperior})`,
+                        backgroundColor: colorInferior,
+                        WebkitMaskImage: `url(/avatares/${personaje}/${varInferior})`,
+                        maskImage: `url(/avatares/${personaje}/${varInferior})`,
                         WebkitMaskSize: 'contain',
                         maskSize: 'contain',
                         WebkitMaskRepeat: 'no-repeat',
@@ -163,11 +176,15 @@ function RenderAvatarVisual({ avatar }) {
    ========================================== */
 export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     const [nombre, setNombre] = useState('');
+    const [nombreTemporal, setNombreTemporal] = useState('');
+    const [editandoNombre, setEditandoNombre] = useState(false);
+
     const [totopos, setTotopos] = useState(0);
     const [totoposHistoricos, setTotoposHistoricos] = useState(0);
     const [vidas, setVidas] = useState(3);
     const [avatarActual, setAvatarActual] = useState('default');
     const [avataresDesbloqueados, setAvataresDesbloqueados] = useState(['default']);
+    const [accesoriosDesbloqueados, setAccesoriosDesbloqueados] = useState([]);
     const [logrosDesbloqueados, setLogrosDesbloqueados] = useState([]);
 
     const [loading, setLoading] = useState(true);
@@ -177,6 +194,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
     const [tiendaAbierta, setTiendaAbierta] = useState(false);
     const [logrosAbiertos, setLogrosAbiertos] = useState(false);
+    const [inventarioAbierto, setInventarioAbierto] = useState(false);
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -192,11 +210,14 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     const avatarId = data.avatar !== undefined ? data.avatar : 'default';
-                    setNombre(data.nombre || '');
+                    const nombreUsuario = data.nombre || '';
+                    setNombre(nombreUsuario);
+                    setNombreTemporal(nombreUsuario);
                     setTotopos(data.totopos || 0);
                     setVidas(data.vidas !== undefined ? data.vidas : 3);
                     setAvatarActual(avatarId);
                     setAvataresDesbloqueados(data.avataresDesbloqueados || ['default']);
+                    setAccesoriosDesbloqueados(data.accesoriosDesbloqueados || []);
                     setLogrosDesbloqueados(data.logrosDesbloqueados || []);
 
                     let historico = data.totoposHistoricos;
@@ -209,7 +230,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     if (onProfileUpdate) {
                         const calc = calcularNivelYTitulo(historico);
                         onProfileUpdate({
-                            nombre: data.nombre || '',
+                            nombre: nombreUsuario,
                             avatar: avatarId,
                             nivel: calc.nivel
                         });
@@ -226,11 +247,13 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
     const handleActualizarNombre = async (e) => {
         e.preventDefault();
-        const nombreLimpio = nombre.trim();
+        const nombreLimpio = nombreTemporal.trim();
         try {
             const docRef = doc(db, 'usuarios', user.uid);
             await updateDoc(docRef, { nombre: nombreLimpio });
-            setMensaje('Nombre actualizado con éxito');
+            setNombre(nombreLimpio);
+            setEditandoNombre(false);
+            setMensaje('Nombre actualizado con exito');
             setTimeout(() => setMensaje(''), 3000);
         } catch (error) {
             console.error("Error actualizando nombre:", error);
@@ -244,7 +267,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
             const docRef = doc(db, 'usuarios', user.uid);
             await updateDoc(docRef, { avatar: configuracionAvatar });
             setAvatarActual(configuracionAvatar);
-            setMensaje('Avatar personalizado guardado con éxito.');
+            setMensaje('Avatar personalizado guardado con exito.');
             
             const calc = calcularNivelYTitulo(totoposHistoricos);
             if (onProfileUpdate) {
@@ -267,7 +290,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
             await signOut(auth);
             onClose();
         } catch (error) {
-            console.error("Error al cerrar sesión:", error);
+            console.error("Error al cerrar sesion:", error);
         }
     };
 
@@ -286,11 +309,11 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
 
                 {showConfirmLogout && (
                     <div className="absolute inset-0 bg-white/95 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-                        <h3 className="text-2xl font-bold text-red-600 mb-2">¿Cerrar Sesión?</h3>
-                        <p className="text-amber-900 text-sm mb-6 font-medium">Tendrás que volver a ingresar para conservar tu progreso en la nube.</p>
+                        <h3 className="text-2xl font-bold text-red-600 mb-2">¿Cerrar Sesion?</h3>
+                        <p className="text-amber-900 text-sm mb-6 font-medium">Tendras que volver a ingresar para conservar tu progreso en la nube.</p>
                         <div className="flex gap-3 w-full">
                             <button onClick={() => setShowConfirmLogout(false)} className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl transition-colors cursor-pointer">Cancelar</button>
-                            <button onClick={handleCerrarSesion} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl shadow-md transition-colors cursor-pointer">Sí, salir</button>
+                            <button onClick={handleCerrarSesion} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl shadow-md transition-colors cursor-pointer">Si, salir</button>
                         </div>
                     </div>
                 )}
@@ -314,10 +337,45 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             </div>
                         </div>
 
-                        <h2 className="text-2xl font-black text-amber-950 mt-3">
-                            {nombre ? nombre : (user?.email || 'Mi Perfil Istmeño')}
-                        </h2>
-                        <p className="text-amber-700 text-sm font-medium mb-2">
+                        {/* NICKNAME Y LÁPIZ MONOCROMÁTICO DE EDICIÓN RÁPIDA */}
+                        <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
+                            {!editandoNombre ? (
+                                <div className="flex items-center gap-2">
+                                    <h2 className="text-2xl font-black text-amber-950">
+                                        {nombre ? nombre : (user?.email || 'Mi Perfil Istmeño')}
+                                    </h2>
+                                    <button 
+                                        onClick={() => { setNombreTemporal(nombre); setEditandoNombre(true); }} 
+                                        className="text-amber-700 hover:text-amber-900 bg-amber-200/60 hover:bg-amber-200 p-1.5 rounded-full transition-colors cursor-pointer"
+                                        title="Editar nombre"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M12 20h9"></path>
+                                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            ) : (
+                                <form onSubmit={handleActualizarNombre} className="flex gap-2 w-full max-w-xs mx-auto animate-fade-in">
+                                    <input
+                                        type="text"
+                                        value={nombreTemporal}
+                                        onChange={(e) => setNombreTemporal(e.target.value)}
+                                        placeholder="Nuevo apodo"
+                                        className="flex-1 px-3 py-1.5 rounded-xl border-2 border-amber-400 focus:outline-none focus:border-amber-600 text-sm bg-white text-amber-950 font-bold"
+                                        autoFocus
+                                    />
+                                    <button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs cursor-pointer shadow">
+                                        OK
+                                    </button>
+                                    <button type="button" onClick={() => setEditandoNombre(false)} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-2 py-1.5 rounded-xl text-xs cursor-pointer">
+                                        X
+                                    </button>
+                                </form>
+                            )}
+                        </div>
+
+                        <p className="text-amber-700 text-sm font-medium mb-2 mt-1">
                             {!nombre ? 'Explorador' : titulo}
                         </p>
 
@@ -365,51 +423,68 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     )}
 
-                    {/* CAMBIAR NOMBRE */}
-                    <form onSubmit={handleActualizarNombre} className="mb-6 bg-white p-4 rounded-2xl border border-amber-200 shadow-sm">
-                        <label className="block text-amber-900 font-bold text-sm mb-2">Nombre de usuario o apodo</label>
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={nombre}
-                                onChange={(e) => setNombre(e.target.value)}
-                                placeholder="Ej. Chepe Zapoteco"
-                                className="flex-1 px-3 py-2 rounded-xl border-2 border-amber-200 focus:outline-none focus:border-amber-500 font-medium text-sm bg-amber-50/50 text-amber-950"
-                            />
-                            <button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-transform active:scale-95 shadow cursor-pointer">
-                                Guardar
-                            </button>
+                    {/* TIENDA DE AVATARES Y VIDAS */}
+                    <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2 px-1">
+                            <img src="/tehuana.png" alt="Tehuana" className="w-6 h-6 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+                            <h3 className="text-amber-950 font-black text-base">Mercado y Tienda</h3>
                         </div>
-                    </form>
+                        <SeccionTienda 
+                            user={user}
+                            totopos={totopos}
+                            setTotopos={setTotopos}
+                            vidas={vidas}
+                            setVidas={setVidas}
+                            avatarActual={avatarActual}
+                            setAvatarActual={setAvatarActual}
+                            avataresDesbloqueados={avataresDesbloqueados}
+                            setAvataresDesbloqueados={setAvataresDesbloqueados}
+                            accesoriosDesbloqueados={accesoriosDesbloqueados}
+                            setAccesoriosDesbloqueados={setAccesoriosDesbloqueados}
+                            setMensaje={setMensaje}
+                            tiendaAbierta={tiendaAbierta}
+                            setTiendaAbierta={setTiendaAbierta}
+                        />
+                    </div>
 
-                    {/* TIENDA DE AVATARES Y VIDAS (DELEGADO A SECCIONTIENDA) */}
-                    <SeccionTienda 
-                        user={user}
-                        totopos={totopos}
-                        setTotopos={setTotopos}
-                        vidas={vidas}
-                        setVidas={setVidas}
-                        avatarActual={avatarActual}
-                        setAvatarActual={setAvatarActual}
-                        avataresDesbloqueados={avataresDesbloqueados}
-                        setAvataresDesbloqueados={setAvataresDesbloqueados}
-                        setMensaje={setMensaje}
-                        tiendaAbierta={tiendaAbierta}
-                        setTiendaAbierta={setTiendaAbierta}
-                    />
+                    {/* SECCION INVENTARIO */}
+                    <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2 px-1">
+                            <img src="/palmera.png" alt="Inventario" className="w-6 h-6 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+                            <h3 className="text-amber-950 font-black text-base">Inventario de Objetos</h3>
+                        </div>
+                        <SeccionInventario
+                            user={user}
+                            avataresDesbloqueados={avataresDesbloqueados}
+                            setAvataresDesbloqueados={setAvataresDesbloqueados}
+                            accesoriosDesbloqueados={accesoriosDesbloqueados}
+                            setAccesoriosDesbloqueados={setAccesoriosDesbloqueados}
+                            avatarActual={avatarActual}
+                            setAvatarActual={setAvatarActual}
+                            setMensaje={setMensaje}
+                            inventarioAbierto={inventarioAbierto}
+                            setInventarioAbierto={setInventarioAbierto}
+                        />
+                    </div>
 
                     {/* LOGROS Y TROFEOS */}
-                    <SeccionLogros 
-                        logrosAbiertos={logrosAbiertos}
-                        setLogrosAbiertos={setLogrosAbiertos}
-                        logrosDesbloqueados={logrosDesbloqueados}
-                    />
+                    <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2 px-1">
+                            <img src="/guiechachi.png" alt="Guiechachi" className="w-6 h-6 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+                            <h3 className="text-amber-950 font-black text-base">Logros y Trofeos</h3>
+                        </div>
+                        <SeccionLogros 
+                            logrosAbiertos={logrosAbiertos}
+                            setLogrosAbiertos={setLogrosAbiertos}
+                            logrosDesbloqueados={logrosDesbloqueados}
+                        />
+                    </div>
 
                     <button
                         onClick={() => setShowConfirmLogout(true)}
-                        className="w-full bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 font-bold py-3 px-4 rounded-2xl shadow-sm transition-transform active:scale-95 text-sm cursor-pointer"
+                        className="w-full bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 font-bold py-3 px-4 rounded-2xl shadow-sm transition-transform active:scale-95 text-sm cursor-pointer mt-4"
                     >
-                        Cerrar Sesión
+                        Cerrar Sesion
                     </button>
 
                 </div>
