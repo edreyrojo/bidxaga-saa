@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { listaAnimales } from '../data/animales.js';
+import {
+    categoriaInicialPorDefecto,
+    sincronizarDesbloqueosPorNivel,
+    filtrarContenidoPorCategorias
+} from '../data/Categoriascontenido.js';
+import { calcularNivelCuenta } from '../utils/nivelCuenta.js';
+import SelectorCategorias from './SelectorCategorias.jsx';
 import { auth, db } from '../firebaseConfig';
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, increment, query, orderBy, limit } from 'firebase/firestore';
 
@@ -33,6 +40,12 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     const [showMenuModal, setShowMenuModal] = useState(false); // ⚠️ Estado para la advertencia del menú
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
+
+    // 📚 Sistema de categorías desbloqueables (Trivia solo usa fauna)
+    const [nivelCuenta, setNivelCuenta] = useState(1);
+    const [categoriasFaunaDesbloqueadas, setCategoriasFaunaDesbloqueadas] = useState(() => categoriaInicialPorDefecto('fauna'));
+    const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => categoriaInicialPorDefecto('fauna'));
+    const [showSelectorCategorias, setShowSelectorCategorias] = useState(false);
 
     const PREGUNTAS_POR_NIVEL = 5;
     const TOTOPOS_POR_NIVEL = 15; // Recompensa de totopos al completar nivel
@@ -161,6 +174,17 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
         if (vidasGuardadas !== null) setVidas(parseInt(vidasGuardadas, 10));
 
+        // 📚 Categorías: respaldo local
+        try {
+            const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
+            if (faunaGuardadas) {
+                setCategoriasFaunaDesbloqueadas(faunaGuardadas);
+                setCategoriasFaunaActivas(prev => prev.filter(id => faunaGuardadas.includes(id)).length ? prev.filter(id => faunaGuardadas.includes(id)) : categoriaInicialPorDefecto('fauna'));
+            }
+        } catch (e) {
+            console.error("Error al leer categorías guardadas localmente:", e);
+        }
+
         // Sincronizar totopos y nickname del perfil en Firestore si el usuario está logueado
         const cargarDatosNube = async () => {
             const currentUser = user || auth.currentUser;
@@ -174,6 +198,26 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                             setTotopos(data.totopos);
                             localStorage.setItem('totopos', data.totopos);
                         }
+
+                        // 🏅 Nivel de Cuenta + sincronización de categorías gratis por nivel
+                        const historico = data.totoposHistoricos !== undefined ? data.totoposHistoricos : (data.totopos || 0);
+                        const nivelCalc = calcularNivelCuenta(historico);
+                        setNivelCuenta(nivelCalc);
+
+                        const faunaNube = sincronizarDesbloqueosPorNivel('fauna', data.categoriasFaunaDesbloqueadas || categoriaInicialPorDefecto('fauna'), nivelCalc);
+                        setCategoriasFaunaDesbloqueadas(faunaNube);
+                        localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
+
+                        setCategoriasFaunaActivas(prev => {
+                            const activasValidas = prev.filter(id => faunaNube.includes(id));
+                            return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('fauna');
+                        });
+
+                        if (JSON.stringify(faunaNube) !== JSON.stringify(data.categoriasFaunaDesbloqueadas || [])) {
+                            updateDoc(userDocRef, { categoriasFaunaDesbloqueadas: faunaNube })
+                                .catch(err => console.error("Error al sincronizar categorías por nivel:", err));
+                        }
+
                         const nickNube = data.nickname || data.nombre || data.name;
                         if (nickNube) {
                             setPlayerName(nickNube);
@@ -202,15 +246,18 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         } else if (aciertosNivel >= PREGUNTAS_POR_NIVEL) {
             setPendingGlobalScore({ level: nivel, errores: errores });
         }
-    }, [nivel, aciertosNivel, isGameOver]);
+    }, [nivel, aciertosNivel, isGameOver, categoriasFaunaActivas]);
 
     const generarNuevaPregunta = () => {
         setEstadoRespuesta(null);
         setOpcionSeleccionada(null);
 
-        const animalCorrecto = listaAnimales[Math.floor(Math.random() * listaAnimales.length)];
-        
-        const distractores = [...listaAnimales]
+        const poolActivo = filtrarContenidoPorCategorias(listaAnimales, categoriasFaunaActivas);
+        const poolSeguro = poolActivo.length >= 4 ? poolActivo : listaAnimales;
+
+        const animalCorrecto = poolSeguro[Math.floor(Math.random() * poolSeguro.length)];
+
+        const distractores = [...poolSeguro]
             .filter(a => a.id !== animalCorrecto.id)
             .sort(() => Math.random() - 0.5)
             .slice(0, 3);
@@ -276,7 +323,8 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             try {
                 const userDocRef = doc(db, 'usuarios', currentUser.uid);
                 await updateDoc(userDocRef, {
-                    totopos: increment(TOTOPOS_POR_NIVEL)
+                    totopos: increment(TOTOPOS_POR_NIVEL),
+                    totoposHistoricos: increment(TOTOPOS_POR_NIVEL)
                 });
             } catch (error) {
                 console.error("Error al actualizar totopos en Firestore:", error);
@@ -335,6 +383,62 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     };
 
     // 🛡️ Reinicia únicamente el Nivel actual con las 3 vidas restauradas
+    // 📚 Desbloquear una categoría de fauna pagando totopos actuales
+    const handleDesbloquearCategoria = async (categoriaId, costo) => {
+        if (costo > 0 && totopos < costo) {
+            setFeedbackModal({
+                show: true,
+                title: "🌽 Totopos insuficientes",
+                message: `Te faltan ${costo - totopos} totopos para desbloquear esta categoría.`
+            });
+            return;
+        }
+
+        const nuevosTotopos = totopos - costo;
+        let nuevasDesbloqueadas = [];
+        setCategoriasFaunaDesbloqueadas(prev => {
+            nuevasDesbloqueadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
+            localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(nuevasDesbloqueadas));
+            return nuevasDesbloqueadas;
+        });
+        setCategoriasFaunaActivas(prev => (prev.includes(categoriaId) ? prev : [...prev, categoriaId]));
+
+        if (costo > 0) {
+            setTotopos(nuevosTotopos);
+            localStorage.setItem('totopos', nuevosTotopos);
+        }
+
+        const currentUser = user || auth.currentUser;
+        if (currentUser) {
+            try {
+                const payload = { categoriasFaunaDesbloqueadas: nuevasDesbloqueadas };
+                if (costo > 0) payload.totopos = nuevosTotopos;
+                await updateDoc(doc(db, 'usuarios', currentUser.uid), payload);
+            } catch (err) {
+                console.error("Error al sincronizar categoría desbloqueada:", err);
+            }
+        }
+
+        setFeedbackModal({
+            show: true,
+            title: "🔓 ¡Categoría desbloqueada!",
+            message: costo > 0
+                ? `Gastaste ${costo} totopos. Ya puedes practicar esta categoría.`
+                : "¡La reclamaste gratis por tu Nivel de Cuenta!"
+        });
+    };
+
+    const handleToggleCategoriaActiva = (categoriaId) => {
+        setCategoriasFaunaActivas(prev => {
+            const yaActiva = prev.includes(categoriaId);
+            if (yaActiva) {
+                if (prev.length === 1) return prev;
+                return prev.filter(id => id !== categoriaId);
+            }
+            return [...prev, categoriaId];
+        });
+    };
+
     const confirmarReiniciar = (e) => {
         if (e?.preventDefault) e.preventDefault();
         setVidas(3);
@@ -388,6 +492,16 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                         {totopos} Totopos
                     </span>
                 </p>
+                <button
+                    type="button"
+                    onClick={() => setShowSelectorCategorias(true)}
+                    className="mt-2 inline-flex items-center gap-1.5 bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs px-3 py-1.5 rounded-full border-2 border-amber-300 shadow-sm transition-colors cursor-pointer"
+                >
+                    📚 Categorías
+                    <span className="bg-amber-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                        {categoriasFaunaActivas.length}
+                    </span>
+                </button>
             </header>
 
             {/* 🖥️ CONTENEDOR DE TRES COLUMNAS EN PC */}
@@ -642,6 +756,19 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                         <button type="button" onClick={() => setFeedbackModal({ show: false, title: '', message: '' })} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer">Aceptar</button>
                     </div>
                 </div>
+            )}
+            {/* 📚 MODAL: SELECTOR DE CATEGORÍAS DESBLOQUEABLES (solo fauna en Trivia) */}
+            {showSelectorCategorias && (
+                <SelectorCategorias
+                    tipo="fauna"
+                    desbloqueadas={categoriasFaunaDesbloqueadas}
+                    activas={categoriasFaunaActivas}
+                    totopos={totopos}
+                    nivelCuenta={nivelCuenta}
+                    onToggleActiva={handleToggleCategoriaActiva}
+                    onDesbloquear={handleDesbloquearCategoria}
+                    onClose={() => setShowSelectorCategorias(false)}
+                />
             )}
         </div>
     );

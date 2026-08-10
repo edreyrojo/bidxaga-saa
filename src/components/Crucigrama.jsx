@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { listaAnimales } from '../data/animales.js';
 import { listaFlora } from '../data/flora.js';
+import {
+    categoriaInicialPorDefecto,
+    sincronizarDesbloqueosPorNivel,
+    filtrarContenidoPorCategorias
+} from '../data/Categoriascontenido.js';
+import { calcularNivelCuenta } from '../utils/nivelCuenta.js';
+import SelectorCategorias from './SelectorCategorias.jsx';
 import { auth, db } from '../firebaseConfig';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
@@ -14,18 +21,22 @@ const RECOMPENSAS_CRUCIGRAMA = {
 
 const MAX_VIDAS = 5; // 🛡️ 5 Vidas configuradas correctamente
 
-const obtenerBaseDatosActiva = (modo) => {
+const obtenerBaseDatosActiva = (modo, categoriasFaunaActivas = [], categoriasFloraActivas = []) => {
+    const faunaFiltrada = filtrarContenidoPorCategorias(listaAnimales, categoriasFaunaActivas);
+    const floraFiltrada = filtrarContenidoPorCategorias(listaFlora, categoriasFloraActivas);
+
     switch (modo) {
         case 'flora':
-            return listaFlora;
+            return floraFiltrada;
         case 'fauna':
-            return listaAnimales;
-        case 'ambos':
-            const floraConOffset = listaFlora.map(item => ({ ...item, id: item.id + 1000, categoria: 'flora' }));
-            const faunaConOffset = listaAnimales.map(item => ({ ...item, categoria: 'fauna' }));
+            return faunaFiltrada;
+        case 'ambos': {
+            const floraConOffset = floraFiltrada.map(item => ({ ...item, id: item.id + 1000, categoria: item.categoria, tipoContenido: 'flora' }));
+            const faunaConOffset = faunaFiltrada.map(item => ({ ...item, tipoContenido: 'fauna' }));
             return [...faunaConOffset, ...floraConOffset];
+        }
         default:
-            return listaAnimales;
+            return faunaFiltrada;
     }
 };
 
@@ -209,6 +220,14 @@ export default function Crucigrama({
     
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
+    // 📚 Sistema de categorías desbloqueables (fauna y flora)
+    const [nivelCuenta, setNivelCuenta] = useState(1);
+    const [categoriasFaunaDesbloqueadas, setCategoriasFaunaDesbloqueadas] = useState(() => categoriaInicialPorDefecto('fauna'));
+    const [categoriasFloraDesbloqueadas, setCategoriasFloraDesbloqueadas] = useState(() => categoriaInicialPorDefecto('flora'));
+    const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => categoriaInicialPorDefecto('fauna'));
+    const [categoriasFloraActivas, setCategoriasFloraActivas] = useState(() => categoriaInicialPorDefecto('flora'));
+    const [showSelectorCategorias, setShowSelectorCategorias] = useState(false);
+
     const recompensaActual = RECOMPENSAS_CRUCIGRAMA[nivel] || (20 * nivel);
 
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
@@ -309,6 +328,22 @@ export default function Crucigrama({
         }
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
 
+        // 📚 Categorías: respaldo local
+        try {
+            const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
+            if (faunaGuardadas) {
+                setCategoriasFaunaDesbloqueadas(faunaGuardadas);
+                setCategoriasFaunaActivas(prev => prev.filter(id => faunaGuardadas.includes(id)).length ? prev.filter(id => faunaGuardadas.includes(id)) : categoriaInicialPorDefecto('fauna'));
+            }
+            const floraGuardadas = JSON.parse(localStorage.getItem('categoriasFloraDesbloqueadas') || 'null');
+            if (floraGuardadas) {
+                setCategoriasFloraDesbloqueadas(floraGuardadas);
+                setCategoriasFloraActivas(prev => prev.filter(id => floraGuardadas.includes(id)).length ? prev.filter(id => floraGuardadas.includes(id)) : categoriaInicialPorDefecto('flora'));
+            }
+        } catch (e) {
+            console.error("Error al leer categorías guardadas localmente:", e);
+        }
+
         const cargarTotoposNube = async () => {
             const currentUser = user || auth.currentUser;
             if (currentUser) {
@@ -320,6 +355,35 @@ export default function Crucigrama({
                         if (data.totopos !== undefined) {
                             setTotopos(data.totopos);
                             localStorage.setItem('totopos', data.totopos);
+                        }
+
+                        // 🏅 Nivel de Cuenta + sincronización de categorías gratis por nivel
+                        const historico = data.totoposHistoricos !== undefined ? data.totoposHistoricos : (data.totopos || 0);
+                        const nivelCalc = calcularNivelCuenta(historico);
+                        setNivelCuenta(nivelCalc);
+
+                        const faunaNube = sincronizarDesbloqueosPorNivel('fauna', data.categoriasFaunaDesbloqueadas || categoriaInicialPorDefecto('fauna'), nivelCalc);
+                        const floraNube = sincronizarDesbloqueosPorNivel('flora', data.categoriasFloraDesbloqueadas || categoriaInicialPorDefecto('flora'), nivelCalc);
+                        setCategoriasFaunaDesbloqueadas(faunaNube);
+                        setCategoriasFloraDesbloqueadas(floraNube);
+                        localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
+                        localStorage.setItem('categoriasFloraDesbloqueadas', JSON.stringify(floraNube));
+
+                        setCategoriasFaunaActivas(prev => {
+                            const activasValidas = prev.filter(id => faunaNube.includes(id));
+                            return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('fauna');
+                        });
+                        setCategoriasFloraActivas(prev => {
+                            const activasValidas = prev.filter(id => floraNube.includes(id));
+                            return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('flora');
+                        });
+
+                        if (JSON.stringify(faunaNube) !== JSON.stringify(data.categoriasFaunaDesbloqueadas || [])
+                            || JSON.stringify(floraNube) !== JSON.stringify(data.categoriasFloraDesbloqueadas || [])) {
+                            updateDoc(userDocRef, {
+                                categoriasFaunaDesbloqueadas: faunaNube,
+                                categoriasFloraDesbloqueadas: floraNube
+                            }).catch(err => console.error("Error al sincronizar categorías por nivel:", err));
                         }
                     }
                 } catch (e) {
@@ -333,7 +397,7 @@ export default function Crucigrama({
 
     useEffect(() => {
         generarNuevoJuego();
-    }, [nivel, modoDificil, tipoContenido]);
+    }, [nivel, modoDificil, tipoContenido, categoriasFaunaActivas, categoriasFloraActivas]);
 
     useEffect(() => {
         const dialElement = dialRef.current;
@@ -376,14 +440,18 @@ export default function Crucigrama({
                             
                             if (userSnap.exists()) {
                                 await updateDoc(userRef, {
-                                    totopos: increment(recompensaActual)
+                                    totopos: increment(recompensaActual),
+                                    totoposHistoricos: increment(recompensaActual)
                                 });
                             } else {
                                 await setDoc(userRef, {
                                     email: currentUser.email,
                                     totopos: nuevosTotopos,
+                                    totoposHistoricos: nuevosTotopos,
                                     avatar: 'default',
-                                    avataresDesbloqueados: ['default']
+                                    avataresDesbloqueados: ['default'],
+                                    categoriasFaunaDesbloqueadas: categoriaInicialPorDefecto('fauna'),
+                                    categoriasFloraDesbloqueadas: categoriaInicialPorDefecto('flora')
                                 }, { merge: true });
                             }
                         } catch (err) {
@@ -409,9 +477,10 @@ export default function Crucigrama({
         });
         setShowGameOverModal(false);
 
-        const baseDatosActiva = obtenerBaseDatosActiva(tipoContenido);
+        const baseDatosActiva = obtenerBaseDatosActiva(tipoContenido, categoriasFaunaActivas, categoriasFloraActivas);
+        const poolSeguro = baseDatosActiva.length > 0 ? baseDatosActiva : filtrarContenidoPorCategorias(listaAnimales, categoriaInicialPorDefecto('fauna'));
         const cantidadAnimales = Math.min(2 + nivel, 6);
-        const candidatos = [...baseDatosActiva]
+        const candidatos = [...poolSeguro]
             .filter(a => a && a.diidxaza && limpiarPalabra(a.diidxaza, modoDificil).length > 2)
             .sort(() => Math.random() - 0.5)
             .slice(0, cantidadAnimales);
@@ -651,6 +720,68 @@ export default function Crucigrama({
         }
     };
 
+    // 📚 Desbloquear una categoría pagando totopos actuales (el desbloqueo gratis por nivel ya se aplica solo)
+    const handleDesbloquearCategoria = async (tipo, categoriaId, costo) => {
+        if (costo > 0 && totopos < costo) {
+            setFeedbackModal({
+                show: true,
+                title: "🌽 Totopos insuficientes",
+                message: `Te faltan ${costo - totopos} totopos para desbloquear esta categoría.`
+            });
+            return;
+        }
+
+        const nuevosTotopos = totopos - costo;
+        const setDesbloqueadas = tipo === 'flora' ? setCategoriasFloraDesbloqueadas : setCategoriasFaunaDesbloqueadas;
+        const setActivas = tipo === 'flora' ? setCategoriasFloraActivas : setCategoriasFaunaActivas;
+        const claveLocal = tipo === 'flora' ? 'categoriasFloraDesbloqueadas' : 'categoriasFaunaDesbloqueadas';
+        const campoNube = tipo === 'flora' ? 'categoriasFloraDesbloqueadas' : 'categoriasFaunaDesbloqueadas';
+
+        let nuevasDesbloqueadas = [];
+        setDesbloqueadas(prev => {
+            nuevasDesbloqueadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
+            localStorage.setItem(claveLocal, JSON.stringify(nuevasDesbloqueadas));
+            return nuevasDesbloqueadas;
+        });
+        setActivas(prev => (prev.includes(categoriaId) ? prev : [...prev, categoriaId]));
+
+        if (costo > 0) {
+            setTotopos(nuevosTotopos);
+            localStorage.setItem('totopos', nuevosTotopos);
+        }
+
+        const currentUser = user || auth.currentUser;
+        if (currentUser) {
+            try {
+                const payload = { [campoNube]: nuevasDesbloqueadas };
+                if (costo > 0) payload.totopos = nuevosTotopos;
+                await updateDoc(doc(db, 'usuarios', currentUser.uid), payload);
+            } catch (err) {
+                console.error("Error al sincronizar categoría desbloqueada:", err);
+            }
+        }
+
+        setFeedbackModal({
+            show: true,
+            title: "🔓 ¡Categoría desbloqueada!",
+            message: costo > 0
+                ? `Gastaste ${costo} totopos. Ya puedes practicar esta categoría.`
+                : "¡La reclamaste gratis por tu Nivel de Cuenta!"
+        });
+    };
+
+    const handleToggleCategoriaActiva = (tipo, categoriaId) => {
+        const setActivas = tipo === 'flora' ? setCategoriasFloraActivas : setCategoriasFaunaActivas;
+        setActivas(prev => {
+            const yaActiva = prev.includes(categoriaId);
+            if (yaActiva) {
+                if (prev.length === 1) return prev;
+                return prev.filter(id => id !== categoriaId);
+            }
+            return [...prev, categoriaId];
+        });
+    };
+
     const reiniciarNivelActual = () => {
         setVidas(MAX_VIDAS);
         localStorage.setItem('crucigramaVidas', MAX_VIDAS);
@@ -743,6 +874,20 @@ export default function Crucigrama({
                         {totopos} Totopos
                     </span>
                 </p>
+                <button
+                    type="button"
+                    onClick={() => setShowSelectorCategorias(true)}
+                    className="mt-2 inline-flex items-center gap-1.5 bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs px-3 py-1.5 rounded-full border-2 border-amber-300 shadow-sm transition-colors cursor-pointer"
+                >
+                    📚 Categorías
+                    <span className="bg-amber-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                        {tipoContenido === 'flora'
+                            ? categoriasFloraActivas.length
+                            : tipoContenido === 'ambos'
+                                ? categoriasFaunaActivas.length + categoriasFloraActivas.length
+                                : categoriasFaunaActivas.length}
+                    </span>
+                </button>
             </header>
 
             {nivelCompletado && (
@@ -1150,6 +1295,19 @@ export default function Crucigrama({
                         </button>
                     </div>
                 </div>
+            )}
+            {/* 📚 MODAL: SELECTOR DE CATEGORÍAS DESBLOQUEABLES */}
+            {showSelectorCategorias && (
+                <SelectorCategorias
+                    tipo={tipoContenido === 'flora' ? 'flora' : 'fauna'}
+                    desbloqueadas={tipoContenido === 'flora' ? categoriasFloraDesbloqueadas : categoriasFaunaDesbloqueadas}
+                    activas={tipoContenido === 'flora' ? categoriasFloraActivas : categoriasFaunaActivas}
+                    totopos={totopos}
+                    nivelCuenta={nivelCuenta}
+                    onToggleActiva={(id) => handleToggleCategoriaActiva(tipoContenido === 'flora' ? 'flora' : 'fauna', id)}
+                    onDesbloquear={(id, costo) => handleDesbloquearCategoria(tipoContenido === 'flora' ? 'flora' : 'fauna', id, costo)}
+                    onClose={() => setShowSelectorCategorias(false)}
+                />
             )}
         </div>
     );

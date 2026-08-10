@@ -9,10 +9,14 @@ export const CATEGORIAS_FAUNA = [
     { id: 'felinos', nombre: 'Felinos', emoji: '🐆', costoTotopos: 160, nivelCuentaRequerido: 5 },
 ];
 
-// 🌿 Categorías de FLORA — placeholder pendiente de tu catálogo real de flora.js
-// (déjalas listas para cuando compartas ese archivo; mismo patrón exacto que fauna)
+// 🌿 Categorías de FLORA, en el orden recomendado de progresión
+// (empezamos por lo más cotidiano: el maíz, presente en toda la vida diaria del Istmo)
 export const CATEGORIAS_FLORA = [
-    { id: 'general', nombre: 'General', emoji: '🌿', costoTotopos: 0, nivelCuentaRequerido: 1 },
+    { id: 'maiz', nombre: 'El Maíz y sus Partes', emoji: '🌽', costoTotopos: 0, nivelCuentaRequerido: 1 },
+    { id: 'frutos', nombre: 'Frutos y Plantas Alimenticias', emoji: '🍈', costoTotopos: 60, nivelCuentaRequerido: 2 },
+    { id: 'medicinales', nombre: 'Hierbas y Plantas Medicinales', emoji: '🌱', costoTotopos: 90, nivelCuentaRequerido: 3 },
+    { id: 'flores', nombre: 'Flores y Plantas de Ornato', emoji: '🌸', costoTotopos: 110, nivelCuentaRequerido: 4 },
+    { id: 'arboles', nombre: 'Árboles y Maderas', emoji: '🌳', costoTotopos: 130, nivelCuentaRequerido: 4 },
 ];
 
 export const obtenerCategoriasPorTipo = (tipo) => (tipo === 'flora' ? CATEGORIAS_FLORA : CATEGORIAS_FAUNA);
