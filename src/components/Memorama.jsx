@@ -5,7 +5,7 @@ import {
     categoriaInicialPorDefecto,
     sincronizarDesbloqueosPorNivel,
     filtrarContenidoPorCategorias
-} from '../data/categoriasContenido.js';
+} from '../data/Categoriascontenido.js';
 import { calcularNivelCuenta } from '../utils/nivelCuenta.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 
