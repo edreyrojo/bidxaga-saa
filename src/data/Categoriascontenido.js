@@ -1,19 +1,3 @@
-/* =============================================================
-   📚 CATEGORÍAS DE CONTENIDO (Fauna y Flora)
-   -------------------------------------------------------------
-   Fuente única de verdad para el sistema de "bloques desbloqueables".
-   La usan los 4 minijuegos (Memorama, Sopa de Letras, Crucigrama,
-   Trivia) para filtrar qué palabras entran en juego, y el
-   componente <SelectorCategorias /> para mostrar el panel de
-   desbloqueo.
-
-   🆕 CÓMO AGREGAR UNA CATEGORÍA NUEVA: solo agrégala aquí (con su
-   id, nombre, emoji, costoTotopos y nivelCuentaRequerido) y
-   asegúrate de que los items de animales.js/flora.js tengan ese
-   mismo id en su campo `categoria`. Aparece automáticamente en
-   los 4 juegos.
-   ============================================================= */
-
 // 🐾 Categorías de FAUNA, en el orden recomendado de progresión
 // (empezamos por lo más familiar/fácil para un principiante)
 export const CATEGORIAS_FAUNA = [

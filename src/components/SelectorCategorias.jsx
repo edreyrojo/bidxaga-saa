@@ -1,24 +1,6 @@
 import React from 'react';
-import { obtenerCategoriasPorTipo } from '../data/categoriasContenido.js';
+import { obtenerCategoriasPorTipo } from '../data/Categoriascontenido.js';
 
-/* =============================================================
-   🔓 SELECTOR DE CATEGORÍAS — Componente reutilizable
-   -------------------------------------------------------------
-   Úsalo igual en Memorama, Sopa de Letras, Crucigrama y Trivia:
-   solo cambia qué `tipo` ('fauna' | 'flora') le pasas y conecta
-   sus callbacks a los mismos estados/handlers de categorías que
-   ya tenga ese juego (mismo patrón que Memorama).
-
-   Props:
-   - tipo: 'fauna' | 'flora'
-   - desbloqueadas: string[]        → ids de categorías que el jugador ya posee
-   - activas: string[]              → subconjunto de `desbloqueadas` que están en juego ahora mismo
-   - totopos: number
-   - nivelCuenta: number            → 1-5, calculado con calcularNivelCuenta()
-   - onToggleActiva: (id) => void   → activa/desactiva una categoría YA desbloqueada
-   - onDesbloquear: (id, costo) => void → compra una categoría bloqueada con totopos
-   - onClose: () => void
-   ============================================================= */
 export default function SelectorCategorias({
     tipo,
     desbloqueadas = [],
