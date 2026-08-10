@@ -5,7 +5,7 @@ import {
     sincronizarDesbloqueosPorNivel,
     filtrarContenidoPorCategorias
 } from '../data/Categoriascontenido.js';
-import { calcularNivelCuenta } from '../utils/nivelCuenta.js';
+import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { auth, db } from '../firebaseConfig';
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, increment, query, orderBy, limit } from 'firebase/firestore';
