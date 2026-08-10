@@ -1,18 +1,3 @@
-/* =============================================================
-   📦 CATÁLOGO ÚNICO DE ACTIVOS (Avatares y Accesorios)
-   -------------------------------------------------------------
-   Esta es la ÚNICA fuente de verdad para todo lo que se puede
-   comprar/equipar en el juego. La usan:
-     - SeccionTienda.jsx      (comprar)
-     - SeccionInventario.jsx  (ver/equipar lo ya comprado)
-     - CreadorAvatar.jsx      (aplicar accesorios sobre el avatar)
-
-   🆕 PARA AGREGAR UN ASSET NUEVO: solo agrégalo AQUÍ, una vez.
-   Automáticamente aparecerá en la Tienda, el Inventario, y
-   (si es un accesorio) como opción seleccionable en el Creador
-   de Avatar. Ya no hace falta tocar los 3 archivos a mano.
-   ============================================================= */
-
 // 👤 Avatares completos (imagen única, se equipan directo)
 export const CATALOGO_AVATARES = [
     { id: 'default', nombre: 'Totopo Clásico', costo: 0, archivo: 'default' },

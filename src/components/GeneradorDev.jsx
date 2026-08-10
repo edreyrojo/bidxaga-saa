@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 
 export default function GeneradorDev({ onBack }) {
-    // 🛍️ Biblioteca de carpetas de avatares en estado dinámico (permite borrar pruebas)
+    // Modo de trabajo: 'avatar' (completo) o 'asset' (componente individual)
+    const [modoGenerador, setModoGenerador] = useState('avatar');
+
+    // Biblioteca de carpetas en estado dinamico
     const [bibliotecaAvatares, setBibliotecaAvatares] = useState([
         { id: 'personaje1', nombre: 'Personaje 1 (Clásico)', icon: '👤' },
         { id: 'masculino', nombre: 'Base Masculina', icon: '👦' },
         { id: 'femenino', nombre: 'Base Femenina', icon: '👧' },
-        { id: 'personaje2', nombre: 'Personaje 2', icon: '🌟' }
+        { id: 'espada', nombre: 'Asset: Espada', icon: '⚔️' }
     ]);
 
     const [nombrePersonaje, setNombrePersonaje] = useState('personaje1');
     
-    // Lista de capas dinámicas con soporte de múltiples variantes por capa (orden de apilamiento: primero fondo)
+    // Lista de capas dinamicas (orden de apilamiento: primero fondo)
     const [capas, setCapas] = useState([
         { 
             id: 'silueta', 
@@ -46,21 +49,21 @@ export default function GeneradorDev({ onBack }) {
         },
     ]);
 
-    // Estados dinámicos de colores para la previsualización en vivo en PC
+    // Estados de colores para la previsualizacion
     const [coloresVivos, setColoresVivos] = useState({
         silueta: '#1A1A1A',
         piel: '#F5C6A0',
         cabello: '#4A3525'
     });
 
-    // Estado para la variante activa seleccionada por cada capa en la previsualización en vivo
+    // Variante activa seleccionada por cada capa
     const [variantesActivas, setVariantesActivas] = useState({
         silueta: '1silueta.svg',
         piel: '1piel.svg',
         cabello: '1cabello.svg'
     });
 
-    // Estado temporal para agregar o editar capas con soporte de variantes y constructor interactivo de paleta
+    // Estado temporal para agregar o editar capas
     const [nuevaCapa, setNuevaCapa] = useState({ 
         nombreCapa: '', 
         colorDefault: '#E65100', 
@@ -71,13 +74,12 @@ export default function GeneradorDev({ onBack }) {
         ]
     });
 
-    // ID de la capa que se está editando actualmente (null si estamos creando una nueva)
+    // ID de la capa en edicion
     const [capaEditandoId, setCapaEditandoId] = useState(null);
 
-    // 🕒 Historial de colores usados recientemente en toda la app
+    // Historial de colores recientes
     const [coloresRecientes, setColoresRecientes] = useState(['#1A1A1A', '#F5C6A0', '#4A3525', '#FFFFFF', '#E65100', '#1976D2']);
 
-    // 🧠 Función segura para actualizar colores recientes sin duplicados y manteniendo máximo 6
     const agregarColorReciente = (hex) => {
         if (!hex) return;
         setColoresRecientes(prev => {
@@ -87,11 +89,10 @@ export default function GeneradorDev({ onBack }) {
         });
     };
 
-    // 🗑️ Función para eliminar un personaje de la biblioteca
     const eliminarAvatarDeBiblioteca = (idAEliminar, e) => {
         e.stopPropagation(); 
         if (bibliotecaAvatares.length <= 1) {
-            alert('Debe haber al menos un personaje en la biblioteca.');
+            alert('Debe haber al menos un elemento en la biblioteca.');
             return;
         }
         const nuevaBiblioteca = bibliotecaAvatares.filter(av => av.id !== idAEliminar);
@@ -102,15 +103,14 @@ export default function GeneradorDev({ onBack }) {
         }
     };
 
-    // ✨ Función para comenzar un nuevo personaje completamente desde cero
     const handleNuevoPersonaje = () => {
-        const nombreInput = prompt("Ingresa el nombre de la carpeta para el nuevo personaje (ej: personaje3, guerrero):", "personaje" + (bibliotecaAvatares.length + 1));
+        const nombreInput = prompt("Ingresa el nombre del nuevo contenedor (ej: guerrero, o asset_escudo):", "nuevo_" + (bibliotecaAvatares.length + 1));
         if (!nombreInput) return;
         
         const folderLimpio = nombreInput.toLowerCase().replace(/\s+/g, '_');
         
         if (!bibliotecaAvatares.some(av => av.id === folderLimpio)) {
-            setBibliotecaAvatares(prev => [...prev, { id: folderLimpio, nombre: folderLimpio, icon: '🎨' }]);
+            setBibliotecaAvatares(prev => [...prev, { id: folderLimpio, nombre: folderLimpio, icon: modoGenerador === 'asset' ? '🧩' : '🎨' }]);
         }
 
         setNombrePersonaje(folderLimpio);
@@ -129,7 +129,6 @@ export default function GeneradorDev({ onBack }) {
         });
     };
 
-    // 📁 Manejar subida de archivo SVG para una variante específica
     const handleVarianteFileChange = (indexVar, e) => {
         const file = e.target.files[0];
         if (file) {
@@ -149,13 +148,12 @@ export default function GeneradorDev({ onBack }) {
                 return { 
                     ...prev, 
                     variantesTemp: nuevasVariantes,
-                    nombreCapa: prev.nombreCapa || nombreSugerido // Sugerir nombre a la capa si está vacía
+                    nombreCapa: prev.nombreCapa || nombreSugerido
                 };
             });
         }
     };
 
-    // ➕ Agregar variante temporal al formulario
     const agregarVarianteTemp = () => {
         const num = nuevaCapa.variantesTemp.length + 1;
         setNuevaCapa(prev => ({
@@ -167,7 +165,6 @@ export default function GeneradorDev({ onBack }) {
         }));
     };
 
-    // 🗑️ Eliminar variante temporal del formulario
     const eliminarVarianteTemp = (indexVar) => {
         if (nuevaCapa.variantesTemp.length <= 1) {
             alert('La capa debe tener al menos una variante SVG.');
@@ -179,10 +176,8 @@ export default function GeneradorDev({ onBack }) {
         }));
     };
 
-    // 🎨 Añadir un color interactivo a la lista de la paleta nueva
     const handleAgregarColorAPaleta = () => {
         const colorNuevo = nuevaCapa.colorTemp;
-        
         if (!nuevaCapa.paletaColors.includes(colorNuevo)) {
             setNuevaCapa(prev => ({
                 ...prev,
@@ -192,7 +187,6 @@ export default function GeneradorDev({ onBack }) {
         agregarColorReciente(colorNuevo);
     };
 
-    // 🗑️ Eliminar un color de la lista de la paleta nueva
     const handleEliminarColorDePaleta = (hexABorrar) => {
         setNuevaCapa(prev => {
             const nuevaPaleta = prev.paletaColors.filter(h => h !== hexABorrar);
@@ -203,7 +197,6 @@ export default function GeneradorDev({ onBack }) {
         });
     };
 
-    // 🧹 Vaciar toda la paleta y dejar solo negro
     const handleVaciarPaleta = () => {
         setNuevaCapa(prev => ({
             ...prev,
@@ -211,7 +204,6 @@ export default function GeneradorDev({ onBack }) {
         }));
     };
 
-    // ✏️ Iniciar edición de una capa existente
     const iniciarEdicionCapa = (capa) => {
         setCapaEditandoId(capa.id);
         setNuevaCapa({
@@ -225,7 +217,6 @@ export default function GeneradorDev({ onBack }) {
         });
     };
 
-    // ❌ Cancelar edición de capa
     const cancelarEdicion = () => {
         setCapaEditandoId(null);
         setNuevaCapa({
@@ -239,29 +230,16 @@ export default function GeneradorDev({ onBack }) {
         });
     };
 
-    // 💾 Guardar Capa
     const handleGuardarCapa = () => {
         if (!nuevaCapa.nombreCapa.trim()) {
-            alert('El nombre de la capa es obligatorio');
+            alert('Falta nombre');
             return;
         }
 
-        const idGenerado = nuevaCapa.nombreCapa
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9]/g, '');
+        const idGenerado = nuevaCapa.nombreCapa.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
 
-        if (!idGenerado) {
-            alert('Por favor usa caracteres válidos para el nombre de la capa');
-            return;
-        }
+        const paletaArray = nuevaCapa.paletaColors.length > 0 ? nuevaCapa.paletaColors : [nuevaCapa.colorDefault];
 
-        const paletaArray = nuevaCapa.paletaColors.length > 0 
-            ? nuevaCapa.paletaColors 
-            : [nuevaCapa.colorDefault];
-
-        // Mapear variantes temporales a variantes finales
         const variantesFinales = nuevaCapa.variantesTemp.map((v, i) => ({
             id: v.id || `v${i + 1}`,
             nombre: v.nombre.trim() || `Variante ${i + 1}`,
@@ -285,7 +263,6 @@ export default function GeneradorDev({ onBack }) {
                 return c;
             }));
 
-            // Si cambiamos el ID, ajustamos las variantes activas
             if (!variantesActivas[idGenerado] && variantesFinales.length > 0) {
                 setVariantesActivas(prev => ({ ...prev, [idGenerado]: variantesFinales[0].archivo }));
             }
@@ -299,7 +276,6 @@ export default function GeneradorDev({ onBack }) {
                     return copy;
                 });
                 
-                // Actualizar variante activa al nuevo ID
                 setVariantesActivas(prev => {
                     const copy = { ...prev };
                     const varActiva = copy[capaEditandoId];
@@ -310,11 +286,10 @@ export default function GeneradorDev({ onBack }) {
             } else {
                 setColoresVivos(prev => ({ ...prev, [idGenerado]: nuevaCapa.colorDefault }));
             }
-
             setCapaEditandoId(null);
         } else {
             if (capas.some(c => c.id === idGenerado)) {
-                alert('Ya existe una capa con un identificador similar. Elige otro nombre.');
+                alert('ID repetido');
                 return;
             }
 
@@ -334,22 +309,11 @@ export default function GeneradorDev({ onBack }) {
             }
         }
         
-        setNuevaCapa({ 
-            nombreCapa: '', 
-            colorDefault: '#E65100', 
-            colorTemp: '#E65100',
-            paletaColors: ['#E65100', '#D32F2F', '#1976D2', '#388E3C'], 
-            variantesTemp: [
-                { id: 'v1', nombre: 'Principal', archivo: '1principal.svg', costo: 0, archivoFile: null, previewUrl: null }
-            ]
-        });
+        cancelarEdicion();
     };
 
     const eliminarCapa = (idABorrar) => {
-        if (capas.length <= 1) {
-            alert('El avatar debe tener al menos una capa.');
-            return;
-        }
+        if (capas.length <= 1) return;
         setCapas(capas.filter(capa => capa.id !== idABorrar));
         const copyColores = { ...coloresVivos };
         delete copyColores[idABorrar];
@@ -359,15 +323,12 @@ export default function GeneradorDev({ onBack }) {
         delete copyVariantes[idABorrar];
         setVariantesActivas(copyVariantes);
         
-        if (capaEditandoId === idABorrar) {
-            cancelarEdicion();
-        }
+        if (capaEditandoId === idABorrar) cancelarEdicion();
     };
 
     const moverCapa = (index, direccion) => {
         const nuevoIndex = direccion === 'arriba' ? index - 1 : index + 1;
         if (nuevoIndex < 0 || nuevoIndex >= capas.length) return;
-        
         const copiaCapas = [...capas];
         const temp = copiaCapas[index];
         copiaCapas[index] = copiaCapas[nuevoIndex];
@@ -375,26 +336,14 @@ export default function GeneradorDev({ onBack }) {
         setCapas(copiaCapas);
     };
 
-    const cambiarColorCapa = (idCapa, hex) => {
-        setColoresVivos(prev => ({ ...prev, [idCapa]: hex }));
-    };
-
-    const cambiarVarianteActiva = (idCapa, archivoSvg) => {
-        setVariantesActivas(prev => ({ ...prev, [idCapa]: archivoSvg }));
-    };
-
-    // 🔒 Alternar entre Capa Coloreable y Capa Estática (Rostros, etc)
     const toggleCapaEditable = (id) => {
         setCapas(capas.map(c => c.id === id ? { ...c, editable: c.editable === false ? true : false } : c));
     };
 
-    // Helpers para obtener el archivo activo en previsualización
     const getArchivoActivo = (capa) => {
         if (!capa.variantes || capa.variantes.length === 0) return capa.archivo || '1archivo.svg';
         const activo = variantesActivas[capa.id];
-        if (activo && capa.variantes.some(v => v.archivo === activo)) {
-            return activo;
-        }
+        if (activo && capa.variantes.some(v => v.archivo === activo)) return activo;
         return capa.variantes[0].archivo;
     };
 
@@ -405,110 +354,122 @@ export default function GeneradorDev({ onBack }) {
         return varianteEncontrada ? varianteEncontrada.previewUrl : null;
     };
 
-    // 🚀 EL MOTOR DEL GENERADOR DE CÓDIGO CON MULTI-VARIANTES
+    // GENERADOR DE CODIGO DOBLE (AVATAR O ASSET)
     const generarCodigoJSX = () => {
-        let codigo = `/* =============================================================\n`;
-        codigo += `   🎨 CÓDIGO GENERADO PARA: ${nombrePersonaje} (Con Variantes Múltiples)\n`;
-        codigo += `   Estructura estricta con Contenedor Absoluto (inset-0)\n`;
-        codigo += `   ============================================================= */\n\n`;
+        let codigo = "";
 
-        codigo += `// 🔄 1. ESTADOS\n`;
-        codigo += `const [personajeBase, setPersonajeBase] = useState('${nombrePersonaje}');\n`;
-        capas.forEach(capa => {
-            const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
-            if (capa.editable !== false) {
-                codigo += `const [color${idCap}, setColor${idCap}] = useState('${coloresVivos[capa.id] || capa.colorDefault}');\n`;
-            }
-            const varianteDefault = capa.variantes && capa.variantes.length > 0 ? capa.variantes[0].archivo : (capa.archivo || '1archivo.svg');
-            codigo += `const [variante${idCap}, setVariante${idCap}] = useState('${varianteDefault}');\n`;
-        });
-
-        codigo += `\n// 📚 2. CATÁLOGO DE VARIANTES POR CAPA\n`;
-        capas.forEach(capa => {
-            const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
-            const variantesJson = JSON.stringify(capa.variantes || [], null, 4);
-            codigo += `const variantes${idCap} = ${variantesJson};\n`;
-        });
-
-        codigo += `\n// 🎨 3. PALETAS DE COLORES\n`;
-        capas.forEach(capa => {
-            if (capa.editable !== false) {
+        if (modoGenerador === 'asset') {
+            const nombreComp = nombrePersonaje.charAt(0).toUpperCase() + nombrePersonaje.slice(1);
+            
+            codigo += `/* =============================================================\n`;
+            codigo += `   🧩 COMPONENTE ASSET: ${nombreComp} (Multi-Color)\n`;
+            codigo += `   Listo para importar en cualquier parte de la app.\n`;
+            codigo += `   ============================================================= */\n\n`;
+            codigo += `import React from 'react';\n\n`;
+            
+            codigo += `export default function ${nombreComp}({ \n`;
+            capas.forEach(capa => {
+                if (capa.editable !== false) {
+                    const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
+                    codigo += `    color${idCap} = '${coloresVivos[capa.id] || capa.colorDefault}',\n`;
+                }
+            });
+            codigo += `    className = "w-16 h-16" // Ajusta el tamaño al llamarlo\n`;
+            codigo += `}) {\n`;
+            codigo += `    return (\n`;
+            codigo += `        <div className={\`relative \${className} overflow-hidden flex items-center justify-center\`}>\n`;
+            
+            capas.forEach((capa, index) => {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
-                const paletaJson = JSON.stringify(capa.paleta || [capa.colorDefault, '#E65100', '#D32F2F', '#1976D2']);
-                codigo += `const paleta${idCap} = ${paletaJson};\n`;
-            }
-        });
+                const archivoActivo = getArchivoActivo(capa); // Toma el archivo de la variante visualizada
+                
+                codigo += `            {/* ${index + 1}. Capa: ${capa.nombreCapa} */}\n`;
+                codigo += `            <div \n`;
+                codigo += `                className="absolute inset-0 pointer-events-none"\n`;
+                codigo += `                style={{\n`;
+                if (capa.editable !== false) {
+                    codigo += `                    backgroundColor: color${idCap},\n`;
+                    codigo += `                    WebkitMaskImage: \`url(/avatares/${nombrePersonaje}/${archivoActivo})\`,\n`;
+                    codigo += `                    maskImage: \`url(/avatares/${nombrePersonaje}/${archivoActivo})\`,\n`;
+                    codigo += `                    WebkitMaskSize: 'contain',\n`;
+                    codigo += `                    maskSize: 'contain',\n`;
+                    codigo += `                    WebkitMaskRepeat: 'no-repeat',\n`;
+                    codigo += `                    maskRepeat: 'no-repeat',\n`;
+                    codigo += `                    WebkitMaskPosition: 'center',\n`;
+                    codigo += `                    maskPosition: 'center'\n`;
+                } else {
+                    codigo += `                    backgroundImage: \`url(/avatares/${nombrePersonaje}/${archivoActivo})\`,\n`;
+                    codigo += `                    backgroundSize: 'contain',\n`;
+                    codigo += `                    backgroundRepeat: 'no-repeat',\n`;
+                    codigo += `                    backgroundPosition: 'center'\n`;
+                }
+                codigo += `                }}\n`;
+                codigo += `            />\n`;
+            });
+            
+            codigo += `        </div>\n`;
+            codigo += `    );\n`;
+            codigo += `}\n`;
 
-        codigo += `\n// 💾 4. OBJETO PARA GUARDAR\n`;
-        codigo += `const configuracionAvatar = {\n`;
-        codigo += `    tipo: personajeBase,\n`;
-        capas.forEach(capa => {
-            const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
-            if (capa.editable !== false) {
-                codigo += `    ${capa.id}: color${idCap},\n`;
-            }
-            codigo += `    variante${idCap}: variante${idCap},\n`;
-        });
-        codigo += `    rutaBase: \`/avatares/\${personajeBase}/\`\n`;
-        codigo += `};\n`;
+        } else {
+            // Generacion estandar para el Perfil (Avatar)
+            codigo += `/* =============================================================\n`;
+            codigo += `   👤 CÓDIGO GENERADO PARA: ${nombrePersonaje} (Con Variantes Múltiples)\n`;
+            codigo += `   ============================================================= */\n\n`;
 
-        codigo += `\n// 🖼️ 5. VISOR DE CAPAS (Contenedor Absoluto Milimétrico)\n`;
-        codigo += `<div className="relative w-48 h-48 mx-auto bg-white rounded-3xl border-4 border-amber-300 overflow-hidden shadow-inner flex items-center justify-center select-none">\n`;
-        capas.forEach((capa, index) => {
-            const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
-            codigo += `    {/* ${index + 1}. Capa de ${capa.nombreCapa} ${capa.editable === false ? '(Estática)' : ''} */}\n`;
-            codigo += `    <div\n`;
-            codigo += `        className="absolute inset-0 pointer-events-none transition-colors duration-250"\n`;
-            codigo += `        style={{\n`;
-            if (capa.editable !== false) {
-                codigo += `            backgroundColor: color${idCap},\n`;
-                codigo += `            WebkitMaskImage: \`url(/avatares/\${personajeBase}/\${variante${idCap}})\`,\n`;
-                codigo += `            maskImage: \`url(/avatares/\${personajeBase}/\${variante${idCap}})\`,\n`;
-                codigo += `            WebkitMaskSize: 'contain',\n`;
-                codigo += `            maskSize: 'contain',\n`;
-                codigo += `            WebkitMaskRepeat: 'no-repeat',\n`;
-                codigo += `            maskRepeat: 'no-repeat',\n`;
-                codigo += `            WebkitMaskPosition: 'center',\n`;
-                codigo += `            maskPosition: 'center'\n`;
-            } else {
-                codigo += `            backgroundImage: \`url(/avatares/\${personajeBase}/\${variante${idCap}})\`,\n`;
-                codigo += `            backgroundSize: 'contain',\n`;
-                codigo += `            backgroundRepeat: 'no-repeat',\n`;
-                codigo += `            backgroundPosition: 'center'\n`;
-            }
-            codigo += `        }}\n`;
-            codigo += `    />\n`;
-        });
-        codigo += `</div>\n`;
-
-        const capasEditables = capas.filter(c => c.editable !== false);
-        if (capasEditables.length > 0) {
-            codigo += `\n// 🎚️ 6. SELECTORES DE COLOR\n`;
-            codigo += `<div className="space-y-4 bg-white/80 p-4 rounded-2xl border border-amber-200 shadow-sm">\n`;
-            capasEditables.forEach((capa) => {
+            codigo += `// 1. ESTADOS\n`;
+            codigo += `const [personajeBase, setPersonajeBase] = useState('${nombrePersonaje}');\n`;
+            capas.forEach(capa => {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
-                codigo += `    {/* Selector ${capa.nombreCapa} */}\n`;
-                codigo += `    <div>\n`;
-                codigo += `        <label className="block text-xs font-black text-amber-900 uppercase mb-1.5 flex items-center justify-between">\n`;
-                codigo += `            <span>${capa.nombreCapa}</span>\n`;
-                codigo += `            <span className="text-[10px] text-amber-700 font-medium">({color${idCap}})</span>\n`;
-                codigo += `        </label>\n`;
-                codigo += `        <div className="flex gap-2.5 flex-wrap">\n`;
-                codigo += `            {paleta${idCap}.map((hex) => (\n`;
-                codigo += `                <button\n`;
-                codigo += `                    key={hex}\n`;
-                codigo += `                    type="button"\n`;
-                codigo += `                    onClick={() => setColor${idCap}(hex)}\n`;
-                codigo += `                    className={\`w-8 h-8 rounded-full border-2 transition-transform cursor-pointer shadow-sm \${\n`;
-                codigo += `                        color${idCap} === hex \n`;
-                codigo += `                            ? 'scale-110 border-amber-950 ring-2 ring-amber-400' \n`;
-                codigo += `                            : 'border-amber-300 hover:scale-105'\n`;
-                codigo += `                    }\`}\n`;
-                codigo += `                    style={{ backgroundColor: hex }}\n`;
-                codigo += `                />\n`;
-                codigo += `            ))}\n`;
-                codigo += `        </div>\n`;
-                codigo += `    </div>\n`;
+                if (capa.editable !== false) {
+                    codigo += `const [color${idCap}, setColor${idCap}] = useState('${coloresVivos[capa.id] || capa.colorDefault}');\n`;
+                }
+                const varianteDefault = capa.variantes && capa.variantes.length > 0 ? capa.variantes[0].archivo : (capa.archivo || '1archivo.svg');
+                codigo += `const [variante${idCap}, setVariante${idCap}] = useState('${varianteDefault}');\n`;
+            });
+
+            codigo += `\n// 2. CATÁLOGO DE VARIANTES\n`;
+            capas.forEach(capa => {
+                const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
+                const variantesJson = JSON.stringify(capa.variantes || [], null, 4);
+                codigo += `const variantes${idCap} = ${variantesJson};\n`;
+            });
+
+            codigo += `\n// 3. PALETAS\n`;
+            capas.forEach(capa => {
+                if (capa.editable !== false) {
+                    const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
+                    const paletaJson = JSON.stringify(capa.paleta || [capa.colorDefault, '#E65100', '#D32F2F', '#1976D2']);
+                    codigo += `const paleta${idCap} = ${paletaJson};\n`;
+                }
+            });
+
+            codigo += `\n// 4. ESTRUCTURA (Visor Absoluto)\n`;
+            codigo += `<div className="relative w-48 h-48 mx-auto bg-white rounded-3xl overflow-hidden">\n`;
+            capas.forEach((capa, index) => {
+                const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
+                codigo += `    {/* ${index + 1}. ${capa.nombreCapa} */}\n`;
+                codigo += `    <div\n`;
+                codigo += `        className="absolute inset-0 pointer-events-none transition-colors duration-250"\n`;
+                codigo += `        style={{\n`;
+                if (capa.editable !== false) {
+                    codigo += `            backgroundColor: color${idCap},\n`;
+                    codigo += `            WebkitMaskImage: \`url(/avatares/\${personajeBase}/\${variante${idCap}})\`,\n`;
+                    codigo += `            maskImage: \`url(/avatares/\${personajeBase}/\${variante${idCap}})\`,\n`;
+                    codigo += `            WebkitMaskSize: 'contain',\n`;
+                    codigo += `            maskSize: 'contain',\n`;
+                    codigo += `            WebkitMaskRepeat: 'no-repeat',\n`;
+                    codigo += `            maskRepeat: 'no-repeat',\n`;
+                    codigo += `            WebkitMaskPosition: 'center',\n`;
+                    codigo += `            maskPosition: 'center'\n`;
+                } else {
+                    codigo += `            backgroundImage: \`url(/avatares/\${personajeBase}/\${variante${idCap}})\`,\n`;
+                    codigo += `            backgroundSize: 'contain',\n`;
+                    codigo += `            backgroundRepeat: 'no-repeat',\n`;
+                    codigo += `            backgroundPosition: 'center'\n`;
+                }
+                codigo += `        }}\n`;
+                codigo += `    />\n`;
             });
             codigo += `</div>\n`;
         }
@@ -516,43 +477,51 @@ export default function GeneradorDev({ onBack }) {
         return codigo;
     };
 
-    const capasEditablesVuelo = capas.filter(c => c.editable !== false);
+    const capasEditables = capas.filter(c => c.editable !== false);
 
     return (
         <div className="max-w-7xl mx-auto p-4 sm:p-6 bg-amber-50 rounded-3xl border-4 border-amber-400 shadow-2xl my-6 font-sans text-amber-950">
             
-            {/* ENCABEZADO */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 pb-4 border-b-2 border-amber-200">
                 <div className="flex items-center gap-3">
                     {onBack && (
-                        <button 
-                            onClick={onBack}
-                            className="bg-amber-800 hover:bg-amber-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer"
-                        >
+                        <button onClick={onBack} className="bg-amber-800 hover:bg-amber-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer">
                             ←
                         </button>
                     )}
                     <h2 className="text-2xl font-black flex items-center gap-2">
-                        Constructor NGASI (Multi-Variantes)
+                        {modoGenerador === 'avatar' ? '👤 Constructor Avatar' : '🧩 Constructor Asset'}
                     </h2>
                 </div>
-                <div className="flex items-center gap-2">
+                
+                <div className="flex bg-amber-200 rounded-2xl p-1 border border-amber-400 shadow-inner">
                     <button 
-                        onClick={handleNuevoPersonaje}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                        onClick={() => setModoGenerador('avatar')} 
+                        className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${modoGenerador === 'avatar' ? 'bg-amber-600 text-white shadow-md' : 'text-amber-900 hover:bg-amber-300'}`}
                     >
-                        Nuevo Personaje
+                        👤 Avatar
+                    </button>
+                    <button 
+                        onClick={() => setModoGenerador('asset')} 
+                        className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${modoGenerador === 'asset' ? 'bg-emerald-600 text-white shadow-md' : 'text-amber-900 hover:bg-amber-300'}`}
+                    >
+                        🧩 Asset Simple
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <button onClick={handleNuevoPersonaje} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5">
+                        ➕ Nuevo
                     </button>
                     <span className="text-xs font-bold bg-amber-200 text-amber-900 px-3 py-2 rounded-xl border border-amber-300">
-                        edrey ngasi
+                        Admin
                     </span>
                 </div>
             </div>
 
-            {/* BIBLIOTECA DE AVATARES */}
             <div className="bg-white p-4 rounded-3xl border-2 border-amber-300 shadow-sm mb-6">
                 <h3 className="text-xs font-black uppercase text-amber-900 mb-3 flex items-center justify-between">
-                    <span>Biblioteca(<code className="bg-amber-100 px-1 py-0.5 rounded text-amber-950 font-mono">/public/avatares/</code>)</span>
+                    <span>📚 Biblioteca</span>
                 </h3>
                 <div className="flex flex-wrap gap-2">
                     {bibliotecaAvatares.map((avatar) => (
@@ -574,7 +543,6 @@ export default function GeneradorDev({ onBack }) {
                                 type="button"
                                 onClick={(e) => eliminarAvatarDeBiblioteca(avatar.id, e)}
                                 className="ml-1 text-red-600 hover:text-white hover:bg-red-600 bg-white/90 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-black transition-colors"
-                                title="Eliminar este personaje/prueba de la biblioteca"
                             >
                                 ✕
                             </button>
@@ -583,23 +551,19 @@ export default function GeneradorDev({ onBack }) {
                 </div>
             </div>
 
-            {/* CONTENEDOR PRINCIPAL */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                {/* COLUMNA IZQUIERDA */}
                 <div className="lg:col-span-5 flex flex-col gap-5">
                     
-                    {/* Tarjeta de Previsualización en Vivo */}
                     <div className="bg-white p-6 rounded-3xl border-2 border-amber-300 shadow-md flex flex-col items-center">
                         <h3 className="font-black text-xs text-amber-900 uppercase tracking-wider mb-3">
-                            Previsualización ({nombrePersonaje})
+                            👁️ Visor ({nombrePersonaje})
                         </h3>
                         
                         <div className="relative w-56 h-56 bg-amber-50 rounded-3xl border-4 border-amber-400 flex items-center justify-center shadow-inner overflow-hidden mb-4">
                             {capas.length === 0 ? (
                                 <div className="text-center p-4">
                                     <span className="text-2xl">🎨</span>
-                                    <p className="text-[11px] font-bold text-amber-800 mt-1">Sin capas agregadas aún. Carga tu primer SVG abajo.</p>
                                 </div>
                             ) : (
                                 capas.map((capa) => {
@@ -643,10 +607,9 @@ export default function GeneradorDev({ onBack }) {
                             )}
                         </div>
 
-                        {/* SELECTOR EN TIEMPO REAL DE VARIANTES Y COLORES */}
                         {capas.length > 0 && (
                             <div className="w-full space-y-3">
-                                <label className="block text-[11px] font-bold text-amber-800 uppercase">Ajustar Estilos y Colores:</label>
+                                <label className="block text-[11px] font-bold text-amber-800 uppercase">🖌️ Ajustes Vivos:</label>
                                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                                     {capas.map(capa => {
                                         const archivoActual = getArchivoActivo(capa);
@@ -658,29 +621,27 @@ export default function GeneradorDev({ onBack }) {
                                                         <input 
                                                             type="color" 
                                                             value={coloresVivos[capa.id] || capa.colorDefault} 
-                                                            onChange={(e) => cambiarColorCapa(capa.id, e.target.value)}
+                                                            onChange={(e) => setColoresVivos(prev => ({ ...prev, [capa.id]: e.target.value }))}
                                                             onBlur={(e) => agregarColorReciente(e.target.value)}
                                                             className="w-6 h-6 rounded-md border border-amber-300 cursor-pointer bg-transparent"
-                                                            title="Color de capa"
                                                         />
                                                     )}
                                                 </div>
 
-                                                {/* Botones de Selector de Variantes (si hay más de 1) */}
                                                 {capa.variantes && capa.variantes.length > 1 && (
                                                     <div className="flex flex-wrap gap-1 pt-1 border-t border-amber-200/60">
                                                         {capa.variantes.map(v => (
                                                             <button
                                                                 key={v.id || v.archivo}
                                                                 type="button"
-                                                                onClick={() => cambiarVarianteActiva(capa.id, v.archivo)}
+                                                                onClick={() => setVariantesActivas(prev => ({ ...prev, [capa.id]: v.archivo }))}
                                                                 className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                                                                     archivoActual === v.archivo
                                                                         ? 'bg-amber-700 text-white shadow-xs'
                                                                         : 'bg-white text-amber-900 border border-amber-300 hover:bg-amber-100'
                                                                 }`}
                                                             >
-                                                                {v.nombre} {v.costo > 0 ? `(🌽${v.costo})` : ''}
+                                                                {v.nombre}
                                                             </button>
                                                         ))}
                                                     </div>
@@ -693,16 +654,14 @@ export default function GeneradorDev({ onBack }) {
                         )}
                     </div>
 
-                    {/* Gestor de Capas y Nuevo Formulario */}
                     <div className="bg-white p-5 rounded-3xl border-2 border-amber-300 shadow-md">
                         <h3 className="font-bold text-xs mb-1 text-amber-900 flex justify-between items-center">
-                            <span>📚 CATEGORÍAS ({capas.length})</span>
+                            <span>{modoGenerador === 'asset' ? '📑 PIEZAS DE COLOR' : '📚 CATEGORÍAS'} ({capas.length})</span>
                         </h3>
-                        <p className="text-[10px] text-amber-700 mb-3">El elemento 1 queda al fondo. Haz clic en 👁️/🎨 para bloquear el color (ej. rostros).</p>
                         
                         {capas.length === 0 ? (
                             <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-center text-xs text-amber-800 mb-4 font-medium">
-                                Tu personaje está vacío. Comienza cargando tu primera capa abajo.
+                                Vacío.
                             </div>
                         ) : (
                             <ul className="space-y-2 mb-4 max-h-48 overflow-y-auto pr-1">
@@ -711,57 +670,52 @@ export default function GeneradorDev({ onBack }) {
                                         <div className="flex items-center gap-1.5 truncate">
                                             <b className="bg-amber-200 px-1.5 py-0.5 rounded text-[11px]">{i + 1}</b>
                                             <span className="font-medium text-amber-900 truncate">
-                                                {c.nombreCapa} <span className="text-[10px] text-amber-700">({c.variantes ? c.variantes.length : 1} var.)</span>
+                                                {c.nombreCapa}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-1 shrink-0">
                                             <button 
                                                 onClick={() => toggleCapaEditable(c.id)} 
-                                                title={c.editable === false ? "Desbloquear Color" : "Bloquear (Ideal para imágenes con color propio)"} 
-                                                className={`px-1.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors ${c.editable === false ? 'bg-gray-300 hover:bg-gray-400 opacity-80' : 'bg-blue-100 hover:bg-blue-200'}`}
+                                                className={`px-1.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors ${c.editable === false ? 'bg-gray-300 opacity-80' : 'bg-blue-100'}`}
                                             >
                                                 {c.editable === false ? '🔒' : '🎨'}
                                             </button>
-                                            <button onClick={() => iniciarEdicionCapa(c)} title="Editar capa" className="px-1.5 py-1 bg-amber-200 hover:bg-amber-300 rounded-lg text-xs font-bold cursor-pointer">✏️</button>
-                                            <button onClick={() => moverCapa(i, 'arriba')} disabled={i === 0} title="Mover arriba" className="px-1.5 py-1 bg-amber-200 hover:bg-amber-300 disabled:opacity-30 rounded-lg text-xs font-bold cursor-pointer">⬆️</button>
-                                            <button onClick={() => moverCapa(i, 'abajo')} disabled={i === capas.length - 1} title="Mover abajo" className="px-1.5 py-1 bg-amber-200 hover:bg-amber-300 disabled:opacity-30 rounded-lg text-xs font-bold cursor-pointer">⬇️</button>
-                                            <button onClick={() => eliminarCapa(c.id)} title="Eliminar capa" className="text-red-600 hover:text-red-800 font-bold px-2 py-1 bg-red-100 rounded-lg text-[10px] cursor-pointer ml-1">✕</button>
+                                            <button onClick={() => iniciarEdicionCapa(c)} className="px-1.5 py-1 bg-amber-200 rounded-lg text-xs font-bold cursor-pointer">✏️</button>
+                                            <button onClick={() => moverCapa(i, 'arriba')} disabled={i === 0} className="px-1.5 py-1 bg-amber-200 disabled:opacity-30 rounded-lg text-xs font-bold cursor-pointer">⬆️</button>
+                                            <button onClick={() => moverCapa(i, 'abajo')} disabled={i === capas.length - 1} className="px-1.5 py-1 bg-amber-200 disabled:opacity-30 rounded-lg text-xs font-bold cursor-pointer">⬇️</button>
+                                            <button onClick={() => eliminarCapa(c.id)} className="text-red-600 font-bold px-2 py-1 bg-red-100 rounded-lg text-[10px] cursor-pointer ml-1">✕</button>
                                         </div>
                                     </li>
                                 ))}
                             </ul>
                         )}
 
-                        {/* FORMULARIO DE NUEVA / EDITAR CAPA Y VARIANTES */}
                         <div className={`p-4 rounded-3xl border-2 shadow-sm space-y-3 ${capaEditandoId ? 'bg-gradient-to-br from-amber-200/90 to-amber-100 border-amber-500' : 'bg-gradient-to-br from-amber-100/70 to-orange-50 border-amber-300/80'}`}>
                             <div className="flex items-center justify-between border-b border-amber-200 pb-2">
                                 <p className="text-xs font-black uppercase text-amber-950 flex items-center gap-1.5">
-                                    <span>{capaEditandoId ? '✏️' : '✨'}</span> {capaEditandoId ? `Editando: ${nuevaCapa.nombreCapa}` : 'Nueva Categoría / Capa'}
+                                    <span>{capaEditandoId ? '✏️' : '✨'}</span> Formulario 
                                 </p>
-                                <span className="text-[10px] font-bold bg-amber-200/80 text-amber-800 px-2 py-0.5 rounded-full">Multi-Variante 🌽</span>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[11px] font-bold text-amber-900">1. Nombre de la Categoría (ej: Silueta, Sombrero):</label>
+                                <label className="block text-[11px] font-bold text-amber-900">Nombre (ej: Gema, Brillo):</label>
                                 <input 
                                     type="text" 
-                                    placeholder="Nombre general" 
                                     value={nuevaCapa.nombreCapa} 
                                     onChange={(e) => setNuevaCapa({...nuevaCapa, nombreCapa: e.target.value})} 
-                                    className="w-full px-3 py-2 border-2 border-amber-300 rounded-2xl text-xs bg-white text-amber-950 outline-none focus:border-amber-500 font-medium shadow-inner" 
+                                    className="w-full px-3 py-2 border-2 border-amber-300 rounded-2xl text-xs bg-white text-amber-950 outline-none focus:border-amber-500" 
                                 />
                             </div>
                             
-                            {/* GESTOR DE VARIANTES TEMPORALES */}
                             <div className="space-y-2 bg-white/80 p-3 rounded-2xl border border-amber-300">
                                 <div className="flex justify-between items-center mb-1">
-                                    <label className="text-[11px] font-black text-amber-900 uppercase">2. Variantes SVG:</label>
+                                    <label className="text-[11px] font-black text-amber-900 uppercase">SVG:</label>
                                     <button
                                         type="button"
                                         onClick={agregarVarianteTemp}
-                                        className="bg-amber-700 hover:bg-amber-800 text-white font-bold px-2.5 py-1 rounded-xl text-[10px] shadow-xs cursor-pointer"
+                                        className="bg-amber-700 hover:bg-amber-800 text-white font-bold px-2.5 py-1 rounded-xl text-[10px] cursor-pointer"
                                     >
-                                        + Añadir Variante
+                                        ➕ Variante
                                     </button>
                                 </div>
 
@@ -771,7 +725,7 @@ export default function GeneradorDev({ onBack }) {
                                             <div className="flex items-center justify-between gap-2">
                                                 <input 
                                                     type="text"
-                                                    placeholder="Nombre visual (ej: Estilo Corto)"
+                                                    placeholder="Nombre"
                                                     value={v.nombre}
                                                     onChange={(e) => {
                                                         const val = e.target.value;
@@ -781,31 +735,12 @@ export default function GeneradorDev({ onBack }) {
                                                             return { ...prev, variantesTemp: copy };
                                                         });
                                                     }}
-                                                    className="flex-1 px-2 py-1 border border-amber-300 rounded-lg text-xs bg-white outline-none focus:border-amber-500"
+                                                    className="flex-1 px-2 py-1 border border-amber-300 rounded-lg text-xs bg-white outline-none"
                                                 />
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-[10px] font-bold text-amber-800">🌽</span>
-                                                    <input 
-                                                        type="number"
-                                                        placeholder="Costo"
-                                                        value={v.costo}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            setNuevaCapa(prev => {
-                                                                const copy = [...prev.variantesTemp];
-                                                                copy[indexVar].costo = val;
-                                                                return { ...prev, variantesTemp: copy };
-                                                            });
-                                                        }}
-                                                        className="w-14 px-1.5 py-1 border border-amber-300 rounded-lg text-xs bg-white text-center outline-none focus:border-amber-500"
-                                                        title="Costo en totopos para la tienda"
-                                                    />
-                                                </div>
                                                 <button
                                                     type="button"
                                                     onClick={() => eliminarVarianteTemp(indexVar)}
-                                                    className="text-red-600 hover:bg-red-100 p-1 rounded-lg text-xs font-bold cursor-pointer"
-                                                    title="Eliminar variante"
+                                                    className="text-red-600 bg-red-100 px-2 py-1 rounded-lg text-xs font-bold cursor-pointer"
                                                 >
                                                     ✕
                                                 </button>
@@ -818,110 +753,59 @@ export default function GeneradorDev({ onBack }) {
                                                     onChange={(e) => handleVarianteFileChange(indexVar, e)}
                                                     className="w-full text-[10px] file:mr-2 file:py-0.5 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-amber-600 file:text-white cursor-pointer hover:file:bg-amber-700"
                                                 />
-                                                {v.previewUrl && <span className="text-[10px] text-emerald-700 font-bold shrink-0">✓ SVG</span>}
+                                                {v.previewUrl && <span className="text-[10px] text-emerald-700 font-bold shrink-0">✓</span>}
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                             
-                            <div className="bg-white p-2 rounded-2xl border-2 border-amber-300 shadow-inner">
-                                <div className="flex items-center gap-2 px-1">
-                                    <span className="text-[11px] font-bold text-amber-900">Color por defecto:</span>
-                                    <input 
-                                        type="color" 
-                                        value={nuevaCapa.colorDefault} 
-                                        onChange={(e) => setNuevaCapa({...nuevaCapa, colorDefault: e.target.value})} 
-                                        onBlur={(e) => agregarColorReciente(e.target.value)}
-                                        className="w-7 h-7 rounded-xl border border-amber-300 cursor-pointer bg-transparent ml-auto" 
-                                    />
-                                </div>
-                                <div className="flex items-center gap-1.5 mt-2 px-1 border-t border-amber-100 pt-2">
-                                    <span className="text-[9px] text-amber-600 font-bold uppercase">Recientes:</span>
-                                    {coloresRecientes.map((hex, idx) => (
-                                        <button
-                                            key={`${hex}-${idx}`} type="button"
-                                            onClick={() => {
-                                                setNuevaCapa({...nuevaCapa, colorDefault: hex});
-                                                agregarColorReciente(hex);
-                                            }}
-                                            className="w-4 h-4 rounded-full border border-amber-300 hover:scale-110 shadow-xs transition-transform cursor-pointer"
-                                            style={{ backgroundColor: hex }}
-                                            title={`Usar ${hex}`}
-                                        />
-                                    ))}
-                                </div>
+                            <div className="bg-white p-2 rounded-2xl border-2 border-amber-300 shadow-inner flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-amber-900">Color Base:</span>
+                                <input 
+                                    type="color" 
+                                    value={nuevaCapa.colorDefault} 
+                                    onChange={(e) => setNuevaCapa({...nuevaCapa, colorDefault: e.target.value})} 
+                                    onBlur={(e) => agregarColorReciente(e.target.value)}
+                                    className="w-7 h-7 rounded-xl border border-amber-300 cursor-pointer bg-transparent" 
+                                />
                             </div>
 
                             <div className="bg-white/80 p-3 rounded-2xl border-2 border-amber-200 shadow-xs space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <label className="block text-[11px] font-black text-amber-900 uppercase">3. Paleta de Colores:</label>
+                                    <label className="block text-[11px] font-black text-amber-900 uppercase">Paleta:</label>
                                     <button 
                                         type="button"
                                         onClick={handleVaciarPaleta}
-                                        className="text-[9px] text-red-600 hover:text-white hover:bg-red-500 font-bold px-2 py-0.5 rounded-full border border-red-200 transition-colors cursor-pointer flex items-center gap-1"
+                                        className="text-[9px] text-red-600 border border-red-200 px-2 py-0.5 rounded-full cursor-pointer"
                                     >
-                                        🗑️ Vaciar
+                                        🗑️
                                     </button>
                                 </div>
                                 
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <div className="flex items-center gap-1.5 bg-amber-50 px-2 py-1.5 rounded-xl border border-amber-300">
-                                        <span className="text-[10px] font-bold text-amber-800">Elegir:</span>
-                                        <input 
-                                            type="color" 
-                                            value={nuevaCapa.colorTemp} 
-                                            onChange={(e) => {
-                                                setNuevaCapa({...nuevaCapa, colorTemp: e.target.value});
-                                            }} 
-                                            onBlur={(e) => {
-                                                agregarColorReciente(e.target.value);
-                                            }}
-                                            className="w-6 h-6 rounded-lg border border-amber-300 cursor-pointer bg-transparent" 
-                                        />
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-1.5 border-l-2 border-amber-200 pl-2">
-                                        <span className="text-[9px] text-amber-600 font-bold uppercase hidden sm:block">Recientes:</span>
-                                        {coloresRecientes.map((hex, idx) => (
-                                            <button
-                                                key={`${hex}-${idx}`}
-                                                type="button"
-                                                onClick={() => {
-                                                    setNuevaCapa({...nuevaCapa, colorTemp: hex});
-                                                    agregarColorReciente(hex);
-                                                }}
-                                                className="w-5 h-5 rounded-full border border-amber-300 hover:scale-110 shadow-xs transition-transform cursor-pointer"
-                                                style={{ backgroundColor: hex }}
-                                                title={`Usar color ${hex}`}
-                                            />
-                                        ))}
-                                    </div>
-
+                                    <input 
+                                        type="color" 
+                                        value={nuevaCapa.colorTemp} 
+                                        onChange={(e) => setNuevaCapa({...nuevaCapa, colorTemp: e.target.value})} 
+                                        onBlur={(e) => agregarColorReciente(e.target.value)}
+                                        className="w-6 h-6 rounded-lg border border-amber-300 cursor-pointer bg-transparent" 
+                                    />
                                     <button 
                                         type="button"
                                         onClick={handleAgregarColorAPaleta}
-                                        className="ml-auto bg-amber-700 hover:bg-amber-800 text-white font-bold py-1.5 px-3 rounded-xl text-[10px] transition-transform active:scale-95 cursor-pointer shadow-sm flex items-center justify-center gap-1"
+                                        className="bg-amber-700 text-white font-bold py-1 px-2 rounded-xl text-[10px] cursor-pointer"
                                     >
-                                        <span className="text-sm leading-none">+</span> Añadir
+                                        ➕ Añadir
                                     </button>
                                 </div>
 
                                 <div className="flex flex-wrap gap-1.5 pt-1">
                                     {nuevaCapa.paletaColors.map((hex, idx) => (
-                                        <div 
-                                            key={`${hex}-${idx}`} 
-                                            className="flex items-center gap-1 bg-amber-100 border border-amber-300 px-2 py-1 rounded-xl shadow-xs"
-                                        >
-                                            <span className="w-4 h-4 rounded-full border border-amber-950 shadow-xs" style={{ backgroundColor: hex }}></span>
+                                        <div key={`${hex}-${idx}`} className="flex items-center gap-1 bg-amber-100 border border-amber-300 px-2 py-1 rounded-xl shadow-xs">
+                                            <span className="w-4 h-4 rounded-full border border-amber-950" style={{ backgroundColor: hex }}></span>
                                             <span className="text-[10px] font-mono font-bold text-amber-900">{hex}</span>
-                                            <button 
-                                                type="button"
-                                                onClick={() => handleEliminarColorDePaleta(hex)}
-                                                className="text-red-700 hover:text-red-900 font-bold text-xs ml-1 cursor-pointer"
-                                            >
-                                                ✕
-                                            </button>
+                                            <button type="button" onClick={() => handleEliminarColorDePaleta(hex)} className="text-red-700 font-bold text-xs ml-1 cursor-pointer">✕</button>
                                         </div>
                                     ))}
                                 </div>
@@ -929,34 +813,27 @@ export default function GeneradorDev({ onBack }) {
 
                             <div className="flex gap-2">
                                 {capaEditandoId && (
-                                    <button 
-                                        type="button" 
-                                        onClick={cancelarEdicion} 
-                                        className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-4 rounded-2xl text-xs transition-all cursor-pointer shadow-sm"
-                                    >
-                                        Cancelar
+                                    <button type="button" onClick={cancelarEdicion} className="bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-2xl text-xs cursor-pointer">
+                                        ❌
                                     </button>
                                 )}
-                                <button 
-                                    type="button" 
-                                    onClick={handleGuardarCapa} 
-                                    className="flex-1 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-black py-3 rounded-2xl text-xs transition-all cursor-pointer shadow-md uppercase tracking-wider"
-                                >
-                                    {capaEditandoId ? '💾 Guardar Cambios' : '🚀 Añadir Categoría'}
+                                <button type="button" onClick={handleGuardarCapa} className="flex-1 bg-amber-600 text-white font-black py-3 rounded-2xl text-xs cursor-pointer uppercase">
+                                    {capaEditandoId ? '💾 Guardar' : '🚀 Añadir'}
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* COLUMNA DERECHA: CÓDIGO */}
                 <div className="lg:col-span-7 flex flex-col">
                     <div className="bg-[#1e1e1e] p-5 rounded-3xl border-2 border-amber-500 shadow-xl flex flex-col h-full">
                         <div className="flex justify-between items-center mb-3">
                             <label className="text-xs font-black text-amber-400 uppercase tracking-wider">
-                                Código JSX Generado
+                                💻 Código Listo
                             </label>
-                            <span className="text-[10px] text-gray-400 font-mono">Actualización en tiempo real</span>
+                            <span className="text-[10px] text-gray-400 font-mono text-right max-w-[120px]">
+                                {modoGenerador === 'asset' ? 'Componente Limpio' : 'Estado Completo'}
+                            </span>
                         </div>
                         <textarea 
                             readOnly
@@ -969,9 +846,9 @@ export default function GeneradorDev({ onBack }) {
                                 navigator.clipboard.writeText(generarCodigoJSX());
                                 alert('¡Código copiado al portapapeles! 📋');
                             }}
-                            className="mt-4 w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3.5 rounded-2xl shadow-md transition-transform active:scale-95 cursor-pointer text-sm flex items-center justify-center gap-2"
+                            className="mt-4 w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3.5 rounded-2xl cursor-pointer text-sm flex items-center justify-center gap-2"
                         >
-                            <span>📋</span> Copiar Código (Con Multi-Variantes)
+                            📋 Copiar Componente
                         </button>
                     </div>
                 </div>
