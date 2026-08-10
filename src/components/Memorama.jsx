@@ -6,7 +6,7 @@ import {
     sincronizarDesbloqueosPorNivel,
     filtrarContenidoPorCategorias
 } from '../data/Categoriascontenido.js';
-import { calcularNivelCuenta } from '../utils/nivelCuenta.js';
+import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 
 // 1. IMPORTAMOS LA CONFIGURACIÓN Y FUNCIONES DE FIREBASE
