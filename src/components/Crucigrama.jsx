@@ -298,9 +298,6 @@ export default function Crucigrama({
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
                     localStorage.setItem('crucigramaModoDificil', nuevoModo);
-                },
-                onCambiarTipoContenido: (nuevoModo) => {
-                    setTipoContenido(nuevoModo);
                 }
             });
         }
@@ -780,6 +777,12 @@ export default function Crucigrama({
             }
             return [...prev, categoriaId];
         });
+    };
+
+    // 🆕 Cambia fauna/flora/ambos directamente desde el panel de Categorías
+    const handleCambiarTipoContenido = (nuevoModo) => {
+        setTipoContenido(nuevoModo);
+        localStorage.setItem('tipoContenidoJuego', nuevoModo);
     };
 
     const reiniciarNivelActual = () => {
@@ -1296,16 +1299,25 @@ export default function Crucigrama({
                     </div>
                 </div>
             )}
-            {/* 📚 MODAL: SELECTOR DE CATEGORÍAS DESBLOQUEABLES */}
+            {/* 📚 MODAL: SELECTOR DE CATEGORÍAS + TIPO DE CONTENIDO (Fauna/Flora/Ambos) */}
             {showSelectorCategorias && (
                 <SelectorCategorias
-                    tipo={tipoContenido === 'flora' ? 'flora' : 'fauna'}
-                    desbloqueadas={tipoContenido === 'flora' ? categoriasFloraDesbloqueadas : categoriasFaunaDesbloqueadas}
-                    activas={tipoContenido === 'flora' ? categoriasFloraActivas : categoriasFaunaActivas}
+                    tipoContenido={tipoContenido}
+                    onCambiarTipoContenido={handleCambiarTipoContenido}
+                    fauna={{
+                        desbloqueadas: categoriasFaunaDesbloqueadas,
+                        activas: categoriasFaunaActivas,
+                        onToggleActiva: (id) => handleToggleCategoriaActiva('fauna', id),
+                        onDesbloquear: (id, costo) => handleDesbloquearCategoria('fauna', id, costo)
+                    }}
+                    flora={{
+                        desbloqueadas: categoriasFloraDesbloqueadas,
+                        activas: categoriasFloraActivas,
+                        onToggleActiva: (id) => handleToggleCategoriaActiva('flora', id),
+                        onDesbloquear: (id, costo) => handleDesbloquearCategoria('flora', id, costo)
+                    }}
                     totopos={totopos}
                     nivelCuenta={nivelCuenta}
-                    onToggleActiva={(id) => handleToggleCategoriaActiva(tipoContenido === 'flora' ? 'flora' : 'fauna', id)}
-                    onDesbloquear={(id, costo) => handleDesbloquearCategoria(tipoContenido === 'flora' ? 'flora' : 'fauna', id, costo)}
                     onClose={() => setShowSelectorCategorias(false)}
                 />
             )}

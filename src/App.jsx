@@ -14,10 +14,8 @@ import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
 import ConfiguracionModal from './components/ConfiguracionModal';
 
-// Ruta de mercado para accesorios sincronizada
 const RUTA_MERCADO_ACCESORIOS = '/avatares/mercado/';
 
-// Catalogo de respaldos para tienda y identificadores
 const AVATAR_EMOJIS = {
     default: 'Coraza',
     iguana: 'Iguana',
@@ -39,9 +37,6 @@ const calcularNivelRapido = (totalHistorico) => {
     return 5;
 };
 
-/* ==========================================
-   RENDERIZADOR DE AVATAR SUPERIOR (8 Capas con Accesorios)
-   ========================================== */
 function RenderAvatarSuperior({ avatar }) {
     const esPersonalizado = typeof avatar === 'object' && avatar !== null;
 
@@ -64,7 +59,6 @@ function RenderAvatarSuperior({ avatar }) {
 
         return (
             <div className="w-full h-full relative overflow-hidden bg-white flex items-center justify-center">
-                {/* 1. Capa de Silueta / Ropa Base */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -74,7 +68,6 @@ function RenderAvatarSuperior({ avatar }) {
                         backgroundPosition: 'center'
                     }}
                 />
-                {/* 2. Capa de Tono de Piel */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -89,7 +82,6 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 3. Capa Superior */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -104,7 +96,6 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 4. Capa de Rostro */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -114,7 +105,6 @@ function RenderAvatarSuperior({ avatar }) {
                         backgroundPosition: 'center'
                     }}
                 />
-                {/* 5. Capa de Ojos */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -129,7 +119,6 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 6. Capa de Cabello */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -144,7 +133,6 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 7. Capa Inferior */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -159,7 +147,6 @@ function RenderAvatarSuperior({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 8. Capa de Accesorio */}
                 {varAccesorio && (
                     <div
                         className="absolute inset-0 pointer-events-none"
@@ -329,21 +316,33 @@ function App() {
                 setVistaActual('menu');
               }
             }}
-            className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-2.5 sm:px-3.5 rounded-2xl shadow-md transition-transform transform active:scale-95 text-xs sm:text-sm cursor-pointer flex items-center justify-center gap-1.5 border-2 border-amber-500 whitespace-nowrap"
-            title="Volver al Menu Principal"
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center bg-amber-600 hover:bg-amber-700 text-white shadow-md transition-transform transform active:scale-95 border-2 border-amber-500 cursor-pointer p-2.5"
+            title="Volver al Menú Principal"
           >
-            <span className="sm:hidden text-base leading-none">Menu</span>
-            <span className="hidden sm:inline">Menu Principal</span>
+            <svg className="w-full h-full object-contain" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
           </button>
         )}
 
         {onGuardarClick && (
           <button
             onClick={onGuardarClick}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2.5 sm:px-3.5 rounded-2xl shadow-md transition-transform transform active:scale-95 text-xs sm:text-sm cursor-pointer flex items-center justify-center gap-1.5 border-2 border-emerald-500 whitespace-nowrap"
-            title="Guardar Record"
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-transform transform active:scale-95 border-2 border-emerald-500 cursor-pointer p-2 overflow-hidden"
+            title="Guardar Récord"
           >
-            <span className="hidden sm:inline">Guardar Record</span>
+            <img 
+              src="/guiechachi.png" 
+              alt="Guardar Récord" 
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            <span style={{ display: 'none' }} className="w-full h-full items-center justify-center text-xs font-bold">
+              💾
+            </span>
           </button>
         )}
 
@@ -354,11 +353,11 @@ function App() {
               ? 'bg-amber-100/90 hover:bg-amber-200/90 text-amber-900 border-amber-300 hover:border-amber-400' 
               : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
           }`}
-          title="Abrir Configuracion y Musica"
+          title="Abrir Configuración y Música"
         >
           <img 
             src="/engrane.png" 
-            alt="Configuracion" 
+            alt="Configuración" 
             className="w-full h-full object-contain animate-spin-slow"
             onError={(e) => {
               e.target.style.display = 'none';

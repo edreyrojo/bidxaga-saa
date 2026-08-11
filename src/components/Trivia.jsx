@@ -760,13 +760,14 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             {/* 📚 MODAL: SELECTOR DE CATEGORÍAS DESBLOQUEABLES (solo fauna en Trivia) */}
             {showSelectorCategorias && (
                 <SelectorCategorias
-                    tipo="fauna"
-                    desbloqueadas={categoriasFaunaDesbloqueadas}
-                    activas={categoriasFaunaActivas}
+                    fauna={{
+                        desbloqueadas: categoriasFaunaDesbloqueadas,
+                        activas: categoriasFaunaActivas,
+                        onToggleActiva: handleToggleCategoriaActiva,
+                        onDesbloquear: handleDesbloquearCategoria
+                    }}
                     totopos={totopos}
                     nivelCuenta={nivelCuenta}
-                    onToggleActiva={handleToggleCategoriaActiva}
-                    onDesbloquear={handleDesbloquearCategoria}
                     onClose={() => setShowSelectorCategorias(false)}
                 />
             )}
