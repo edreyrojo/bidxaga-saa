@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { db } from '../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
 import { CATALOGO_AVATARES, CATALOGO_ACCESORIOS } from '../data/catalogoActivos.js';
+import SeccionColapsable from './SeccionColapsable.jsx';
 
 // Catálogo general de elementos disponibles en la plataforma (Avatares y Accesorios de Mercado)
 // 🔧 Se construye a partir del catálogo único compartido, así nunca vuelve a desincronizarse
@@ -20,7 +21,9 @@ export default function SeccionInventario({
     avatarActual,
     setAvatarActual,
     setMensaje,
-    onAbrirCreador = null // 🆕 Permite saltar directo al Creador de Avatar al pulsar "Usar" en un accesorio
+    onAbrirCreador = null, // 🆕 Permite saltar directo al Creador de Avatar al pulsar "Usar" en un accesorio
+    inventarioAbierto,     // 🛠️ Antes llegaba pero nunca se usaba: el inventario jamás se podía colapsar
+    setInventarioAbierto
 }) {
     const [filtroTipo, setFiltroTipo] = useState('todos'); // 'todos', 'avatar', 'accesorio'
 
@@ -65,102 +68,101 @@ export default function SeccionInventario({
     };
 
     return (
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-xl border-2 border-amber-200 max-w-2xl mx-auto">
-            <div className="flex items-center justify-between mb-4 border-b border-amber-200 pb-3">
-                <h3 className="text-lg font-extrabold text-amber-900 tracking-wide">
-                    Inventario de Miscelánea y Avatares
-                </h3>
-                <span className="text-xs bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-bold">
-                    {itemsEnInventario.length} Objetos en Propiedad
-                </span>
-            </div>
-
-            {/* Pestañas de filtrado */}
-            <div className="flex gap-2 mb-4">
-                <button
-                    onClick={() => setFiltroTipo('todos')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        filtroTipo === 'todos' ? 'bg-amber-600 text-white shadow' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                    }`}
-                >
-                    Todos
-                </button>
-                <button
-                    onClick={() => setFiltroTipo('avatar')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        filtroTipo === 'avatar' ? 'bg-amber-600 text-white shadow' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                    }`}
-                >
-                    Avatares
-                </button>
-                <button
-                    onClick={() => setFiltroTipo('accesorio')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        filtroTipo === 'accesorio' ? 'bg-amber-600 text-white shadow' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                    }`}
-                >
-                    Accesorios
-                </button>
-            </div>
-
-            {/* Cuadrícula de ítems del inventario */}
-            {itemsFiltrados.length === 0 ? (
-                <div className="text-center py-8 text-amber-700/70 text-sm">
-                    No tienes elementos en esta categoría. Visita la tienda para adquirir nuevos ítems.
+        <SeccionColapsable
+            icono="/palmera.png"
+            titulo="Inventario de Objetos"
+            abierto={inventarioAbierto}
+            setAbierto={setInventarioAbierto}
+            badge={`${itemsEnInventario.length} obj.`}
+        >
+            <div className="p-4">
+                {/* Pestañas de filtrado */}
+                <div className="flex gap-2 mb-4">
+                    <button
+                        onClick={() => setFiltroTipo('todos')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            filtroTipo === 'todos' ? 'bg-amber-600 text-white shadow' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                        }`}
+                    >
+                        Todos
+                    </button>
+                    <button
+                        onClick={() => setFiltroTipo('avatar')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            filtroTipo === 'avatar' ? 'bg-amber-600 text-white shadow' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                        }`}
+                    >
+                        Avatares
+                    </button>
+                    <button
+                        onClick={() => setFiltroTipo('accesorio')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            filtroTipo === 'accesorio' ? 'bg-amber-600 text-white shadow' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                        }`}
+                    >
+                        Accesorios
+                    </button>
                 </div>
-            ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto pr-1">
-                    {itemsFiltrados.map((item) => {
-                        const esEquipado = avatarActual === item.id;
-                        return (
-                            <div
-                                key={item.id}
-                                className={`flex flex-col items-center justify-between p-3 rounded-2xl border-2 transition-all ${
-                                    esEquipado
-                                        ? 'border-emerald-500 bg-emerald-50/50 shadow-md'
-                                        : 'border-amber-200 bg-amber-50/30 hover:border-amber-400'
-                                }`}
-                            >
-                                <div className="w-16 h-16 flex items-center justify-center mb-2 bg-white rounded-xl shadow-inner border border-amber-100 overflow-hidden">
-                                    {item.tipo === 'avatar' ? (
-                                        <img
-                                            src={`/avatares/${item.archivo}.png`}
-                                            alt={item.nombre}
-                                            className="w-full h-full object-contain p-1"
-                                            onError={(e) => { e.target.src = '/totopo.png'; }}
-                                        />
-                                    ) : (
-                                        <img
-                                            src={`/avatares/mercado/${item.archivo}`}
-                                            alt={item.nombre}
-                                            className="w-full h-full object-contain p-1"
-                                            onError={(e) => { e.target.src = '/totopo.png'; }}
-                                        />
-                                    )}
-                                </div>
 
-                                <span className="text-xs font-bold text-amber-900 text-center mb-2 line-clamp-1">
-                                    {item.nombre}
-                                </span>
-
-                                <button
-                                    onClick={() => handleEquiparItem(item)}
-                                    disabled={esEquipado}
-                                    className={`w-full py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                {/* Cuadrícula de ítems del inventario */}
+                {itemsFiltrados.length === 0 ? (
+                    <div className="text-center py-8 text-amber-700/70 text-sm">
+                        No tienes elementos en esta categoría. Visita la tienda para adquirir nuevos ítems.
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+                        {itemsFiltrados.map((item) => {
+                            const esEquipado = avatarActual === item.id;
+                            return (
+                                <div
+                                    key={item.id}
+                                    className={`flex flex-col items-center justify-between p-3 rounded-2xl border-2 transition-all ${
                                         esEquipado
-                                            ? 'bg-emerald-600 text-white cursor-default shadow-none'
-                                            : 'bg-amber-600 hover:bg-amber-700 text-white shadow'
+                                            ? 'border-emerald-500 bg-emerald-50/50 shadow-md'
+                                            : 'border-amber-200 bg-amber-50/30 hover:border-amber-400'
                                     }`}
                                 >
-                                    {item.tipo === 'accesorio'
-                                        ? 'Usar en Creador'
-                                        : (esEquipado ? 'Equipado' : 'Equipar')}
-                                </button>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
+                                    <div className="w-16 h-16 flex items-center justify-center mb-2 bg-white rounded-xl shadow-inner border border-amber-100 overflow-hidden">
+                                        {item.tipo === 'avatar' ? (
+                                            <img
+                                                src={`/avatares/${item.archivo}.png`}
+                                                alt={item.nombre}
+                                                className="w-full h-full object-contain p-1"
+                                                onError={(e) => { e.target.src = '/totopo.png'; }}
+                                            />
+                                        ) : (
+                                            <img
+                                                src={`/avatares/mercado/${item.archivo}`}
+                                                alt={item.nombre}
+                                                className="w-full h-full object-contain p-1"
+                                                onError={(e) => { e.target.src = '/totopo.png'; }}
+                                            />
+                                        )}
+                                    </div>
+
+                                    <span className="text-xs font-bold text-amber-900 text-center mb-2 line-clamp-1">
+                                        {item.nombre}
+                                    </span>
+
+                                    <button
+                                        onClick={() => handleEquiparItem(item)}
+                                        disabled={esEquipado}
+                                        className={`w-full py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                            esEquipado
+                                                ? 'bg-emerald-600 text-white cursor-default shadow-none'
+                                                : 'bg-amber-600 hover:bg-amber-700 text-white shadow'
+                                        }`}
+                                    >
+                                        {item.tipo === 'accesorio'
+                                            ? 'Usar en Creador'
+                                            : (esEquipado ? 'Equipado' : 'Equipar')}
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        </SeccionColapsable>
     );
 }

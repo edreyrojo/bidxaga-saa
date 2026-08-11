@@ -445,12 +445,8 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                         </div>
                     )}
 
-                    {/* TIENDA DE AVATARES Y VIDAS */}
-                    <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2 px-1">
-                            <img src="/tehuana.png" alt="Tehuana" className="w-6 h-6 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
-                            <h3 className="text-amber-950 font-black text-base">Mercado y Tienda</h3>
-                        </div>
+                    {/* TIENDA, INVENTARIO Y LOGROS — cada una ya trae su propio encabezado colapsable */}
+                    <div className="space-y-3 mb-4">
                         <SeccionTienda 
                             user={user}
                             totopos={totopos}
@@ -467,14 +463,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             tiendaAbierta={tiendaAbierta}
                             setTiendaAbierta={setTiendaAbierta}
                         />
-                    </div>
 
-                    {/* SECCION INVENTARIO */}
-                    <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2 px-1">
-                            <img src="/palmera.png" alt="Inventario" className="w-6 h-6 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
-                            <h3 className="text-amber-950 font-black text-base">Inventario de Objetos</h3>
-                        </div>
                         <SeccionInventario
                             user={user}
                             avataresDesbloqueados={avataresDesbloqueados}
@@ -488,14 +477,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             setInventarioAbierto={setInventarioAbierto}
                             onAbrirCreador={() => setShowCreador(true)}
                         />
-                    </div>
 
-                    {/* LOGROS Y TROFEOS */}
-                    <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2 px-1">
-                            <img src="/guiechachi.png" alt="Guiechachi" className="w-6 h-6 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
-                            <h3 className="text-amber-950 font-black text-base">Logros y Trofeos</h3>
-                        </div>
                         <SeccionLogros 
                             logrosAbiertos={logrosAbiertos}
                             setLogrosAbiertos={setLogrosAbiertos}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { db } from '../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
 import { CATALOGO_AVATARES, CATALOGO_ACCESORIOS } from '../data/catalogoActivos.js';
+import SeccionColapsable from './SeccionColapsable.jsx';
 
 const CATALOGO_VIDAS = [
     { id: 'vida_1', costo: 15, cantidad: 1 },
@@ -141,29 +142,13 @@ export default function SeccionTienda({
     };
 
     return (
-        <div className="mb-6 bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-            <button
-                type="button"
-                onClick={() => setTiendaAbierta(!tiendaAbierta)}
-                className="w-full p-4 flex items-center justify-between bg-amber-100/50 hover:bg-amber-100 transition-colors cursor-pointer"
-            >
-                <span className="font-black text-amber-900 text-base flex items-center gap-2">
-                    <img 
-                        src="/tehuana.png" 
-                        alt="Tehuana" 
-                        className="w-6 h-6 object-contain" 
-                        onError={(e) => { e.target.style.display = 'none'; }} 
-                    />
-                    Mercado Istmeño
-                </span>
-                <span className="text-amber-950 font-bold text-xs bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-sm">
-                    {tiendaAbierta ? '▲ Ocultar Mercado' : '▼ Ver Mercado'}
-                </span>
-            </button>
-
-            {tiendaAbierta && (
-                <div className="border-t border-amber-200 bg-amber-50/40">
-                    <div className="flex border-b border-amber-200 bg-amber-100/30">
+        <SeccionColapsable
+            icono="/tehuana.png"
+            titulo="Mercado Istmeño"
+            abierto={tiendaAbierta}
+            setAbierto={setTiendaAbierta}
+        >
+            <div className="flex border-b border-amber-200 bg-amber-100/30">
                         <button
                             onClick={() => setPestanaActiva('avatares')}
                             className={`flex-1 py-2.5 text-xs font-black transition-colors cursor-pointer ${
@@ -357,8 +342,6 @@ export default function SeccionTienda({
                             ))}
                         </div>
                     )}
-                </div>
-            )}
-        </div>
+        </SeccionColapsable>
     );
 }
