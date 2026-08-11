@@ -1,5 +1,5 @@
 import React from 'react';
-import { obtenerCategoriasPorTipo } from '../data/categoriasContenido.js';
+import { obtenerCategoriasPorTipo } from '../data/Categoriascontenido.js';
 
 function BloqueCategoria({ tipoLabel, tipoDataset, data, totopos, nivelCuenta }) {
     const { desbloqueadas = [], activas = [], onToggleActiva, onDesbloquear } = data;
