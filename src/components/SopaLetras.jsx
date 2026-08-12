@@ -9,25 +9,23 @@ import {
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import ConfiguracionModal from './ConfiguracionModal';
-
+import { useSonido } from '../hooks/useSonido.js';
 import { db, auth } from '../firebaseConfig';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
 const LETRAS_RELLENO = ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'L', 'M', 'N', 'O', 'R', 'S', 'T', 'U', 'X', 'Y', 'Z'];
 
-// Recompensas de totopos mejor equilibradas para evitar números rojos en Nivel 1
 const RECOMPENSAS_SOPA = {
-    1: 20, // Subido de 10 a 20 para superar el costo base de vidas
+    1: 20,
     2: 30,
     3: 45,
     4: 60
 };
 
-// Costo de vidas dinámico según el nivel (más accesible al inicio)
 const obtenerCostoVidas = (lvl) => {
     if (lvl === 1) return 10;
     if (lvl === 2) return 15;
-    return 20; // Niveles superiores
+    return 20;
 };
 
 const obtenerBaseDatosActiva = (modo, categoriasFaunaActivas = [], categoriasFloraActivas = []) => {
@@ -64,6 +62,31 @@ const limpiarPalabra = (texto, modoDificil = false) => {
         .replace(/[^A-Z]/g, "");
 };
 
+// Funcion auxiliar sincronica para calcular la ruta de celdas seleccionadas
+const obtenerCeldasRuta = (r1, c1, r2, c2) => {
+    let celdas = [];
+    const deltaR = r2 - r1;
+    const deltaC = c2 - c1;
+
+    if (deltaR === 0) {
+        const minC = Math.min(c1, c2);
+        const maxC = Math.max(c1, c2);
+        for (let c = minC; c <= maxC; c++) celdas.push({ r: r1, c });
+    } else if (deltaC === 0) {
+        const minR = Math.min(r1, r2);
+        const maxR = Math.max(r1, r2);
+        for (let r = minR; r <= maxR; r++) celdas.push({ r, c: c1 });
+    } else if (Math.abs(deltaR) === Math.abs(deltaC)) {
+        const steps = Math.abs(deltaR);
+        const stepR = deltaR > 0 ? 1 : -1;
+        const stepC = deltaC > 0 ? 1 : -1;
+        for (let i = 0; i <= steps; i++) {
+            celdas.push({ r: r1 + i * stepR, c: c1 + i * stepC });
+        }
+    }
+    return celdas;
+};
+
 export default function SopaLetras({
     onBack,
     user,
@@ -72,9 +95,11 @@ export default function SopaLetras({
     onSetControles,
     setControlesJuegoActivo
 }) {
+    const { reproducirSonido } = useSonido();
+
     const [nivel, setNivel] = useState(1);
     const [intentos, setIntentos] = useState(0);
-    const [vidas, setVidas] = useState(3); // 💖 Sistema de Vidas orgánico
+    const [vidas, setVidas] = useState(3);
     const [matriz, setMatriz] = useState([]);
     const [animalesObjetivo, setAnimalesObjetivo] = useState([]);
     const [palabrasEncontradas, setPalabrasEncontradas] = useState([]);
@@ -82,9 +107,8 @@ export default function SopaLetras({
     const [tipoContenido, setTipoContenido] = useState(() => {
         return localStorage.getItem('tipoContenidoJuego') || 'fauna';
     });
-    const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
+    const [totopos, setTotopos] = useState(0);
 
-    // 📚 Sistema de categorías desbloqueables (fauna y flora)
     const [nivelCuenta, setNivelCuenta] = useState(1);
     const [categoriasFaunaDesbloqueadas, setCategoriasFaunaDesbloqueadas] = useState(() => categoriaInicialPorDefecto('fauna'));
     const [categoriasFloraDesbloqueadas, setCategoriasFloraDesbloqueadas] = useState(() => categoriaInicialPorDefecto('flora'));
@@ -94,47 +118,40 @@ export default function SopaLetras({
 
     const [animalesCoords, setAnimalesCoords] = useState({});
 
-    // Estados del Arrastre
     const [isSelecting, setIsSelecting] = useState(false);
     const [startCell, setStartCell] = useState(null);
     const [currentCell, setCurrentCell] = useState(null);
     const [celdasSeleccionadas, setCeldasSeleccionadas] = useState([]);
 
-    // Referencia para sincronizar el estado de selección en eventos táctiles nativos sin re-renderizar
     const isSelectingRef = useRef(false);
     useEffect(() => {
         isSelectingRef.current = isSelecting;
     }, [isSelecting]);
 
-    // Estados del Ranking y Control de Guardado Unificado
     const [playerName, setPlayerName] = useState('');
     const [ranking, setRanking] = useState([]);
     const [cargandoRanking, setCargandoRanking] = useState(false);
     const [guardadoEnNivel, setGuardadoEnNivel] = useState(false);
     const [pendingGlobalScore, setPendingGlobalScore] = useState(null);
 
-    // Estados para las Modales Personalizadas (con z-[70] para prioridad visual absoluta)
     const [showGuardarModal, setShowGuardarModal] = useState(false);
     const [inputPlayerName, setInputPlayerName] = useState('');
     const [showMenuModal, setShowMenuModal] = useState(false);
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
-    const [showComprarVidasModal, setShowComprarVidasModal] = useState(false); // 💖 Modal de vidas agotadas
+    const [showComprarVidasModal, setShowComprarVidasModal] = useState(false);
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
-    // Soporte para control externo o interno del modal de configuración
     const [internalConfigOpen, setInternalConfigOpen] = useState(false);
     const isConfigOpen = isOpenConfig !== undefined ? isOpenConfig : internalConfigOpen;
     const handleCloseConfig = onCloseConfig || (() => setInternalConfigOpen(false));
 
     const gridRef = useRef(null);
 
-    // Tamaño dinámico y progresivo de la cuadrícula
     const tamanoActual = Math.min(5 + nivel, 12);
     const cantidadPalabras = Math.min(3 + nivel, 8);
     const recompensaActual = RECOMPENSAS_SOPA[nivel] || 60;
     const costoActualVidas = obtenerCostoVidas(nivel);
 
-    // Función auxiliar para guardar automáticamente si hay sesión activa y nickname configurado
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
         const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
 
@@ -150,21 +167,24 @@ export default function SopaLetras({
             setPendingGlobalScore(null);
             setFeedbackModal({
                 show: true,
-                title: "🎉 ¡Guardado Exitoso!",
-                message: `¡Hola ${nombreLimpio}! Récord registrado automáticamente en el ranking global para el Nivel ${scoreToSave.level} (${scoreToSave.intentos} intentos).`
+                title: "Guardado Exitoso",
+                message: `${nombreLimpio}: Record registrado en Nivel ${scoreToSave.level} (${scoreToSave.intentos} int.).`
             });
         } catch (error) {
-            console.error("Error al guardar el puntaje en Firebase:", error);
+            console.error("Error al guardar en Firebase:", error);
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Guardado Parcial",
-                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
+                title: "Guardado Local",
+                message: "Progreso guardado localmente."
             });
         }
     };
 
-    // Al hacer click en Guardar con verificación de sesión y nickname
     const handleClickGuardar = async () => {
+        try {
+            reproducirSonido('click1');
+        } catch (e) {}
+        
         localStorage.setItem('sopaLetrasNivel', nivel);
         localStorage.setItem('sopaLetrasIntentos', intentos);
         localStorage.setItem('sopaLetrasVidas', vidas);
@@ -174,8 +194,8 @@ export default function SopaLetras({
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Récord ya guardado",
-                message: `Ya guardaste tu récord global para el Nivel ${nivel}. Avanza al siguiente nivel para volver a registrar tu puntaje en el ranking.`
+                title: "Record ya registrado",
+                message: `Ya guardaste tu record en Nivel ${nivel}.`
             });
             return;
         }
@@ -198,7 +218,7 @@ export default function SopaLetras({
                     }
                 }
             } catch (e) {
-                console.error("Error al verificar nickname en la nube:", e);
+                console.error("Error al verificar nickname:", e);
             }
         }
 
@@ -210,17 +230,17 @@ export default function SopaLetras({
         }
     };
 
-    // Sincronizar controles globales con App.jsx y ConfiguracionModal
     useEffect(() => {
         const registrarControles = onSetControles || setControlesJuegoActivo;
         if (registrarControles) {
             registrarControles({
                 level: nivel,
-                onMenuClick: () => setShowMenuModal(true),
+                onMenuClick: () => { try { reproducirSonido('click1'); } catch(e){} setShowMenuModal(true); },
                 onGuardarClick: handleClickGuardar,
-                onReiniciarClick: () => setShowConfirmRestartModal(true),
+                onReiniciarClick: () => { try { reproducirSonido('click1'); } catch(e){} setShowConfirmRestartModal(true); },
                 modoDificil: modoDificil,
                 onToggleModoDificil: () => {
+                    try { reproducirSonido('click1'); } catch(e){}
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
                     localStorage.setItem('sopaLetrasModoDificil', nuevoModo);
@@ -235,7 +255,6 @@ export default function SopaLetras({
         };
     }, [nivel, modoDificil, tipoContenido, intentos, vidas, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
-    // Cargar datos locales y sincronizar totopos y nickname de la nube si hay sesión activa
     useEffect(() => {
         const nivelGuardado = localStorage.getItem('sopaLetrasNivel');
         const intentosGuardados = localStorage.getItem('sopaLetrasIntentos');
@@ -254,7 +273,6 @@ export default function SopaLetras({
         }
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
 
-        // 📚 Categorías: respaldo local
         try {
             const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
             if (faunaGuardadas) {
@@ -267,7 +285,7 @@ export default function SopaLetras({
                 setCategoriasFloraActivas(prev => prev.filter(id => floraGuardadas.includes(id)).length ? prev.filter(id => floraGuardadas.includes(id)) : categoriaInicialPorDefecto('flora'));
             }
         } catch (e) {
-            console.error("Error al leer categorías guardadas localmente:", e);
+            console.error("Error al leer categorias:", e);
         }
 
         const cargarDatosNube = async () => {
@@ -283,7 +301,6 @@ export default function SopaLetras({
                             localStorage.setItem('totopos', data.totopos);
                         }
 
-                        // 🏅 Nivel de Cuenta + sincronización de categorías gratis por nivel
                         const historico = data.totoposHistoricos !== undefined ? data.totoposHistoricos : (data.totopos || 0);
                         const nivelCalc = calcularNivelCuenta(historico);
                         setNivelCuenta(nivelCalc);
@@ -304,14 +321,6 @@ export default function SopaLetras({
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('flora');
                         });
 
-                        if (JSON.stringify(faunaNube) !== JSON.stringify(data.categoriasFaunaDesbloqueadas || [])
-                            || JSON.stringify(floraNube) !== JSON.stringify(data.categoriasFloraDesbloqueadas || [])) {
-                            updateDoc(userDocRef, {
-                                categoriasFaunaDesbloqueadas: faunaNube,
-                                categoriasFloraDesbloqueadas: floraNube
-                            }).catch(err => console.error("Error al sincronizar categorías por nivel:", err));
-                        }
-
                         const nickNube = data.nickname || data.nombre || data.name;
                         if (nickNube) {
                             setPlayerName(nickNube);
@@ -320,7 +329,7 @@ export default function SopaLetras({
                         }
                     }
                 } catch (e) {
-                    console.error("Error al cargar datos de la nube:", e);
+                    console.error("Error al cargar datos de nube:", e);
                 }
             }
         };
@@ -332,7 +341,6 @@ export default function SopaLetras({
         generarNuevoJuego();
     }, [nivel, modoDificil, tipoContenido, categoriasFaunaActivas, categoriasFloraActivas]);
 
-    // Solución nativa y limpia para touchstart y touchmove sin advertencias pasivas de consola
     useEffect(() => {
         const gridNode = gridRef.current;
         if (!gridNode) return;
@@ -372,7 +380,6 @@ export default function SopaLetras({
         };
     }, []);
 
-    // Detectar cuando se completa el nivel de forma segura
     useEffect(() => {
         if (palabrasEncontradas.length === animalesObjetivo.length && animalesObjetivo.length > 0) {
             if (pendingGlobalScore) return;
@@ -531,31 +538,7 @@ export default function SopaLetras({
             setCeldasSeleccionadas([]);
             return;
         }
-
-        let celdas = [];
-        const { r: r1, c: c1 } = startCell;
-        const { r: r2, c: c2 } = currentCell;
-
-        const deltaR = r2 - r1;
-        const deltaC = c2 - c1;
-
-        if (deltaR === 0) {
-            const minC = Math.min(c1, c2);
-            const maxC = Math.max(c1, c2);
-            for (let c = minC; c <= maxC; c++) celdas.push({ r: r1, c });
-        } else if (deltaC === 0) {
-            const minR = Math.min(r1, r2);
-            const maxR = Math.max(r1, r2);
-            for (let r = minR; r <= maxR; r++) celdas.push({ r, c: c1 });
-        } else if (Math.abs(deltaR) === Math.abs(deltaC)) {
-            const steps = Math.abs(deltaR);
-            const stepR = deltaR > 0 ? 1 : -1;
-            const stepC = deltaC > 0 ? 1 : -1;
-            for (let i = 0; i <= steps; i++) {
-                celdas.push({ r: r1 + i * stepR, c: c1 + i * stepC });
-            }
-        }
-
+        const celdas = obtenerCeldasRuta(startCell.r, startCell.c, currentCell.r, currentCell.c);
         setCeldasSeleccionadas(celdas);
     }, [startCell, currentCell]);
 
@@ -577,11 +560,14 @@ export default function SopaLetras({
     };
 
     const verificarSeleccion = () => {
-        if (celdasSeleccionadas.length === 0) return;
+        if (!startCell || !currentCell) return;
+
+        const celdasActuales = obtenerCeldasRuta(startCell.r, startCell.c, currentCell.r, currentCell.c);
+        if (celdasActuales.length === 0) return;
 
         setIntentos(prev => prev + 1);
 
-        let textoSeleccionado = celdasSeleccionadas.map(cell => matriz[cell.r][cell.c]).join('');
+        let textoSeleccionado = celdasActuales.map(cell => matriz[cell.r][cell.c]).join('');
         let textoInvertido = [...textoSeleccionado].reverse().join('');
 
         const animalEncontrado = animalesObjetivo.find(animal => {
@@ -591,9 +577,17 @@ export default function SopaLetras({
         });
 
         if (animalEncontrado) {
-            setPalabrasEncontradas(prev => [...prev, animalEncontrado.id]);
+            const nuevasEncontradas = [...palabrasEncontradas, animalEncontrado.id];
+            
+            // Verificacion sincrona vinculada a la accion directa del usuario para el bypass del Autoplay Policy
+            if (nuevasEncontradas.length === animalesObjetivo.length) {
+                try { reproducirSonido('click3'); } catch (e) {} // Terminar nivel
+            } else {
+                try { reproducirSonido('click2'); } catch (e) {} // Palabra completada
+            }
+            
+            setPalabrasEncontradas(nuevasEncontradas);
         } else {
-            // Si falla la selección en Modo Difícil, pierde una vida
             if (modoDificil) {
                 const nuevasVidas = vidas - 1;
                 setVidas(nuevasVidas);
@@ -611,11 +605,12 @@ export default function SopaLetras({
     };
 
     const comprarVidas = async () => {
+        try { reproducirSonido('click1'); } catch (e) {}
         if (totopos < costoActualVidas) {
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Totopos insuficientes",
-                message: "No tienes suficientes totopos para comprar vidas. ¡Completa niveles o juega otros minijuegos para ganar más!"
+                title: "Totopos insuficientes",
+                message: "No tienes suficientes totopos para recuperar vidas."
             });
             return;
         }
@@ -636,24 +631,25 @@ export default function SopaLetras({
                     totopos: increment(-costoActualVidas)
                 });
             } catch (err) {
-                console.error("Error al descontar totopos en Firebase:", err);
+                console.error("Error al descontar totopos:", err);
             }
         }
 
         setFeedbackModal({
             show: true,
-            title: "❤️ ¡Vidas Recargadas!",
-            message: `Has recuperado 3 vidas por ${costoActualVidas} totopos. ¡A seguir jugando!`
+            title: "Vidas Recargadas",
+            message: `Recuperaste 3 vidas por ${costoActualVidas} totopos.`
         });
     };
 
     const confirmarGuardadoGlobal = async () => {
+        try { reproducirSonido('click1'); } catch (e) {}
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Nombre requerido",
-                message: "Por favor escribe un nombre válido para registrarte en el ranking."
+                title: "Nombre requerido",
+                message: "Ingresa un nombre valido para guardar."
             });
             return;
         }
@@ -676,26 +672,26 @@ export default function SopaLetras({
             setPendingGlobalScore(null);
             setFeedbackModal({
                 show: true,
-                title: "🎉 ¡Guardado Exitoso!",
-                message: `¡Partida guardada y récord global registrado para el Nivel ${scoreToSave.level} con ${scoreToSave.intentos} intentos!`
+                title: "Guardado Exitoso",
+                message: `Puntaje guardado para el Nivel ${scoreToSave.level}.`
             });
         } catch (error) {
-            console.error("Error al guardar el puntaje en Firebase:", error);
+            console.error("Error al guardar:", error);
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Guardado Parcial",
-                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
+                title: "Guardado Local",
+                message: "Progreso guardado localmente."
             });
         }
     };
 
-    // 📚 Desbloquear una categoría pagando totopos actuales (el desbloqueo gratis por nivel ya se aplica solo)
     const handleDesbloquearCategoria = async (tipo, categoriaId, costo) => {
+        try { reproducirSonido('click1'); } catch (e) {}
         if (costo > 0 && totopos < costo) {
             setFeedbackModal({
                 show: true,
-                title: "🌽 Totopos insuficientes",
-                message: `Te faltan ${costo - totopos} totopos para desbloquear esta categoría.`
+                title: "Totopos insuficientes",
+                message: `Te faltan ${costo - totopos} totopos.`
             });
             return;
         }
@@ -726,20 +722,19 @@ export default function SopaLetras({
                 if (costo > 0) payload.totopos = nuevosTotopos;
                 await updateDoc(doc(db, 'usuarios', currentUser.uid), payload);
             } catch (err) {
-                console.error("Error al sincronizar categoría desbloqueada:", err);
+                console.error("Error al sincronizar categoria:", err);
             }
         }
 
         setFeedbackModal({
             show: true,
-            title: "🔓 ¡Categoría desbloqueada!",
-            message: costo > 0
-                ? `Gastaste ${costo} totopos. Ya puedes practicar esta categoría.`
-                : "¡La reclamaste gratis por tu Nivel de Cuenta!"
+            title: "Categoria Desbloqueada",
+            message: costo > 0 ? `Gastaste ${costo} totopos.` : "¡Categoria reclamada por tu Nivel de Cuenta!"
         });
     };
 
     const handleToggleCategoriaActiva = (tipo, categoriaId) => {
+        try { reproducirSonido('click1'); } catch (e) {}
         const setActivas = tipo === 'flora' ? setCategoriasFloraActivas : setCategoriasFaunaActivas;
         setActivas(prev => {
             const yaActiva = prev.includes(categoriaId);
@@ -751,13 +746,14 @@ export default function SopaLetras({
         });
     };
 
-    // 🆕 Cambia fauna/flora/ambos directamente desde el panel de Categorías
     const handleCambiarTipoContenido = (nuevoModo) => {
+        try { reproducirSonido('click1'); } catch (e) {}
         setTipoContenido(nuevoModo);
         localStorage.setItem('tipoContenidoJuego', nuevoModo);
     };
 
     const confirmarReiniciar = () => {
+        try { reproducirSonido('click1'); } catch (e) {}
         localStorage.removeItem('sopaLetrasNivel');
         localStorage.removeItem('sopaLetrasIntentos');
         localStorage.removeItem('sopaLetrasVidas');
@@ -793,6 +789,7 @@ export default function SopaLetras({
     };
 
     const siguienteNivel = () => {
+        try { reproducirSonido('click1'); } catch (e) {}
         const proximoNivel = nivel + 1;
         setNivel(proximoNivel);
         setVidas(3);
@@ -808,27 +805,32 @@ export default function SopaLetras({
             onTouchEnd={handleMouseUp}
         >
             <header className="text-center mb-3">
-                <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">🔎 Sopa de Letras</h2>
-                <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1 flex flex-wrap justify-center items-center gap-1.5">
+                <h2 className="text-2xl sm:text-3xl font-bold text-amber-950 flex items-center justify-center gap-2">
+                    🔎 Sopa de Letras
+                </h2>
+                <div className="text-xs sm:text-sm text-amber-800 font-medium mt-1 flex flex-wrap justify-center items-center gap-2.5">
                     <span className="text-red-600 font-bold inline-flex items-center gap-1">
                         <img src="/tuna-vida.png" alt="Vidas" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none' }} />
                         <span style={{ display: 'none' }}>❤️</span>
-                        {vidas} Vidas
-                    </span> •
-                    <span>Nivel {nivel}</span> •
-                    <span>Intentos: {intentos}</span> •
+                        {vidas}
+                    </span>
+                    <span>•</span>
+                    <span className="font-bold">Niv {nivel}</span>
+                    <span>•</span>
+                    <span>{intentos} int.</span>
+                    <span>•</span>
                     <span className="text-orange-600 font-bold inline-flex items-center gap-1">
                         <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none' }} />
                         <span style={{ display: 'none' }}>🌽</span>
-                        {totopos} Totopos
+                        {totopos}
                     </span>
-                </p>
+                </div>
                 <button
                     type="button"
-                    onClick={() => setShowSelectorCategorias(true)}
-                    className="mt-2 inline-flex items-center gap-1.5 bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs px-3 py-1.5 rounded-full border-2 border-amber-300 shadow-sm transition-colors cursor-pointer"
+                    onClick={() => { try { reproducirSonido('click1'); } catch(e){} setShowSelectorCategorias(true); }}
+                    className="mt-2 inline-flex items-center gap-1.5 bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs px-3 py-1 rounded-full border-2 border-amber-300 shadow-sm transition-colors cursor-pointer"
                 >
-                    📚 Categorías
+                    📚 Categorias
                     <span className="bg-amber-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                         {tipoContenido === 'flora'
                             ? categoriasFloraActivas.length
@@ -839,30 +841,28 @@ export default function SopaLetras({
                 </button>
             </header>
 
-            {/* MODAL DE CONFIGURACIÓN UNIFICADO */}
             <ConfiguracionModal
                 isOpen={isConfigOpen}
-                onClose={handleCloseConfig}
+                onClose={() => { try { reproducirSonido('click1'); } catch(e){} handleCloseConfig(); }}
                 level={nivel}
-                onMenuClick={onBack ? () => setShowMenuModal(true) : null}
+                onMenuClick={onBack ? () => { try { reproducirSonido('click1'); } catch(e){} setShowMenuModal(true); } : null}
                 onGuardarClick={handleClickGuardar}
-                onReiniciarClick={() => setShowConfirmRestartModal(true)}
+                onReiniciarClick={() => { try { reproducirSonido('click1'); } catch(e){} setShowConfirmRestartModal(true); }}
                 modoDificil={modoDificil}
                 onToggleModoDificil={() => {
+                    try { reproducirSonido('click1'); } catch (e) {}
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
                     localStorage.setItem('sopaLetrasModoDificil', nuevoModo);
                 }}
             />
 
-            {/* AVISO DE NIVEL COMPLETADO */}
             {palabrasEncontradas.length === animalesObjetivo.length && animalesObjetivo.length > 0 && (
                 <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce shadow-md">
-                    <p className="text-lg sm:text-xl font-bold text-green-900 mb-1">🎉 ¡Excelente! Encontraste todas las palabras</p>
+                    <p className="text-lg sm:text-xl font-bold text-green-900 mb-1">¡Nivel Completado!</p>
                     <p className="text-xs font-bold text-amber-700 mb-2 inline-flex items-center justify-center gap-1">
                         +{recompensaActual}
                         <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none' }} />
-                        Totopos añadidos a tu morral
                     </p>
                     <div className="flex gap-3 justify-center">
                         <button type="button" onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm transition-transform active:scale-95 cursor-pointer">
@@ -872,10 +872,7 @@ export default function SopaLetras({
                 </div>
             )}
 
-            {/* 🖥️ CONTENEDOR OPTIMIZADO PARA PC */}
             <div className="w-full max-w-5xl flex flex-col lg:grid lg:grid-cols-[1fr_360px] gap-6 items-center lg:items-start justify-center mt-2">
-
-                {/* Columna Izquierda: Matriz de la Sopa de Letras */}
                 <div className="flex flex-col items-center w-full">
                     <div
                         ref={gridRef}
@@ -911,26 +908,24 @@ export default function SopaLetras({
                     </div>
                 </div>
 
-                {/* Columna Derecha: Panel Lateral de Pistas y Ranking Global unificados */}
                 <div className="flex flex-col gap-6 w-full max-w-md lg:max-w-none">
-
-                    {/* Panel de Pistas */}
                     <div className="flex flex-col gap-3 w-full bg-white/60 p-4 rounded-2xl border border-amber-200 shadow-sm">
-                        <h3 className="font-bold text-amber-900 border-b border-amber-200 pb-1.5 text-sm sm:text-base">
-                            📋 Ocultos ({palabrasEncontradas.length}/{animalesObjetivo.length}):
+                        <h3 className="font-bold text-amber-900 border-b border-amber-200 pb-1.5 text-sm sm:text-base flex items-center justify-between">
+                            <span>📋 Ocultos:</span>
+                            <span className="text-amber-700 font-extrabold">{palabrasEncontradas.length}/{animalesObjetivo.length}</span>
                         </h3>
 
                         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-1 gap-2.5 max-h-[300px] lg:max-h-[340px] overflow-y-auto pr-1">
                             {animalesObjetivo.map((animal) => {
                                 const encontrado = palabrasEncontradas.includes(animal.id);
                                 return (
-                                    <div key={animal.id} className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all shadow-sm bg-white ${encontrado ? 'border-green-400 bg-green-50/60 opacity-60' : 'border-amber-200'}`}>
-                                        <div className="w-10 h-10 bg-orange-100/50 rounded-lg overflow-hidden flex items-center justify-center border border-amber-100 flex-shrink-0">
+                                    <div key={animal.id} className={`flex items-center gap-2.5 p-2 rounded-xl border transition-all shadow-sm bg-white ${encontrado ? 'border-green-400 bg-green-50/60 opacity-60' : 'border-amber-200'}`}>
+                                        <div className="w-9 h-9 bg-orange-100/50 rounded-lg overflow-hidden flex items-center justify-center border border-amber-100 flex-shrink-0">
                                             <img src={animal.image} alt={animal.spanish} className="max-w-full max-h-full object-contain" onError={(e) => { e.target.src = "🔍"; }} />
                                         </div>
                                         <div className="text-left overflow-hidden">
-                                            <p className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider truncate">{animal.spanish}</p>
-                                            <p className={`text-sm lg:text-base font-bold transition-all mt-0.5 truncate ${encontrado ? 'text-green-700 line-through' : 'text-amber-950'}`}>
+                                            <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider truncate">{animal.spanish}</p>
+                                            <p className={`text-xs lg:text-sm font-bold transition-all truncate ${encontrado ? 'text-green-700 line-through' : 'text-amber-950'}`}>
                                                 {encontrado ? animal.diidxaza : '????'}
                                             </p>
                                         </div>
@@ -940,54 +935,49 @@ export default function SopaLetras({
                         </div>
                     </div>
 
-                    {/* Tabla de Ranking Global Compacta para PC con Guiechachi en PNG */}
                     <div className="bg-white rounded-2xl p-4 shadow-md border border-amber-200 w-full">
                         <h3 className="font-bold text-amber-900 text-center mb-2.5 text-sm sm:text-base flex items-center justify-center gap-1.5">
                             <img
                                 src="/guiechachi.png"
                                 alt="Guiechachi"
-                                className="w-6 h-6 object-contain"
+                                className="w-5 h-5 object-contain"
                                 onError={(e) => {
                                     e.target.style.display = 'none';
                                     if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
                                 }}
                             />
                             <span style={{ display: 'none' }}>🏆</span>
-                            Ranking - Sopa de Letras
+                            Ranking Sopa
                         </h3>
                         {cargandoRanking ? (
-                            <p className="text-center text-xs text-gray-500 py-2">Cargando puntajes globales...</p>
+                            <p className="text-center text-xs text-gray-500 py-2">Cargando puntajes...</p>
                         ) : ranking.length === 0 ? (
-                            <p className="text-center text-xs text-gray-500 py-2">Aún no hay scores en la nube. ¡Sé el primero!</p>
+                            <p className="text-center text-xs text-gray-500 py-2">Aun no hay records.</p>
                         ) : (
                             <div className="flex flex-col gap-1 max-h-[220px] overflow-y-auto pr-1">
                                 {ranking.map((r, i) => (
                                     <div key={r.id || i} className="flex justify-between items-center border-b py-1.5 text-xs border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
                                         <span className="font-medium text-amber-950 truncate max-w-[180px]">
-                                            <span className="text-orange-500 font-bold mr-1.5">{i + 1}.</span> {r.name}
-                                            <span className="text-[10px] text-amber-700 font-bold ml-1.5">(Niv {r.level})</span>
+                                            <span className="text-orange-500 font-bold mr-1">{i + 1}.</span> {r.name}
+                                            <span className="text-[10px] text-amber-700 font-bold ml-1">(N{r.level})</span>
                                         </span>
-                                        <span className="font-bold text-amber-900 whitespace-nowrap">{r.intentos} intentos</span>
+                                        <span className="font-bold text-amber-900 whitespace-nowrap">{r.intentos} int.</span>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </div>
-
                 </div>
-
             </div>
 
-            {/* MODAL DE VIDAS AGOTADAS / COMPRAR (z-[70]) */}
             {showComprarVidasModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-red-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-red-300 w-full max-w-sm flex flex-col items-center text-center">
                         <div className="text-4xl mb-2">💔</div>
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">¡Te has quedado sin vidas!</h3>
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">¡Sin vidas!</h3>
                         <p className="text-xs text-amber-800 mb-4 inline-flex items-center justify-center gap-1 flex-wrap">
-                            Puedes gastar {costoActualVidas}
+                            Recupera 3 vidas por {costoActualVidas}
                             <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e) => { e.target.style.display = 'none' }} />
-                            Totopos para recuperar 3 vidas y continuar tu partida.
                         </p>
 
                         <div className="flex gap-3 w-full">
@@ -996,7 +986,7 @@ export default function SopaLetras({
                                 onClick={confirmarReiniciar}
                                 className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
-                                Reiniciar Nivel
+                                Reiniciar
                             </button>
                             <button
                                 type="button"
@@ -1012,16 +1002,15 @@ export default function SopaLetras({
                 </div>
             )}
 
-            {/* MODAL PERSONALIZADA PARA GUARDAR PROGRESO (z-[70]) */}
             {showGuardarModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Récord</h3>
-                        <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para guardar tu puntaje en el ranking global.</p>
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center relative">
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Record</h3>
+                        <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para registrarte en el ranking.</p>
 
                         <input
                             type="text"
-                            placeholder="Escribe tu nombre"
+                            placeholder="Tu nombre"
                             value={inputPlayerName}
                             onChange={(e) => setInputPlayerName(e.target.value)}
                             className="border-2 border-amber-300 p-3 rounded-lg w-full mb-5 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm font-medium"
@@ -1031,7 +1020,7 @@ export default function SopaLetras({
                         <div className="flex gap-3 w-full">
                             <button
                                 type="button"
-                                onClick={() => setShowGuardarModal(false)}
+                                onClick={() => { try { reproducirSonido('click1'); } catch(e){} setShowGuardarModal(false); }}
                                 className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
@@ -1048,46 +1037,44 @@ export default function SopaLetras({
                 </div>
             )}
 
-            {/* MODAL DE CONFIRMACIÓN PARA VOLVER AL MENÚ (z-[70]) */}
             {showMenuModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
                         <div className="text-3xl mb-2">⚠️</div>
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
-                        <p className="text-xs text-amber-800 mb-5">Asegúrate de haber guardado tu progreso antes de salir para evitar perder tus avances.</p>
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menu?</h3>
+                        <p className="text-xs text-amber-800 mb-5">Guarda tu progreso antes de salir para no perderlo.</p>
 
                         <div className="flex gap-3 w-full">
                             <button
                                 type="button"
-                                onClick={() => setShowMenuModal(false)}
+                                onClick={() => { try { reproducirSonido('click1'); } catch(e){} setShowMenuModal(false); }}
                                 className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button
                                 type="button"
-                                onClick={() => { setShowMenuModal(false); if (onBack) onBack(); }}
+                                onClick={() => { try { reproducirSonido('click1'); } catch(e){} setShowMenuModal(false); if (onBack) onBack(); }}
                                 className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
-                                Sí, salir
+                                Salir
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* MODAL DE CONFIRMACIÓN PARA REINICIAR (z-[70]) */}
             {showConfirmRestartModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
                         <div className="text-3xl mb-2">🔄</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Reiniciar Progreso?</h3>
-                        <p className="text-xs text-amber-800 mb-5">Se borrará tu nivel actual, intentos y volverás al Nivel 1. ¿Estás seguro?</p>
+                        <p className="text-xs text-amber-800 mb-5">Volveras al Nivel 1. ¿Deseas continuar?</p>
 
                         <div className="flex gap-3 w-full">
                             <button
                                 type="button"
-                                onClick={() => setShowConfirmRestartModal(false)}
+                                onClick={() => { try { reproducirSonido('click1'); } catch(e){} setShowConfirmRestartModal(false); }}
                                 className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
@@ -1097,23 +1084,22 @@ export default function SopaLetras({
                                 onClick={confirmarReiniciar}
                                 className="flex-1 bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
-                                Sí, reiniciar
+                                Reiniciar
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* MODAL DE MENSAJES / FEEDBACK GENERAL (z-[70]) */}
             {feedbackModal.show && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">{feedbackModal.title}</h3>
                         <p className="text-xs text-amber-800 mb-5">{feedbackModal.message}</p>
 
                         <button
                             type="button"
-                            onClick={() => setFeedbackModal({ show: false, title: '', message: '' })}
+                            onClick={() => { try { reproducirSonido('click1'); } catch(e){} setFeedbackModal({ show: false, title: '', message: '' }); }}
                             className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                         >
                             Aceptar
@@ -1122,7 +1108,6 @@ export default function SopaLetras({
                 </div>
             )}
 
-            {/* 📚 MODAL: SELECTOR DE CATEGORÍAS DESBLOQUEABLES */}
             {showSelectorCategorias && (
                 <SelectorCategorias
                     tipoContenido={tipoContenido}
@@ -1141,10 +1126,12 @@ export default function SopaLetras({
                     }}
                     totopos={totopos}
                     nivelCuenta={nivelCuenta}
-                    onClose={() => setShowSelectorCategorias(false)}
+                    onClose={() => {
+                        try { reproducirSonido('click1'); } catch(e){}
+                        setShowSelectorCategorias(false);
+                    }}
                 />
             )}
-
         </div>
     );
 }

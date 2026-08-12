@@ -8,12 +8,13 @@ import {
 } from '../data/Categoriascontenido.js';
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
+import { useSonido } from '../hooks/useSonido';
 
 // 1. IMPORTAMOS LA CONFIGURACIÓN Y FUNCIONES DE FIREBASE
 import { auth, db } from '../firebaseConfig.js';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
-const MAX_VIDAS = 10; // 🛡️ Siempre 10 vidas al comenzar el juego, sin importar el valor guardado previamente
+const MAX_VIDAS = 10; 
 
 const CONFIG_NIVELES = {
     1: { parejas: 4, columnas: 'grid-cols-4', recompensa: 10 },
@@ -58,9 +59,9 @@ function Tarjeta({ card, handleChoice, flipped, disabled }) {
     const textLength = card.content ? card.content.length : 0;
 
     const responsiveTextClass = () => {
-        if (textLength > 12) return "text-[10px] md:text-sm"; // Palabras muy largas
-        if (textLength > 8) return "text-xs md:text-base";    // Palabras medianas
-        return "text-sm md:text-xl font-bold";                // Palabras cortas (Ideal)
+        if (textLength > 12) return "text-[10px] md:text-sm"; 
+        if (textLength > 8) return "text-xs md:text-base";    
+        return "text-sm md:text-xl font-bold";                
     };
 
     return (
@@ -81,7 +82,6 @@ function Tarjeta({ card, handleChoice, flipped, disabled }) {
                         />
                     ) : null}
 
-                    {/* Contenedor de texto con clases responsivas */}
                     <div className={`${card.type === 'image' ? 'hidden' : 'flex'} flex-col items-center justify-center h-full w-full text-center p-1`}>
                         <p className={`${responsiveTextClass()} text-amber-950 uppercase tracking-tight leading-tight break-words`}>
                             {card.type === 'word' ? card.content : card.label}
@@ -113,6 +113,8 @@ export default function Tablero({
     onSetControles,
     setControlesJuegoActivo
 }) {
+    const { reproducirSonido } = useSonido();
+
     const [level, setLevel] = useState(1);
     const [cards, setCards] = useState([]);
     const [turns, setTurns] = useState(0);
@@ -127,39 +129,34 @@ export default function Tablero({
         return localStorage.getItem('tipoContenidoJuego') || 'fauna';
     });
     const [guardadoEnNivel, setGuardadoEnNivel] = useState(false);
-    const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
-    const [vidas, setVidas] = useState(MAX_VIDAS); // ❤️ Sistema de Vidas: SIEMPRE arranca en 10
-    const [fichasVistas, setFichasVistas] = useState([]); // 🛡️ IDs de cartas ya volteadas al menos una vez
-    const [avisoVistasMostrado, setAvisoVistasMostrado] = useState(false); // 🛡️ Control para mostrar el aviso de tablero conocido una sola vez
-    const [combosFallidos, setCombosFallidos] = useState({}); // 🛡️ Conteo de veces que se repite la MISMA combinación incorrecta
+    const [totopos, setTotopos] = useState(0); 
+    const [vidas, setVidas] = useState(MAX_VIDAS); 
+    const [fichasVistas, setFichasVistas] = useState([]); 
+    const [avisoVistasMostrado, setAvisoVistasMostrado] = useState(false); 
+    const [combosFallidos, setCombosFallidos] = useState({}); 
 
-    // 📚 Sistema de categorías desbloqueables (fauna y flora)
-    const [nivelCuenta, setNivelCuenta] = useState(1); // Calculado a partir del total histórico de totopos
+    const [nivelCuenta, setNivelCuenta] = useState(1); 
     const [categoriasFaunaDesbloqueadas, setCategoriasFaunaDesbloqueadas] = useState(() => categoriaInicialPorDefecto('fauna'));
     const [categoriasFloraDesbloqueadas, setCategoriasFloraDesbloqueadas] = useState(() => categoriaInicialPorDefecto('flora'));
     const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => categoriaInicialPorDefecto('fauna'));
     const [categoriasFloraActivas, setCategoriasFloraActivas] = useState(() => categoriaInicialPorDefecto('flora'));
     const [showSelectorCategorias, setShowSelectorCategorias] = useState(false);
-    const [parejasEnJuego, setParejasEnJuego] = useState(0); // 🛡️ Parejas REALES de esta ronda (puede ser < configActual.parejas si la categoría elegida es chica)
+    const [parejasEnJuego, setParejasEnJuego] = useState(0); 
 
-    // Memoria temporal para guardar el récord del nivel anterior completado
     const [pendingGlobalScore, setPendingGlobalScore] = useState(null);
-
-    // Estado para mostrar si estamos cargando los datos de la nube
     const [cargandoRanking, setCargandoRanking] = useState(false);
 
-    // Estados para las Modales Personalizadas
     const [showGuardarModal, setShowGuardarModal] = useState(false);
     const [inputPlayerName, setInputPlayerName] = useState('');
-    const [showMenuModal, setShowMenuModal] = useState(false); // ⚠️ Estado restaurado para la advertencia del menú
+    const [showMenuModal, setShowMenuModal] = useState(false); 
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
-    const [showSinVidasModal, setShowSinVidasModal] = useState(false); // 🛑 Modal para cuando se agotan las vidas
+    const [showSinVidasModal, setShowSinVidasModal] = useState(false); 
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
     const configActual = getConfigForLevel(level);
 
-    // Al hacer click en Guardar
     const handleClickGuardar = async () => {
+        reproducirSonido('click1');
         localStorage.setItem('memoramaNivel', level);
         localStorage.setItem('memoramaModoDificil', modoDificil);
         localStorage.setItem('totopos', totopos);
@@ -177,7 +174,6 @@ export default function Tablero({
         const currentUser = user || auth.currentUser;
         let nombreAUsar = playerName;
 
-        // Si está logueado, verificamos y aseguramos tener el nickname más reciente de la nube
         if (currentUser) {
             try {
                 const userDocRef = doc(db, 'usuarios', currentUser.uid);
@@ -197,7 +193,6 @@ export default function Tablero({
             }
         }
 
-        // Si está logueado y tiene un nickname configurado, guarda directamente sin mostrar la modal
         if (currentUser && nombreAUsar.trim()) {
             const scoreToSave = pendingGlobalScore || { level: level, turns: turns };
             try {
@@ -229,19 +224,23 @@ export default function Tablero({
         }
     };
 
-    // Sincronizar controles globales con App.jsx y ConfiguracionModal
     useEffect(() => {
         const registrarControles = onSetControles || setControlesJuegoActivo;
         if (registrarControles) {
             registrarControles({
                 level: level,
                 onMenuClick: () => {
-                    setShowMenuModal(true); // ⚠️ Muestra la advertencia antes de salir
+                    reproducirSonido('click1');
+                    setShowMenuModal(true); 
                 },
                 onGuardarClick: handleClickGuardar,
-                onReiniciarClick: () => setShowConfirmRestartModal(true),
+                onReiniciarClick: () => {
+                    reproducirSonido('click1');
+                    setShowConfirmRestartModal(true);
+                },
                 modoDificil: modoDificil,
                 onToggleModoDificil: () => {
+                    reproducirSonido('click1');
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
                     localStorage.setItem('memoramaModoDificil', nuevoModo);
@@ -256,7 +255,6 @@ export default function Tablero({
         };
     }, [level, modoDificil, tipoContenido, turns, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
-    // 2. FUNCIÓN PARA LEER DESDE LA NUBE (GLOBAL)
     const cargarRankingGlobal = async () => {
         setCargandoRanking(true);
         try {
@@ -281,7 +279,6 @@ export default function Tablero({
         }
     };
 
-    // 3. CARGA INICIAL DESDE FIREBASE Y RESCATE DE PROGRESO LOCAL
     useEffect(() => {
         cargarRankingGlobal();
         const nivelGuardado = localStorage.getItem('memoramaNivel');
@@ -297,7 +294,6 @@ export default function Tablero({
         }
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
 
-        // 📚 Categorías: recuperamos lo guardado localmente como respaldo inicial
         try {
             const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
             if (faunaGuardadas) {
@@ -315,7 +311,6 @@ export default function Tablero({
 
         setVidas(MAX_VIDAS);
         localStorage.setItem('memoramaVidas', MAX_VIDAS);
-
         setLevel(nivelInicial);
 
         const cargarDatosNube = async () => {
@@ -331,12 +326,10 @@ export default function Tablero({
                             localStorage.setItem('totopos', data.totopos);
                         }
 
-                        // 🏅 Nivel de Cuenta, a partir del total histórico (mismo cálculo que el "Lvl" de arriba)
                         const historico = data.totoposHistoricos !== undefined ? data.totoposHistoricos : (data.totopos || 0);
                         const nivelCalc = calcularNivelCuenta(historico);
                         setNivelCuenta(nivelCalc);
 
-                        // 📚 Categorías desbloqueadas en la nube, fusionadas con lo que ya califica gratis por nivel
                         const faunaNube = sincronizarDesbloqueosPorNivel('fauna', data.categoriasFaunaDesbloqueadas || categoriaInicialPorDefecto('fauna'), nivelCalc);
                         const floraNube = sincronizarDesbloqueosPorNivel('flora', data.categoriasFloraDesbloqueadas || categoriaInicialPorDefecto('flora'), nivelCalc);
                         setCategoriasFaunaDesbloqueadas(faunaNube);
@@ -344,7 +337,6 @@ export default function Tablero({
                         localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
                         localStorage.setItem('categoriasFloraDesbloqueadas', JSON.stringify(floraNube));
 
-                        // Si había categorías activas guardadas en la nube, las restauramos; si no, caemos a las gratis
                         setCategoriasFaunaActivas(prev => {
                             const activasValidas = prev.filter(id => faunaNube.includes(id));
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('fauna');
@@ -354,7 +346,6 @@ export default function Tablero({
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('flora');
                         });
 
-                        // Si se desbloqueó algo nuevo por nivel que la nube no tenía registrado, lo persistimos
                         if (JSON.stringify(faunaNube) !== JSON.stringify(data.categoriasFaunaDesbloqueadas || [])
                             || JSON.stringify(floraNube) !== JSON.stringify(data.categoriasFloraDesbloqueadas || [])) {
                             updateDoc(userDocRef, {
@@ -382,9 +373,9 @@ export default function Tablero({
         iniciarJuego(level);
     }, [level, modoDificil, tipoContenido, categoriasFaunaActivas, categoriasFloraActivas]);
 
-    // Detectar automáticamente cuando se completa un nivel
     useEffect(() => {
         if (matches === parejasEnJuego && parejasEnJuego > 0 && !pendingGlobalScore) {
+            reproducirSonido('click3');
             setPendingGlobalScore({ level: level, turns: turns });
 
             setTotopos(prevTotopos => {
@@ -426,7 +417,6 @@ export default function Tablero({
         }
     }, [matches, parejasEnJuego, level, turns, user, configActual.recompensa, pendingGlobalScore]);
 
-    // 🛡️ Detectar exactamente cuando se han visto todas las fichas por primera vez
     useEffect(() => {
         if (!avisoVistasMostrado && cards.length > 0 && fichasVistas.length >= cards.length) {
             setAvisoVistasMostrado(true);
@@ -439,6 +429,7 @@ export default function Tablero({
     }, [fichasVistas, cards.length, avisoVistasMostrado]);
 
     const confirmarGuardadoGlobal = async () => {
+        reproducirSonido('click1');
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
             setFeedbackModal({
@@ -480,8 +471,8 @@ export default function Tablero({
         }
     };
 
-    // Reinicia TODO el progreso y vuelve al Nivel 1, con 10 vidas
     const confirmarReiniciar = () => {
+        reproducirSonido('click1');
         localStorage.removeItem('memoramaNivel');
         localStorage.removeItem('memoramaModoDificil');
         localStorage.removeItem('memoramaPlayerName');
@@ -502,8 +493,8 @@ export default function Tablero({
         iniciarJuego(1);
     };
 
-    // 🆕 Reinicia SOLO el nivel actual con 10 vidas
     const reiniciarNivelActual = () => {
+        reproducirSonido('click1');
         setVidas(MAX_VIDAS);
         localStorage.setItem('memoramaVidas', MAX_VIDAS);
         setFichasVistas([]);
@@ -524,12 +515,8 @@ export default function Tablero({
 
     const iniciarJuego = (nivelActual) => {
         const baseDatosActiva = obtenerBaseDatosActiva(tipoContenido, categoriasFaunaActivas, categoriasFloraActivas);
-
-        // 🛡️ Si por alguna razón el pool queda vacío (ej. categorías recién cambiadas), no tronamos: usamos fauna doméstica de respaldo
         const poolSeguro = baseDatosActiva.length > 0 ? baseDatosActiva : filtrarContenidoPorCategorias(listaAnimales, categoriaInicialPorDefecto('fauna'));
 
-        // 🛡️ El nivel puede pedir más parejas de las que la(s) categoría(s) elegidas alcanzan a ofrecer
-        // (ej. "Felinos" solo tiene 6). En ese caso jugamos con TODO lo disponible, no con un tablero incompleto.
         const parejasDelNivel = getConfigForLevel(nivelActual).parejas;
         const parejasReales = Math.min(parejasDelNivel, poolSeguro.length);
         setParejasEnJuego(parejasReales);
@@ -570,6 +557,7 @@ export default function Tablero({
     };
 
     const siguienteNivel = () => {
+        reproducirSonido('click1');
         const proximoNivel = level + 1;
         setLevel(proximoNivel);
         localStorage.setItem('memoramaNivel', proximoNivel);
@@ -578,6 +566,7 @@ export default function Tablero({
     };
 
     const handleChoice = (card) => {
+        reproducirSonido('click1');
         setFichasVistas(prev => (prev.includes(card.id) ? prev : [...prev, card.id]));
         choiceOne ? setChoiceTwo(card) : setChoiceOne(card);
     };
@@ -609,6 +598,7 @@ export default function Tablero({
     };
 
     const comprarVidasRescate = async () => {
+        reproducirSonido('click1');
         const costoPaquete = 40;
         const vidasGanadas = 3;
 
@@ -649,8 +639,8 @@ export default function Tablero({
         });
     };
 
-    // 📚 Desbloquear una categoría pagando totopos actuales (el desbloqueo gratis por nivel ya se aplica solo)
     const handleDesbloquearCategoria = async (tipo, categoriaId, costo) => {
+        reproducirSonido('click1');
         if (costo > 0 && totopos < costo) {
             setFeedbackModal({
                 show: true,
@@ -672,7 +662,6 @@ export default function Tablero({
             localStorage.setItem(claveLocal, JSON.stringify(nuevasDesbloqueadas));
             return nuevasDesbloqueadas;
         });
-        // La categoría recién comprada se activa automáticamente para que se note el cambio
         setActivas(prev => (prev.includes(categoriaId) ? prev : [...prev, categoriaId]));
 
         if (costo > 0) {
@@ -700,13 +689,12 @@ export default function Tablero({
         });
     };
 
-    // Activa/desactiva una categoría YA desbloqueada dentro de la selección de práctica actual
     const handleToggleCategoriaActiva = (tipo, categoriaId) => {
+        reproducirSonido('click1');
         const setActivas = tipo === 'flora' ? setCategoriasFloraActivas : setCategoriasFaunaActivas;
         setActivas(prev => {
             const yaActiva = prev.includes(categoriaId);
             if (yaActiva) {
-                // No permitimos dejar 0 categorías activas
                 if (prev.length === 1) return prev;
                 return prev.filter(id => id !== categoriaId);
             }
@@ -714,8 +702,8 @@ export default function Tablero({
         });
     };
 
-    // 🆕 Cambia fauna/flora/ambos directamente desde el panel de Categorías (antes vivía en Configuración)
     const handleCambiarTipoContenido = (nuevoModo) => {
+        reproducirSonido('click1');
         setTipoContenido(nuevoModo);
         localStorage.setItem('tipoContenidoJuego', nuevoModo);
     };
@@ -724,6 +712,7 @@ export default function Tablero({
         if (choiceOne && choiceTwo) {
             setDisabled(true);
             if (choiceOne.pairId === choiceTwo.pairId) {
+                reproducirSonido('click2');
                 setCards(prevCards => prevCards.map(card => card.pairId === choiceOne.pairId ? { ...card, isMatched: true } : card));
                 setMatches(prev => prev + 1);
                 resetTurn();
@@ -781,7 +770,10 @@ export default function Tablero({
                 </p>
                 <button
                     type="button"
-                    onClick={() => setShowSelectorCategorias(true)}
+                    onClick={() => {
+                        reproducirSonido('click1');
+                        setShowSelectorCategorias(true);
+                    }}
                     className="mt-2 inline-flex items-center gap-1.5 bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs px-3 py-1.5 rounded-full border-2 border-amber-300 shadow-sm transition-colors cursor-pointer"
                 >
                     📚 Categorías
@@ -827,7 +819,6 @@ export default function Tablero({
 
                 <div className="w-full max-w-md mx-auto lg:max-w-none">
                     <div className="bg-white rounded-2xl p-3.5 shadow-md border-2 border-amber-200">
-                        {/* Título de Ranking con Collar Guiechachi en PNG */}
                         <h3 className="font-black text-amber-900 text-center mb-2.5 text-sm sm:text-base flex items-center justify-center gap-1.5">
                             <img
                                 src="/guiechachi.png"
@@ -863,7 +854,6 @@ export default function Tablero({
 
             </div>
 
-            {/* 🛑 MODAL: TE QUEDASTE SIN VIDAS */}
             {showSinVidasModal && (
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-red-500 w-full max-w-sm flex flex-col items-center text-center animate-fade-in relative">
@@ -901,7 +891,6 @@ export default function Tablero({
                 </div>
             )}
 
-            {/* MODAL PERSONALIZADA PARA GUARDAR PROGRESO */}
             {showGuardarModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
@@ -919,7 +908,10 @@ export default function Tablero({
 
                         <div className="flex gap-3 w-full">
                             <button
-                                onClick={() => setShowGuardarModal(false)}
+                                onClick={() => {
+                                    reproducirSonido('click1');
+                                    setShowGuardarModal(false);
+                                }}
                                 className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
@@ -935,7 +927,6 @@ export default function Tablero({
                 </div>
             )}
 
-            {/* ⚠️ MODAL DE CONFIRMACIÓN PARA VOLVER AL MENÚ */}
             {showMenuModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
@@ -945,13 +936,17 @@ export default function Tablero({
 
                         <div className="flex gap-3 w-full">
                             <button
-                                onClick={() => setShowMenuModal(false)}
+                                onClick={() => {
+                                    reproducirSonido('click1');
+                                    setShowMenuModal(false);
+                                }}
                                 className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={() => {
+                                    reproducirSonido('click1');
                                     setShowMenuModal(false);
                                     if (onBack) onBack();
                                 }}
@@ -964,7 +959,6 @@ export default function Tablero({
                 </div>
             )}
 
-            {/* MODAL DE CONFIRMACIÓN PARA REINICIAR */}
             {showConfirmRestartModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
@@ -974,7 +968,10 @@ export default function Tablero({
 
                         <div className="flex gap-3 w-full">
                             <button
-                                onClick={() => setShowConfirmRestartModal(false)}
+                                onClick={() => {
+                                    reproducirSonido('click1');
+                                    setShowConfirmRestartModal(false);
+                                }}
                                 className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
@@ -990,7 +987,6 @@ export default function Tablero({
                 </div>
             )}
 
-            {/* MODAL DE MENSAJES / FEEDBACK GENERAL */}
             {feedbackModal.show && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
@@ -998,7 +994,10 @@ export default function Tablero({
                         <p className="text-xs text-amber-800 mb-5">{feedbackModal.message}</p>
 
                         <button
-                            onClick={() => setFeedbackModal({ show: false, title: '', message: '' })}
+                            onClick={() => {
+                                reproducirSonido('click1');
+                                setFeedbackModal({ show: false, title: '', message: '' });
+                            }}
                             className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                         >
                             Aceptar
@@ -1007,7 +1006,6 @@ export default function Tablero({
                 </div>
             )}
 
-            {/* 📚 MODAL: SELECTOR DE CATEGORÍAS + TIPO DE CONTENIDO (Fauna/Flora/Ambos) */}
             {showSelectorCategorias && (
                 <SelectorCategorias
                     tipoContenido={tipoContenido}
@@ -1026,7 +1024,10 @@ export default function Tablero({
                     }}
                     totopos={totopos}
                     nivelCuenta={nivelCuenta}
-                    onClose={() => setShowSelectorCategorias(false)}
+                    onClose={() => {
+                        reproducirSonido('click1');
+                        setShowSelectorCategorias(false);
+                    }}
                 />
             )}
 

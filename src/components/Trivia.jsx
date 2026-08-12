@@ -7,10 +7,13 @@ import {
 } from '../data/Categoriascontenido.js';
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
+import { useSonido } from '../hooks/useSonido.js';
 import { auth, db } from '../firebaseConfig';
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, increment, query, orderBy, limit } from 'firebase/firestore';
 
 export default function Trivia({ onBack, user, onSetControles, setControlesJuegoActivo }) {
+    const { reproducirSonido } = useSonido();
+
     // Estados principales del juego
     const [nivel, setNivel] = useState(1);
     const [errores, setErrores] = useState(0);
@@ -91,6 +94,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
     // Al hacer click en Guardar con verificación de sesión y nickname
     const handleClickGuardar = async () => {
+        try { reproducirSonido('click1'); } catch (e) {}
         guardarProgresoLocal();
 
         if (guardadoEnNivel && !pendingGlobalScore) {
@@ -139,12 +143,19 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             registrarControles({
                 level: nivel,
                 onMenuClick: () => {
+                    try { reproducirSonido('click1'); } catch (e) {}
                     setShowMenuModal(true); // ⚠️ Muestra la advertencia antes de salir
                 },
                 onGuardarClick: handleClickGuardar,
-                onReiniciarClick: () => setShowConfirmRestartModal(true),
+                onReiniciarClick: () => {
+                    try { reproducirSonido('click1'); } catch (e) {}
+                    setShowConfirmRestartModal(true);
+                },
                 modoDificil: modoDificil,
-                onToggleModoDificil: () => setModoDificil(prev => !prev)
+                onToggleModoDificil: () => {
+                    try { reproducirSonido('click1'); } catch (e) {}
+                    setModoDificil(prev => !prev);
+                }
             });
         }
 
@@ -244,6 +255,9 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         if (aciertosNivel < PREGUNTAS_POR_NIVEL && !isGameOver) {
             generarNuevaPregunta();
         } else if (aciertosNivel >= PREGUNTAS_POR_NIVEL) {
+            if (!pendingGlobalScore) {
+                try { reproducirSonido('click3'); } catch (e) {} // 🎉 Nivel completado
+            }
             setPendingGlobalScore({ level: nivel, errores: errores });
         }
     }, [nivel, aciertosNivel, isGameOver, categoriasFaunaActivas]);
@@ -275,6 +289,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         setOpcionSeleccionada(opcionElegida.id);
 
         if (opcionElegida.id === preguntaActual.id) {
+            try { reproducirSonido('click2'); } catch (e) {} // ✅ Respuesta correcta
             setEstadoRespuesta('correcta');
             setTimeout(() => {
                 setAciertosNivel(prev => prev + 1);
@@ -310,6 +325,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     };
 
     const siguienteNivel = async () => {
+        try { reproducirSonido('click1'); } catch (e) {}
         const proximoNivel = nivel + 1;
         
         // Sumar y guardar totopos localmente
@@ -345,6 +361,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
     const confirmarGuardadoGlobal = async (e) => {
         if (e?.preventDefault) e.preventDefault();
+        try { reproducirSonido('click1'); } catch (err) {}
         
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
@@ -385,6 +402,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     // 🛡️ Reinicia únicamente el Nivel actual con las 3 vidas restauradas
     // 📚 Desbloquear una categoría de fauna pagando totopos actuales
     const handleDesbloquearCategoria = async (categoriaId, costo) => {
+        try { reproducirSonido('click1'); } catch (e) {}
         if (costo > 0 && totopos < costo) {
             setFeedbackModal({
                 show: true,
@@ -429,6 +447,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     };
 
     const handleToggleCategoriaActiva = (categoriaId) => {
+        try { reproducirSonido('click1'); } catch (e) {}
         setCategoriasFaunaActivas(prev => {
             const yaActiva = prev.includes(categoriaId);
             if (yaActiva) {
@@ -441,6 +460,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
     const confirmarReiniciar = (e) => {
         if (e?.preventDefault) e.preventDefault();
+        try { reproducirSonido('click1'); } catch (err) {}
         setVidas(3);
         setErroresParaVida(0);
         setAciertosNivel(0);
@@ -494,7 +514,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 </p>
                 <button
                     type="button"
-                    onClick={() => setShowSelectorCategorias(true)}
+                    onClick={() => { try { reproducirSonido('click1'); } catch (e) {} setShowSelectorCategorias(true); }}
                     className="mt-2 inline-flex items-center gap-1.5 bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs px-3 py-1.5 rounded-full border-2 border-amber-300 shadow-sm transition-colors cursor-pointer"
                 >
                     📚 Categorías
@@ -654,6 +674,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                                 <button 
                                     type="button" 
                                     onClick={() => {
+                                        try { reproducirSonido('click1'); } catch (e) {}
                                         const nuevosTotopos = totopos - COSTO_VIDAS;
                                         setTotopos(nuevosTotopos);
                                         setVidas(3);
@@ -698,7 +719,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                             autoFocus 
                         />
                         <div className="flex gap-3 w-full">
-                            <button type="button" onClick={() => setShowGuardarModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-3 rounded-2xl font-bold text-xs border border-amber-300 cursor-pointer">Cancelar</button>
+                            <button type="button" onClick={() => { try { reproducirSonido('click1'); } catch (e) {} setShowGuardarModal(false); }} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-3 rounded-2xl font-bold text-xs border border-amber-300 cursor-pointer">Cancelar</button>
                             <button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer">Guardar</button>
                         </div>
                     </form>
@@ -713,10 +734,11 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                         <h3 className="text-xl font-black text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
                         <p className="text-xs text-amber-700 mb-5 font-medium">Si sales ahora, asegúrate de haber guardado tu progreso. ¿Estás seguro?</p>
                         <div className="flex gap-3 w-full">
-                            <button type="button" onClick={() => setShowMenuModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-3 rounded-2xl font-bold text-xs border border-amber-300 cursor-pointer">Cancelar</button>
+                            <button type="button" onClick={() => { try { reproducirSonido('click1'); } catch (e) {} setShowMenuModal(false); }} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-3 rounded-2xl font-bold text-xs border border-amber-300 cursor-pointer">Cancelar</button>
                             <button 
                                 type="button" 
                                 onClick={() => {
+                                    try { reproducirSonido('click1'); } catch (e) {}
                                     guardarProgresoLocal(); // 💾 Guarda antes de salir al menú
                                     setShowMenuModal(false);
                                     if (onBack) onBack();
@@ -740,7 +762,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                         <h3 className="text-xl font-black text-amber-950 mb-1">¿Reiniciar Nivel {nivel}?</h3>
                         <p className="text-xs text-amber-700 mb-5 font-medium">Reiniciarás el Nivel {nivel} con 3 vidas restauradas. ¿Estás seguro?</p>
                         <div className="flex gap-3 w-full">
-                            <button type="button" onClick={() => setShowConfirmRestartModal(false)} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-3 rounded-2xl font-bold text-xs border border-amber-300 cursor-pointer">Cancelar</button>
+                            <button type="button" onClick={() => { try { reproducirSonido('click1'); } catch (e) {} setShowConfirmRestartModal(false); }} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-3 rounded-2xl font-bold text-xs border border-amber-300 cursor-pointer">Cancelar</button>
                             <button type="button" onClick={confirmarReiniciar} className="flex-1 bg-amber-950 hover:bg-black text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer">Sí, reiniciar</button>
                         </div>
                     </div>
@@ -753,7 +775,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center">
                         <h3 className="text-xl font-black text-amber-950 mb-2">{feedbackModal.title}</h3>
                         <p className="text-xs text-amber-700 mb-5 font-medium">{feedbackModal.message}</p>
-                        <button type="button" onClick={() => setFeedbackModal({ show: false, title: '', message: '' })} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer">Aceptar</button>
+                        <button type="button" onClick={() => { try { reproducirSonido('click1'); } catch (e) {} setFeedbackModal({ show: false, title: '', message: '' }); }} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer">Aceptar</button>
                     </div>
                 </div>
             )}
@@ -768,7 +790,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     }}
                     totopos={totopos}
                     nivelCuenta={nivelCuenta}
-                    onClose={() => setShowSelectorCategorias(false)}
+                    onClose={() => { try { reproducirSonido('click1'); } catch (e) {} setShowSelectorCategorias(false); }}
                 />
             )}
         </div>

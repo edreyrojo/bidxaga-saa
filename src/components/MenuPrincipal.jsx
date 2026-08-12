@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { useSonido } from '../hooks/useSonido';
 
 export default function MenuPrincipal({ setVistaActual }) {
+    const { reproducirSonido } = useSonido();
+
     // Estados para controlar los modales de la interfaz de usuario
     const [mostrarModalApoyo, setMostrarModalApoyo] = useState(false);
     const [mostrarModalCreditos, setMostrarModalCreditos] = useState(false);
@@ -47,7 +50,10 @@ export default function MenuPrincipal({ setVistaActual }) {
 
                 {/* Memorama - Inicial */}
                 <button
-                    onClick={() => setVistaActual('memorama')}
+                    onClick={() => {
+                        reproducirSonido('click1');
+                        setVistaActual('memorama');
+                    }}
                     className="group relative bg-white hover:bg-amber-50/80 active:scale-98 text-amber-950 p-4 pl-9 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border-2 border-amber-200/80 hover:border-amber-400 flex items-center justify-between overflow-hidden cursor-pointer"
                 >
                     <span className={`${estiloNivelVertical} bg-amber-500 text-amber-950/80`}>Inicial</span>
@@ -65,7 +71,10 @@ export default function MenuPrincipal({ setVistaActual }) {
 
                 {/* Reto Trivia - Intermedio */}
                 <button
-                    onClick={() => setVistaActual('trivia')}
+                    onClick={() => {
+                        reproducirSonido('click1');
+                        setVistaActual('trivia');
+                    }}
                     className="group relative bg-white hover:bg-yellow-50/80 active:scale-98 text-amber-950 p-4 pl-9 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border-2 border-yellow-200/80 hover:border-yellow-400 flex items-center justify-between overflow-hidden cursor-pointer"
                 >
                     <span className={`${estiloNivelVertical} bg-yellow-500 text-yellow-950/80`}>Intermedio</span>
@@ -83,7 +92,10 @@ export default function MenuPrincipal({ setVistaActual }) {
 
                 {/* Crucigrama - Avanzado */}
                 <button
-                    onClick={() => setVistaActual('crucigrama')}
+                    onClick={() => {
+                        reproducirSonido('click1');
+                        setVistaActual('crucigrama');
+                    }}
                     className="group relative bg-white hover:bg-orange-50/80 active:scale-98 text-orange-950 p-4 pl-9 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border-2 border-orange-200/80 hover:border-orange-400 flex items-center justify-between overflow-hidden cursor-pointer"
                 >
                     <span className={`${estiloNivelVertical} bg-orange-500 text-orange-950/80`}>Avanzado</span>
@@ -101,7 +113,10 @@ export default function MenuPrincipal({ setVistaActual }) {
 
                 {/* Sopa de Letras - Experto */}
                 <button
-                    onClick={() => setVistaActual('sopa')}
+                    onClick={() => {
+                        reproducirSonido('click1');
+                        setVistaActual('sopa');
+                    }}
                     className="group relative bg-white hover:bg-emerald-50/80 active:scale-98 text-emerald-950 p-4 pl-9 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border-2 border-emerald-200/80 hover:border-emerald-400 flex items-center justify-between overflow-hidden cursor-pointer"
                 >
                     <span className={`${estiloNivelVertical} bg-emerald-500 text-emerald-950/80`}>Experto</span>
@@ -122,25 +137,34 @@ export default function MenuPrincipal({ setVistaActual }) {
             {/* SECCION INFERIOR: BOTONES SECUNDARIOS CON ESTETICA MEJORADA */}
             <div className="w-full bg-amber-50/70 border border-amber-200/80 rounded-3xl p-4 sm:p-5 flex flex-col gap-3 shadow-inner">
 
-                {/* Boton de Como Instalar (Estilo Esmeralda / Teal moderno) */}
+                {/* Boton de Como Instalar */}
                 <button
-                    onClick={() => setMostrarModalInstalar(true)}
+                    onClick={() => {
+                        reproducirSonido('click1');
+                        setMostrarModalInstalar(true);
+                    }}
                     className="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 active:scale-98 text-white font-bold py-3.5 px-4 rounded-xl border border-emerald-800 flex items-center justify-center gap-2.5 transition-all shadow-md text-sm cursor-pointer"
                 >
                     <span className="text-base">📱</span> ¿Cómo instalar esta App en tu celular?
                 </button>
 
-                {/* Boton de Invitame un Cafe / Apoyo (Estilo Ambar / Naranja calido) */}
+                {/* Boton de Apoyo */}
                 <button
-                    onClick={() => setMostrarModalApoyo(true)}
+                    onClick={() => {
+                        reproducirSonido('click1');
+                        setMostrarModalApoyo(true);
+                    }}
                     className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 active:scale-98 text-white font-bold py-3.5 px-4 rounded-xl border border-orange-700 flex items-center justify-center gap-2.5 transition-all shadow-md text-sm cursor-pointer"
                 >
                     <span className="text-base">☕</span> Invítame un café / Apoya el proyecto
                 </button>
 
-                {/* Boton de Creditos (Estilo Dorado brillante y legible) */}
+                {/* Boton de Creditos */}
                 <button
-                    onClick={() => setMostrarModalCreditos(true)}
+                    onClick={() => {
+                        reproducirSonido('click1');
+                        setMostrarModalCreditos(true);
+                    }}
                     className="w-full bg-amber-200/80 hover:bg-amber-300/90 active:scale-98 text-amber-950 font-extrabold py-3 px-4 rounded-xl border border-amber-300 flex items-center justify-center gap-2 transition-all shadow-xs text-xs tracking-wide uppercase cursor-pointer"
                 >
                     <span>✨</span> Ver Créditos y Propósito Cultural
@@ -152,7 +176,10 @@ export default function MenuPrincipal({ setVistaActual }) {
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-amber-300 w-full max-w-md flex flex-col relative animate-fade-in max-h-[90vh] overflow-y-auto">
                         <button
-                            onClick={() => setMostrarModalInstalar(false)}
+                            onClick={() => {
+                                reproducirSonido('click1');
+                                setMostrarModalInstalar(false);
+                            }}
                             className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-lg w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center transition-colors cursor-pointer"
                         >
                             ✕
@@ -168,7 +195,10 @@ export default function MenuPrincipal({ setVistaActual }) {
 
                         <div className="flex bg-amber-100 p-1 rounded-xl mb-4 border border-amber-200">
                             <button
-                                onClick={() => setPlataformaInstalacion('android')}
+                                onClick={() => {
+                                    reproducirSonido('click1');
+                                    setPlataformaInstalacion('android');
+                                }}
                                 className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${plataformaInstalacion === 'android'
                                     ? 'bg-amber-600 text-white shadow-sm'
                                     : 'text-amber-900 hover:text-amber-950'
@@ -177,7 +207,10 @@ export default function MenuPrincipal({ setVistaActual }) {
                                 🤖 Android (Chrome)
                             </button>
                             <button
-                                onClick={() => setPlataformaInstalacion('iphone')}
+                                onClick={() => {
+                                    reproducirSonido('click1');
+                                    setPlataformaInstalacion('iphone');
+                                }}
                                 className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${plataformaInstalacion === 'iphone'
                                     ? 'bg-amber-600 text-white shadow-sm'
                                     : 'text-amber-900 hover:text-amber-950'
@@ -208,7 +241,10 @@ export default function MenuPrincipal({ setVistaActual }) {
                         </div>
 
                         <button
-                            onClick={() => setMostrarModalInstalar(false)}
+                            onClick={() => {
+                                reproducirSonido('click1');
+                                setMostrarModalInstalar(false);
+                            }}
                             className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-md transition-colors cursor-pointer"
                         >
                             Entendido, ¡gracias!
@@ -222,7 +258,10 @@ export default function MenuPrincipal({ setVistaActual }) {
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-amber-300 w-full max-w-md flex flex-col relative animate-fade-in max-h-[90vh] overflow-y-auto">
                         <button
-                            onClick={() => setMostrarModalApoyo(false)}
+                            onClick={() => {
+                                reproducirSonido('click1');
+                                setMostrarModalApoyo(false);
+                            }}
                             className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-lg w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center transition-colors cursor-pointer"
                         >
                             ✕
@@ -251,7 +290,10 @@ export default function MenuPrincipal({ setVistaActual }) {
                                 <p><strong>Banco:</strong> <span className="text-gray-700">BBVA</span></p>
 
                                 <div
-                                    onClick={() => copiarAlPortapapeles("012180015626844417", "¡CLABE copiada!")}
+                                    onClick={() => {
+                                        reproducirSonido('click1');
+                                        copiarAlPortapapeles("012180015626844417", "¡CLABE copiada!");
+                                    }}
                                     className="group bg-white p-2 rounded-xl border border-amber-200 hover:border-amber-500 cursor-pointer transition-all shadow-xs flex items-center justify-between"
                                     title="Click para copiar"
                                 >
@@ -263,7 +305,10 @@ export default function MenuPrincipal({ setVistaActual }) {
                                 </div>
 
                                 <div
-                                    onClick={() => copiarAlPortapapeles("4152314216691959", "¡Tarjeta copiada sin espacios!")}
+                                    onClick={() => {
+                                        reproducirSonido('click1');
+                                        copiarAlPortapapeles("4152314216691959", "¡Tarjeta copiada sin espacios!");
+                                    }}
                                     className="group bg-white p-2 rounded-xl border border-amber-200 hover:border-amber-500 cursor-pointer transition-all shadow-xs flex items-center justify-between"
                                     title="Click para copiar sin espacios"
                                 >
@@ -275,7 +320,10 @@ export default function MenuPrincipal({ setVistaActual }) {
                                 </div>
 
                                 <div
-                                    onClick={() => copiarAlPortapapeles("EDREY MANZO MATUS", "¡Nombre copiado!")}
+                                    onClick={() => {
+                                        reproducirSonido('click1');
+                                        copiarAlPortapapeles("EDREY MANZO MATUS", "¡Nombre copiado!");
+                                    }}
                                     className="group bg-white p-2 rounded-xl border border-amber-200 hover:border-amber-500 cursor-pointer transition-all shadow-xs flex items-center justify-between"
                                     title="Click para copiar nombre"
                                 >
@@ -297,6 +345,7 @@ export default function MenuPrincipal({ setVistaActual }) {
                                     href="https://instagram.com/edreyngasi"
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={() => reproducirSonido('click1')}
                                     className="flex items-center justify-between hover:bg-orange-100 transition-colors bg-white p-2.5 rounded-xl border border-orange-100 shadow-sm"
                                 >
                                     <span className="flex items-center gap-2"><span>📸</span> Instagram: <span className="font-normal text-gray-600">@edreyngasi</span></span>
@@ -307,6 +356,7 @@ export default function MenuPrincipal({ setVistaActual }) {
                                     href="https://www.facebook.com/ezamna/"
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={() => reproducirSonido('click1')}
                                     className="flex items-center justify-between hover:bg-orange-100 transition-colors bg-white p-2.5 rounded-xl border border-orange-100 shadow-sm"
                                 >
                                     <span className="flex items-center gap-2"><span>📘</span> Facebook: <span className="font-normal text-gray-600">Ver Perfil</span></span>
@@ -314,7 +364,10 @@ export default function MenuPrincipal({ setVistaActual }) {
                                 </a>
 
                                 <div
-                                    onClick={() => copiarAlPortapapeles("zamna.ed@gmail.com", "¡Correo copiado!")}
+                                    onClick={() => {
+                                        reproducirSonido('click1');
+                                        copiarAlPortapapeles("zamna.ed@gmail.com", "¡Correo copiado!");
+                                    }}
                                     className="group flex items-center justify-between hover:bg-orange-100 transition-colors bg-white p-2.5 rounded-xl border border-orange-100 shadow-sm cursor-pointer"
                                     title="Click para copiar correo"
                                 >
@@ -325,7 +378,10 @@ export default function MenuPrincipal({ setVistaActual }) {
                         </div>
 
                         <button
-                            onClick={() => setMostrarModalApoyo(false)}
+                            onClick={() => {
+                                reproducirSonido('click1');
+                                setMostrarModalApoyo(false);
+                            }}
                             className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-md transition-colors cursor-pointer"
                         >
                             ¡Entendido, muchas gracias!
@@ -339,7 +395,10 @@ export default function MenuPrincipal({ setVistaActual }) {
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-amber-300 w-full max-w-md flex flex-col relative animate-fade-in max-h-[90vh] overflow-y-auto">
                         <button
-                            onClick={() => setMostrarModalCreditos(false)}
+                            onClick={() => {
+                                reproducirSonido('click1');
+                                setMostrarModalCreditos(false);
+                            }}
                             className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-lg w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center transition-colors cursor-pointer"
                         >
                             ✕
@@ -364,7 +423,10 @@ export default function MenuPrincipal({ setVistaActual }) {
                         </div>
 
                         <button
-                            onClick={() => setMostrarModalCreditos(false)}
+                            onClick={() => {
+                                reproducirSonido('click1');
+                                setMostrarModalCreditos(false);
+                            }}
                             className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-md transition-colors cursor-pointer"
                         >
                             Cerrar

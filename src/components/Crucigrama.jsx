@@ -19,7 +19,7 @@ const RECOMPENSAS_CRUCIGRAMA = {
     5: 90
 };
 
-const MAX_VIDAS = 5; // 🛡️ 5 Vidas configuradas correctamente
+const MAX_VIDAS = 5;
 
 const obtenerBaseDatosActiva = (modo, categoriasFaunaActivas = [], categoriasFloraActivas = []) => {
     const faunaFiltrada = filtrarContenidoPorCategorias(listaAnimales, categoriasFaunaActivas);
@@ -36,7 +36,7 @@ const obtenerBaseDatosActiva = (modo, categoriasFaunaActivas = [], categoriasFlo
             return [...faunaConOffset, ...floraConOffset];
         }
         default:
-            return faunaFiltrada;
+            return floraFiltrada;
     }
 };
 
@@ -166,6 +166,19 @@ export default function Crucigrama({
     setControlesJuegoActivo,
     onSetControles 
 }) {
+    // Funcion central para reproducir los sonidos de clic requeridos usando la carpeta public/audio/
+    const reproducirSonido = (tipo) => {
+        try {
+            let archivo = '/audio/click1.mp3';
+            if (tipo === 2) archivo = '/audio/click2.mp3';
+            if (tipo === 3) archivo = '/audio/click3.mp3';
+            const audio = new Audio(archivo);
+            audio.play().catch(e => console.log("Audio play prevented:", e));
+        } catch (err) {
+            console.log("Error al reproducir sonido:", err);
+        }
+    };
+
     const [nivel, setNivel] = useState(() => {
         const n = localStorage.getItem('crucigramaNivel');
         return n ? parseInt(n, 10) : 1;
@@ -176,12 +189,10 @@ export default function Crucigrama({
         return i ? parseInt(i, 10) : 0;
     });
 
-    // 🛡️ Estado de Modo / Categoría de Contenido (fauna, flora, ambos)
     const [tipoContenido, setTipoContenido] = useState(() => {
         return localStorage.getItem('tipoContenidoJuego') || 'fauna';
     });
 
-    // 🛡️ Inicialización Perezosa ultra-robusta anti 0 vidas (Si es 0, null o inválido, devuelve 5 por fuerza)
     const [vidas, setVidas] = useState(() => {
         const vidasGuardadas = localStorage.getItem('crucigramaVidas');
         const v = parseInt(vidasGuardadas, 10);
@@ -220,7 +231,6 @@ export default function Crucigrama({
     
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
-    // 📚 Sistema de categorías desbloqueables (fauna y flora)
     const [nivelCuenta, setNivelCuenta] = useState(1);
     const [categoriasFaunaDesbloqueadas, setCategoriasFaunaDesbloqueadas] = useState(() => categoriaInicialPorDefecto('fauna'));
     const [categoriasFloraDesbloqueadas, setCategoriasFloraDesbloqueadas] = useState(() => categoriaInicialPorDefecto('flora'));
@@ -231,6 +241,7 @@ export default function Crucigrama({
     const recompensaActual = RECOMPENSAS_CRUCIGRAMA[nivel] || (20 * nivel);
 
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
+        reproducirSonido(1);
         const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
 
         try {
@@ -245,20 +256,21 @@ export default function Crucigrama({
             setPendingGlobalScore(null);
             setFeedbackModal({
                 show: true,
-                title: "🎉 ¡Guardado Exitoso!",
-                message: `¡Hola ${nombreLimpio}! Récord registrado automáticamente en el ranking global para el Nivel ${scoreToSave.level} (${scoreToSave.intentos} intentos).`
+                title: "Guardado Exitoso",
+                message: `Hola ${nombreLimpio}. Record registrado automaticamente en el ranking global para el Nivel ${scoreToSave.level} (${scoreToSave.intentos} intentos).`
             });
         } catch (error) {
             console.error("Error al guardar en Firebase:", error);
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Guardado Parcial",
-                message: "Progreso guardado localmente, pero hubo un error al conectarกับ Firebase."
+                title: "Guardado Parcial",
+                message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
             });
         }
     };
 
     const handleClickGuardar = () => {
+        reproducirSonido(1);
         localStorage.setItem('crucigramaNivel', nivel);
         localStorage.setItem('crucigramaIntentos', intentos);
         localStorage.setItem('crucigramaVidas', vidas);
@@ -268,8 +280,8 @@ export default function Crucigrama({
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Nivel ya guardado",
-                message: `Ya guardaste tu récord global para el Nivel ${nivel}. Avanza al siguiente nivel para volver a registrar tu puntaje en el ranking.`
+                title: "Nivel ya guardado",
+                message: `Ya guardaste tu record global para el Nivel ${nivel}. Avanza al siguiente nivel para volver a registrar tu puntaje en el ranking.`
             });
             return;
         }
@@ -291,10 +303,17 @@ export default function Crucigrama({
             registrarControles({
                 level: nivel,
                 onGuardarClick: handleClickGuardar,
-                onReiniciarClick: () => setShowConfirmRestartModal(true),
-                onMenuClick: () => setShowMenuModal(true),
+                onReiniciarClick: () => {
+                    reproducirSonido(1);
+                    setShowConfirmRestartModal(true);
+                },
+                onMenuClick: () => {
+                    reproducirSonido(1);
+                    setShowMenuModal(true);
+                },
                 modoDificil: modoDificil,
                 onToggleModoDificil: () => {
+                    reproducirSonido(1);
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
                     localStorage.setItem('crucigramaModoDificil', nuevoModo);
@@ -309,6 +328,7 @@ export default function Crucigrama({
     }, [nivel, intentos, vidas, modoDificil, totopos, guardadoEnNivel, pendingGlobalScore, playerName, tipoContenido, setControlesJuegoActivo, onSetControles, user]);
 
     const confirmarSalidaMenu = () => {
+        reproducirSonido(1);
         setShowMenuModal(false);
         if (onBack) onBack();
     };
@@ -325,7 +345,6 @@ export default function Crucigrama({
         }
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
 
-        // 📚 Categorías: respaldo local
         try {
             const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
             if (faunaGuardadas) {
@@ -338,7 +357,7 @@ export default function Crucigrama({
                 setCategoriasFloraActivas(prev => prev.filter(id => floraGuardadas.includes(id)).length ? prev.filter(id => floraGuardadas.includes(id)) : categoriaInicialPorDefecto('flora'));
             }
         } catch (e) {
-            console.error("Error al leer categorías guardadas localmente:", e);
+            console.error("Error al leer categorias guardadas localmente:", e);
         }
 
         const cargarTotoposNube = async () => {
@@ -354,7 +373,6 @@ export default function Crucigrama({
                             localStorage.setItem('totopos', data.totopos);
                         }
 
-                        // 🏅 Nivel de Cuenta + sincronización de categorías gratis por nivel
                         const historico = data.totoposHistoricos !== undefined ? data.totoposHistoricos : (data.totopos || 0);
                         const nivelCalc = calcularNivelCuenta(historico);
                         setNivelCuenta(nivelCalc);
@@ -380,7 +398,7 @@ export default function Crucigrama({
                             updateDoc(userDocRef, {
                                 categoriasFaunaDesbloqueadas: faunaNube,
                                 categoriasFloraDesbloqueadas: floraNube
-                            }).catch(err => console.error("Error al sincronizar categorías por nivel:", err));
+                            }).catch(err => console.error("Error al sincronizar categorias por nivel:", err));
                         }
                     }
                 } catch (e) {
@@ -422,6 +440,7 @@ export default function Crucigrama({
 
     useEffect(() => {
         if (palabrasResueltas.length === placements.length && placements.length > 0 && !pendingGlobalScore) {
+            reproducirSonido(3); 
             setPendingGlobalScore({ level: nivel, intentos: intentos });
 
             setTotopos(prevTotopos => {
@@ -464,7 +483,6 @@ export default function Crucigrama({
     }, [palabrasResueltas, placements, nivel, intentos, user, recompensaActual, pendingGlobalScore]);
 
     const generarNuevoJuego = () => {
-        // 🛡️ Blindaje anti-bloqueo: si las vidas están en 0 o menos al generar juego, se restablecen a MAX_VIDAS
         setVidas(prev => {
             if (prev <= 0) {
                 localStorage.setItem('crucigramaVidas', MAX_VIDAS);
@@ -494,6 +512,7 @@ export default function Crucigrama({
     };
 
     const abrirDialParaPalabra = (p) => {
+        reproducirSonido(1); 
         if (palabrasResueltas.includes(p.id)) return;
         setActivePlacement(p);
 
@@ -506,15 +525,26 @@ export default function Crucigrama({
         setLetrasElegidas([]);
     };
 
+    const handleCellClick = (celda) => {
+        reproducirSonido(1); 
+        if (celda.empty || !celda.words || celda.words.length === 0) return;
+        let wordId = celda.words.find(id => !palabrasResueltas.includes(id)) || celda.words[0];
+        const targetPlacement = placements.find(p => p.id === wordId);
+        if (targetPlacement) {
+            abrirDialParaPalabra(targetPlacement);
+        }
+    };
+
     const usarPistaRevelar = () => {
+        reproducirSonido(1); 
         if (!activePlacement) return;
         const COSTO_PISTA = 10;
         
         if (totopos < COSTO_PISTA) {
             setFeedbackModal({
                 show: true,
-                title: "🌽 Totopos Insuficientes",
-                message: `Necesitas al menos ${COSTO_PISTA} Totopos para usar la pista de revelación.`
+                title: "Totopos Insuficientes",
+                message: `Necesitas al menos ${COSTO_PISTA} Totopos para usar la pista de revelacion.`
             });
             return;
         }
@@ -535,11 +565,12 @@ export default function Crucigrama({
             setPalabrasResueltas(prev => [...prev, activePlacement.id]);
         }
 
+        reproducirSonido(2); 
         setActivePlacement(null);
         setLetrasElegidas([]);
         setFeedbackModal({
             show: true,
-            title: "💡 ¡Pista Aplicada!",
+            title: "Pista Aplicada",
             message: `Se han gastado ${COSTO_PISTA} Totopos para revelar la palabra correctamente.`
         });
     };
@@ -560,6 +591,7 @@ export default function Crucigrama({
     };
 
     const handleTouchStartNode = (index) => {
+        reproducirSonido(1); 
         setIsDragging(true);
         setLetrasElegidas(prev => {
             if (!prev.includes(index)) return [index];
@@ -591,16 +623,20 @@ export default function Crucigrama({
         }
     };
 
-    const limpiarDial = () => setLetrasElegidas([]);
+    const limpiarDial = () => {
+        reproducirSonido(1); 
+        setLetrasElegidas([]);
+    };
 
     const verificarYAplicarPalabra = () => {
+        reproducirSonido(1); 
         if (!activePlacement) return;
 
         const longitudRequerida = activePlacement.text.length;
         if (letrasElegidas.length !== longitudRequerida) {
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Palabra Incompleta",
+                title: "Palabra Incompleta",
                 message: `Selecciona exactamente ${longitudRequerida} letras para formar la palabra antes de comprobar.`
             });
             return;
@@ -613,6 +649,7 @@ export default function Crucigrama({
         localStorage.setItem('crucigramaIntentos', nuevosIntentos);
 
         if (palabraFormada === activePlacement.text) {
+            reproducirSonido(2); 
             const nuevasRespuestas = { ...respuestasUsuario };
             for (let i = 0; i < activePlacement.text.length; i++) {
                 let pr = activePlacement.startY + (i * activePlacement.dirY);
@@ -640,19 +677,18 @@ export default function Crucigrama({
                 }
             }));
 
-            // 🛡️ Se exige que el usuario haya abierto/visto todas las fichas del tablero antes de restar vidas
             const todasVistas = placements.length > 0 && fichasVistas.length === placements.length;
 
             if (!todasVistas) {
                 setFeedbackModal({
                     show: true,
-                    title: "⚠️ Palabra Incorrecta",
-                    message: `Combinación incorrecta. Aún no has visto todas las fichas del tablero por primera vez, ¡así que no pierdes vidas!`
+                    title: "Palabra Incorrecta",
+                    message: "Combinacion incorrecta. Aun no has visto todas las fichas del tablero por primera vez, ¡así que no pierdes vidas!"
                 });
             } else if (errorCount < 3) {
                 setFeedbackModal({
                     show: true,
-                    title: "⚠️ Intento Erróneo",
+                    title: "Intento Erroneo",
                     message: `Llevas ${errorCount} de 3 intentos con este mismo error para esta palabra. ¡Te quedan ${3 - errorCount} intentos antes de perder una vida!`
                 });
             } else {
@@ -666,7 +702,7 @@ export default function Crucigrama({
                 } else {
                     setFeedbackModal({
                         show: true,
-                        title: "⚠️ ¡3 Errores en esta Palabra!",
+                        title: "3 Errores en esta Palabra",
                         message: `Has cometido el mismo error 3 veces. Te quedan ${nuevasVidas} ${nuevasVidas === 1 ? 'vida' : 'vidas'}.`
                     });
                 }
@@ -676,12 +712,13 @@ export default function Crucigrama({
     };
 
     const confirmarGuardadoGlobal = async () => {
+        reproducirSonido(1);
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Nombre requerido",
-                message: "Por favor escribe un nombre válido para registrarte en el ranking."
+                title: "Nombre requerido",
+                message: "Por favor escribe un nombre valido para registrarte en el ranking."
             });
             return;
         }
@@ -704,26 +741,26 @@ export default function Crucigrama({
             setPendingGlobalScore(null);
             setFeedbackModal({
                 show: true,
-                title: "🎉 ¡Guardado Exitoso!",
-                message: `¡Partida guardada localmente y récord registrado en el ranking para el Nivel ${scoreToSave.level} (${scoreToSave.intentos} intentos)!`
+                title: "Guardado Exitoso",
+                message: `¡Partida guardada localmente y record registrado en el ranking para el Nivel ${scoreToSave.level} (${scoreToSave.intentos} intentos)!`
             });
         } catch (error) {
             console.error("Error al guardar en Firebase:", error);
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Guardado Parcial",
+                title: "Guardado Parcial",
                 message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
             });
         }
     };
 
-    // 📚 Desbloquear una categoría pagando totopos actuales (el desbloqueo gratis por nivel ya se aplica solo)
     const handleDesbloquearCategoria = async (tipo, categoriaId, costo) => {
+        reproducirSonido(1);
         if (costo > 0 && totopos < costo) {
             setFeedbackModal({
                 show: true,
-                title: "🌽 Totopos insuficientes",
-                message: `Te faltan ${costo - totopos} totopos para desbloquear esta categoría.`
+                title: "Totopos insuficientes",
+                message: `Te faltan ${costo - totopos} totopos para desbloquear esta categoria.`
             });
             return;
         }
@@ -754,20 +791,21 @@ export default function Crucigrama({
                 if (costo > 0) payload.totopos = nuevosTotopos;
                 await updateDoc(doc(db, 'usuarios', currentUser.uid), payload);
             } catch (err) {
-                console.error("Error al sincronizar categoría desbloqueada:", err);
+                console.error("Error al sincronizar categoria desbloqueada:", err);
             }
         }
 
         setFeedbackModal({
             show: true,
-            title: "🔓 ¡Categoría desbloqueada!",
+            title: "Categoria desbloqueada",
             message: costo > 0
-                ? `Gastaste ${costo} totopos. Ya puedes practicar esta categoría.`
+                ? `Gastaste ${costo} totopos. Ya puedes practicar esta categoria.`
                 : "¡La reclamaste gratis por tu Nivel de Cuenta!"
         });
     };
 
     const handleToggleCategoriaActiva = (tipo, categoriaId) => {
+        reproducirSonido(1);
         const setActivas = tipo === 'flora' ? setCategoriasFloraActivas : setCategoriasFaunaActivas;
         setActivas(prev => {
             const yaActiva = prev.includes(categoriaId);
@@ -779,13 +817,14 @@ export default function Crucigrama({
         });
     };
 
-    // 🆕 Cambia fauna/flora/ambos directamente desde el panel de Categorías
     const handleCambiarTipoContenido = (nuevoModo) => {
+        reproducirSonido(1);
         setTipoContenido(nuevoModo);
         localStorage.setItem('tipoContenidoJuego', nuevoModo);
     };
 
     const reiniciarNivelActual = () => {
+        reproducirSonido(1);
         setVidas(MAX_VIDAS);
         localStorage.setItem('crucigramaVidas', MAX_VIDAS);
         setIntentosErroneosPalabras({});
@@ -797,6 +836,7 @@ export default function Crucigrama({
     };
 
     const reiniciarJuegoCompleto = () => {
+        reproducirSonido(1);
         localStorage.removeItem('crucigramaNivel');
         localStorage.removeItem('crucigramaIntentos');
         localStorage.removeItem('crucigramaVidas');
@@ -834,6 +874,7 @@ export default function Crucigrama({
     };
 
     const siguienteNivel = () => {
+        reproducirSonido(1);
         const proximoNivel = nivel + 1;
         setNivel(proximoNivel);
         setVidas(MAX_VIDAS);
@@ -854,7 +895,7 @@ export default function Crucigrama({
             onTouchEnd={handleMouseUpGlobal}
         >
             <header className="text-center mb-3">
-                <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">✏️ Crucigrama Diidxazá</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold text-amber-950">Crucigrama Diidxazá</h2>
                 <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1 flex items-center justify-center gap-2 flex-wrap">
                     <span>Nivel {nivel}</span>
                     <span>•</span>
@@ -879,10 +920,13 @@ export default function Crucigrama({
                 </p>
                 <button
                     type="button"
-                    onClick={() => setShowSelectorCategorias(true)}
+                    onClick={() => {
+                        reproducirSonido(1);
+                        setShowSelectorCategorias(true);
+                    }}
                     className="mt-2 inline-flex items-center gap-1.5 bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs px-3 py-1.5 rounded-full border-2 border-amber-300 shadow-sm transition-colors cursor-pointer"
                 >
-                    📚 Categorías
+                    Categorias
                     <span className="bg-amber-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                         {tipoContenido === 'flora'
                             ? categoriasFloraActivas.length
@@ -895,7 +939,7 @@ export default function Crucigrama({
 
             {nivelCompletado && (
                 <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-4 mb-3 text-center animate-bounce">
-                    <p className="text-lg sm:text-xl font-bold text-green-900 mb-1">🎉 ¡Excelente! Crucigrama Resuelto</p>
+                    <p className="text-lg sm:text-xl font-bold text-green-900 mb-1">¡Excelente! Crucigrama Resuelto</p>
                     <p className="text-xs font-bold text-amber-700 mb-2 inline-flex items-center justify-center gap-1">
                         +{recompensaActual} 
                         <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
@@ -907,10 +951,8 @@ export default function Crucigrama({
                 </div>
             )}
 
-            {/* 🖥️ CONTENEDOR DE TRES COLUMNAS EN PC */}
             <div className="w-full max-w-6xl xl:max-w-7xl flex flex-col lg:grid lg:grid-cols-[1fr_320px_320px] gap-6 items-center lg:items-start justify-center mt-1">
                 
-                {/* Columna 1: Tablero del Crucigrama */}
                 <div className="w-full p-3 sm:p-5 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner overflow-x-auto custom-scrollbar flex justify-center items-center min-h-[380px]">
                     <div className="flex justify-center min-w-max mx-auto">
                         <div 
@@ -929,8 +971,9 @@ export default function Crucigrama({
                                     return (
                                         <div 
                                             key={`${r}-${c}`} 
-                                            className={`relative w-7 h-7 sm:w-9 sm:h-9 md:w-11 md:h-11 lg:w-10 lg:h-10 flex items-center justify-center font-bold text-[12px] sm:text-[16px] md:text-xl lg:text-xl uppercase border-2 rounded-md shadow-sm transition-all select-none
-                                                ${resuelta ? 'bg-green-500 text-white border-green-600' : letraGuardada ? 'bg-amber-50 text-amber-950 border-amber-500' : 'bg-white border-amber-400 text-amber-950'}
+                                            onClick={() => handleCellClick(celda)}
+                                            className={`relative w-7 h-7 sm:w-9 sm:h-9 md:w-11 md:h-11 lg:w-10 lg:h-10 flex items-center justify-center font-bold text-[12px] sm:text-[16px] md:text-xl lg:text-xl uppercase border-2 rounded-md shadow-sm transition-all select-none cursor-pointer hover:scale-105
+                                                ${resuelta ? 'bg-green-500 text-white border-green-600' : letraGuardada ? 'bg-amber-50 text-amber-950 border-amber-500' : 'bg-white border-amber-400 text-amber-950 hover:bg-amber-100'}
                                             `}
                                         >
                                             {celda.number && (
@@ -947,10 +990,9 @@ export default function Crucigrama({
                     </div>
                 </div>
 
-                {/* Columna 2: Panel Lateral de Pistas */}
                 <div className="w-full flex flex-col gap-3">
                     <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base">
-                        📋 Pistas ({palabrasResueltas.length}/{placements.length}):
+                        Pistas ({palabrasResueltas.length}/{placements.length}):
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 w-full max-h-[440px] lg:max-h-none overflow-y-auto lg:overflow-y-visible pr-1 custom-scrollbar">
                         {placements.map((p) => {
@@ -973,7 +1015,7 @@ export default function Crucigrama({
                                             {p.animal.spanish}
                                         </p>
                                         {resuelto ? (
-                                            <p className="text-xs text-green-700 font-bold truncate">✅ {p.animal.diidxaza}</p>
+                                            <p className="text-xs text-green-700 font-bold truncate">✓ {p.animal.diidxaza}</p>
                                         ) : (
                                             <p className="text-[11px] text-amber-600 font-medium">Click para resolver</p>
                                         )}
@@ -984,7 +1026,6 @@ export default function Crucigrama({
                     </div>
                 </div>
 
-                {/* Columna 3: Ranking Global con Guiechachi en PNG */}
                 <div className="w-full flex flex-col gap-3">
                     <h3 className="font-bold text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base flex items-center justify-center lg:justify-start gap-1.5">
                         <img 
@@ -1003,7 +1044,7 @@ export default function Crucigrama({
                         {cargandoRanking ? (
                             <p className="text-center text-sm text-gray-500 py-2">Cargando puntajes...</p>
                         ) : ranking.length === 0 ? (
-                            <p className="text-center text-sm text-gray-500 py-2">Aún no hay scores. ¡Sé el primero!</p>
+                            <p className="text-center text-sm text-gray-500 py-2">Aun no hay scores. ¡Sé el primero!</p>
                         ) : (
                             <div>
                                 {ranking.map((r, i) => (
@@ -1027,7 +1068,11 @@ export default function Crucigrama({
                     <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative max-h-[95vh] overflow-y-auto custom-scrollbar">
                         
                         <button 
-                            onClick={() => { setActivePlacement(null); setLetrasElegidas([]); }}
+                            onClick={() => {
+                                reproducirSonido(1);
+                                setActivePlacement(null);
+                                setLetrasElegidas([]);
+                            }}
                             className="absolute top-3 right-4 sm:top-4 sm:right-5 text-gray-400 hover:text-gray-700 font-bold text-xl cursor-pointer"
                         >
                             ✕
@@ -1043,7 +1088,7 @@ export default function Crucigrama({
                             onClick={usarPistaRevelar}
                             className="mb-3 text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold py-1 px-3 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer transition-colors"
                         >
-                            💡 Revelar palabra (-10 
+                            Revelar palabra (-10 
                             <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
                             )
                         </button>
@@ -1141,13 +1186,14 @@ export default function Crucigrama({
                         <div className="text-4xl mb-2">💔</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-1">¡Te has quedado sin vidas!</h3>
                         <p className="text-xs text-amber-800 mb-4">
-                            Estás en el Nivel {nivel}. Elige una opción para continuar:
+                            Estas en el Nivel {nivel}. Elige una opcion para continuar:
                         </p>
                         
                         <div className="flex flex-col gap-2.5 w-full">
                             {totopos >= 15 ? (
                                 <button 
                                     onClick={() => {
+                                        reproducirSonido(1);
                                         setTotopos(prev => {
                                             const nuevo = prev - 15;
                                             localStorage.setItem('totopos', nuevo);
@@ -1173,18 +1219,19 @@ export default function Crucigrama({
                                 onClick={reiniciarNivelActual}
                                 className="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
-                                🔄 Reiniciar Nivel {nivel} (5 Vidas)
+                                Reiniciar Nivel {nivel} (5 Vidas)
                             </button>
 
                             <button 
                                 onClick={() => {
+                                    reproducirSonido(1);
                                     setShowGameOverModal(false);
                                     setVidas(1);
                                     localStorage.setItem('crucigramaVidas', 1);
                                 }}
                                 className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
-                                ⚡ Seguir Intentando (1 Vida de Respiro)
+                                Seguir Intentando (1 Vida de Respiro)
                             </button>
                         </div>
                     </div>
@@ -1194,7 +1241,7 @@ export default function Crucigrama({
             {showGuardarModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Récord</h3>
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">Guardar Record</h3>
                         <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para guardar tu puntaje en el ranking global.</p>
                         
                         <input 
@@ -1208,7 +1255,10 @@ export default function Crucigrama({
                         
                         <div className="flex gap-3 w-full">
                             <button 
-                                onClick={() => setShowGuardarModal(false)} 
+                                onClick={() => {
+                                    reproducirSonido(1);
+                                    setShowGuardarModal(false);
+                                }} 
                                 className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
@@ -1228,9 +1278,9 @@ export default function Crucigrama({
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <div className="text-3xl mb-2">🔄</div>
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">Opción de Reinicio</h3>
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">Opcion de Reinicio</h3>
                         <p className="text-xs text-amber-800 mb-5">
-                            ¿Deseas reiniciar únicamente el Nivel {nivel} o comenzar de nuevo desde el Nivel 1?
+                            ¿Deseas reiniciar unicamente el Nivel {nivel} o comenzar de nuevo desde el Nivel 1?
                         </p>
                         
                         <div className="flex flex-col gap-2.5 w-full">
@@ -1238,18 +1288,21 @@ export default function Crucigrama({
                                 onClick={reiniciarNivelActual} 
                                 className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
-                                🔄 Reiniciar Nivel {nivel} (5 Vidas)
+                                Reiniciar Nivel {nivel} (5 Vidas)
                             </button>
                             
                             <button 
                                 onClick={reiniciarJuegoCompleto} 
                                 className="w-full bg-amber-950 hover:bg-black text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
-                                ⚠️ Reiniciar Todo (Volver a Nivel 1)
+                                Reiniciar Todo (Volver a Nivel 1)
                             </button>
 
                             <button 
-                                onClick={() => setShowConfirmRestartModal(false)} 
+                                onClick={() => {
+                                    reproducirSonido(1);
+                                    setShowConfirmRestartModal(false);
+                                }} 
                                 className="w-full bg-amber-100 hover:bg-amber-200 text-amber-950 py-2 rounded-xl font-bold text-xs border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
@@ -1263,12 +1316,15 @@ export default function Crucigrama({
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <div className="text-3xl mb-2">🏠</div>
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
-                        <p className="text-xs text-amber-800 mb-5">Si sales ahora, asegúrate de haber guardado tu progreso en esta partida.</p>
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menu Principal?</h3>
+                        <p className="text-xs text-amber-800 mb-5">Si sales ahora, asegurate de haber guardado tu progreso en esta partida.</p>
                         
                         <div className="flex gap-3 w-full">
                             <button 
-                                onClick={() => setShowMenuModal(false)} 
+                                onClick={() => {
+                                    reproducirSonido(1);
+                                    setShowMenuModal(false);
+                                }} 
                                 className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
                                 Cancelar
@@ -1291,7 +1347,10 @@ export default function Crucigrama({
                         <p className="text-xs text-amber-800 mb-5">{feedbackModal.message}</p>
                         
                         <button 
-                            onClick={() => setFeedbackModal({ show: false, title: '', message: '' })} 
+                            onClick={() => {
+                                reproducirSonido(1);
+                                setFeedbackModal({ show: false, title: '', message: '' });
+                            }} 
                             className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                         >
                             Aceptar
@@ -1299,7 +1358,7 @@ export default function Crucigrama({
                     </div>
                 </div>
             )}
-            {/* 📚 MODAL: SELECTOR DE CATEGORÍAS + TIPO DE CONTENIDO (Fauna/Flora/Ambos) */}
+
             {showSelectorCategorias && (
                 <SelectorCategorias
                     tipoContenido={tipoContenido}
@@ -1318,7 +1377,10 @@ export default function Crucigrama({
                     }}
                     totopos={totopos}
                     nivelCuenta={nivelCuenta}
-                    onClose={() => setShowSelectorCategorias(false)}
+                    onClose={() => {
+                        reproducirSonido(1);
+                        setShowSelectorCategorias(false);
+                    }}
                 />
             )}
         </div>
