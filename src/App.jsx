@@ -317,7 +317,7 @@ function App() {
               }
             }}
             className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center bg-amber-600 hover:bg-amber-700 text-white shadow-md transition-transform transform active:scale-95 border-2 border-amber-500 cursor-pointer p-2.5"
-            title="Volver al Menú Principal"
+            title="Volver al Menu Principal"
           >
             <svg className="w-full h-full object-contain" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
@@ -329,11 +329,11 @@ function App() {
           <button
             onClick={onGuardarClick}
             className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-transform transform active:scale-95 border-2 border-emerald-500 cursor-pointer p-2 overflow-hidden"
-            title="Guardar Récord"
+            title="Guardar Record"
           >
             <img 
               src="/guiechachi.png" 
-              alt="Guardar Récord" 
+              alt="Guardar Record" 
               className="w-full h-full object-contain"
               onError={(e) => {
                 e.target.style.display = 'none';
@@ -353,11 +353,11 @@ function App() {
               ? 'bg-amber-100/90 hover:bg-amber-200/90 text-amber-900 border-amber-300 hover:border-amber-400' 
               : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
           }`}
-          title="Abrir Configuración y Música"
+          title="Abrir Configuracion y Musica"
         >
           <img 
             src="/engrane.png" 
-            alt="Configuración" 
+            alt="Configuracion" 
             className="w-full h-full object-contain animate-spin-slow"
             onError={(e) => {
               e.target.style.display = 'none';
