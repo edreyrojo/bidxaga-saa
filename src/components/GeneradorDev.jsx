@@ -1,20 +1,14 @@
 import React, { useState } from 'react';
 
 export default function GeneradorDev({ onBack }) {
-    // Estado principal del modo
     const [modoGenerador, setModoGenerador] = useState('avatar');
 
-    // Biblioteca de carpetas
     const [bibliotecaAvatares, setBibliotecaAvatares] = useState([
-        { id: 'personaje1', nombre: 'Personaje 1 (Clásico)', icon: '👤' },
-        { id: 'masculino', nombre: 'Base Masculina', icon: '👦' },
-        { id: 'femenino', nombre: 'Base Femenina', icon: '👧' },
-        { id: 'gafas', nombre: 'Asset: Gafas', icon: '👓' }
+        { id: 'personaje1', nombre: 'Personaje 1 (Clásico)', icon: '👤' }
     ]);
 
     const [nombrePersonaje, setNombrePersonaje] = useState('personaje1');
     
-    // Capas ahora son "Grupos" que contienen variantes, y cada variante contiene "subCapas"
     const [capas, setCapas] = useState([
         { 
             id: 'silueta', 
@@ -50,22 +44,19 @@ export default function GeneradorDev({ onBack }) {
                     ]
                 }
             ]
-        },
+        }
     ]);
 
-    // Colores vivos del visor
     const [coloresVivos, setColoresVivos] = useState({
         silueta: '#1A1A1A',
         piel: '#F5C6A0'
     });
 
-    // ID de la variante activa por grupo
     const [variantesActivas, setVariantesActivas] = useState({
         silueta: 'var1',
         piel: 'var1'
     });
 
-    // Estado para edicion o creacion de un grupo
     const [nuevaCapa, setNuevaCapa] = useState({ 
         nombreCapa: '', 
         colorDefault: '#E65100', 
@@ -119,7 +110,6 @@ export default function GeneradorDev({ onBack }) {
         cancelarEdicion();
     };
 
-    // Funciones para subcapas (sprites)
     const handleSubCapaFileChange = (indexVar, indexSub, e) => {
         const file = e.target.files[0];
         if (file) {
@@ -134,7 +124,7 @@ export default function GeneradorDev({ onBack }) {
 
                 copyVar[indexVar].subCapas[indexSub] = targetSub;
                 let sugName = prev.nombreCapa;
-                if(!sugName && indexVar===0 && indexSub===0) {
+                if(!sugName && indexVar === 0 && indexSub === 0) {
                     sugName = file.name.replace(/\.[^/.]+$/, "").charAt(0).toUpperCase() + file.name.slice(1).replace(/\.[^/.]+$/, "");
                 }
 
@@ -147,7 +137,7 @@ export default function GeneradorDev({ onBack }) {
         setNuevaCapa(prev => {
             const copyVar = [...prev.variantesTemp];
             copyVar[indexVar].subCapas.push({
-                id: `sc${Date.now()}`,
+                id: `sc_${Date.now()}`,
                 archivo: `sprite_${copyVar[indexVar].subCapas.length + 1}.svg`,
                 editable: true,
                 archivoFile: null,
@@ -175,17 +165,16 @@ export default function GeneradorDev({ onBack }) {
         });
     };
 
-    // Funciones para Variantes
     const agregarVarianteTemp = () => {
         setNuevaCapa(prev => ({
             ...prev,
             variantesTemp: [
                 ...prev.variantesTemp,
                 { 
-                    id: `v${Date.now()}`, 
+                    id: `v_${Date.now()}`, 
                     nombre: `Var ${prev.variantesTemp.length + 1}`, 
                     costo: 0, 
-                    subCapas: [{ id: `sc${Date.now()}`, archivo: 'sprite.svg', editable: true, archivoFile: null, previewUrl: null }] 
+                    subCapas: [{ id: `sc_${Date.now()}`, archivo: 'sprite.svg', editable: true, archivoFile: null, previewUrl: null }] 
                 }
             ]
         }));
@@ -198,7 +187,6 @@ export default function GeneradorDev({ onBack }) {
         });
     };
 
-    // Paletas
     const handleAgregarColorAPaleta = () => {
         const colorNuevo = nuevaCapa.colorTemp;
         if (!nuevaCapa.paletaColors.includes(colorNuevo)) {
@@ -216,7 +204,6 @@ export default function GeneradorDev({ onBack }) {
 
     const handleVaciarPaleta = () => setNuevaCapa(prev => ({ ...prev, paletaColors: ['#000000'] }));
 
-    // Edicion y Guardado
     const iniciarEdicionCapa = (capa) => {
         setCapaEditandoId(capa.id);
         
@@ -317,7 +304,6 @@ export default function GeneradorDev({ onBack }) {
         return variante.subCapas || [];
     };
 
-    // Exportador de codigo con Map para SubCapas
     const generarCodigoJSX = () => {
         let codigo = "";
 
@@ -331,7 +317,6 @@ export default function GeneradorDev({ onBack }) {
             });
             codigo += `    className = "w-16 h-16"\n}) {\n`;
             
-            // Inyeccion de catalogo interno para standalone asset
             capas.forEach(capa => {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
                 codigo += `    const var${idCap} = ${JSON.stringify(capa.variantes[0].subCapas || [])};\n`;
@@ -428,23 +413,23 @@ export default function GeneradorDev({ onBack }) {
                         </button>
                     )}
                     <h2 className="text-2xl font-black flex items-center gap-2">
-                        {modoGenerador === 'avatar' ? '👤 Editor Avatar' : '🧩 Editor Asset'}
+                        {modoGenerador === 'avatar' ? 'Editor Avatar' : 'Editor Asset'}
                     </h2>
                 </div>
                 
                 <div className="flex bg-amber-200 rounded-2xl p-1 border border-amber-400 shadow-inner">
-                    <button onClick={() => setModoGenerador('avatar')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${modoGenerador === 'avatar' ? 'bg-amber-600 text-white shadow-md' : 'text-amber-900 hover:bg-amber-300'}`}>👤 Avatar</button>
-                    <button onClick={() => setModoGenerador('asset')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${modoGenerador === 'asset' ? 'bg-emerald-600 text-white shadow-md' : 'text-amber-900 hover:bg-amber-300'}`}>🧩 Asset Sprites</button>
+                    <button onClick={() => setModoGenerador('avatar')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${modoGenerador === 'avatar' ? 'bg-amber-600 text-white shadow-md' : 'text-amber-900 hover:bg-amber-300'}`}>Avatar</button>
+                    <button onClick={() => setModoGenerador('asset')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${modoGenerador === 'asset' ? 'bg-emerald-600 text-white shadow-md' : 'text-amber-900 hover:bg-amber-300'}`}>Asset Sprites</button>
                 </div>
 
                 <button onClick={handleNuevoPersonaje} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5">
-                    ➕ Nuevo
+                    + Nuevo
                 </button>
             </div>
 
             <div className="bg-white p-4 rounded-3xl border-2 border-amber-300 shadow-sm mb-6">
                 <h3 className="text-xs font-black uppercase text-amber-900 mb-3 flex items-center justify-between">
-                    <span>📚 Biblioteca</span>
+                    <span>Biblioteca</span>
                 </h3>
                 <div className="flex flex-wrap gap-2">
                     {bibliotecaAvatares.map((avatar) => (
@@ -462,7 +447,7 @@ export default function GeneradorDev({ onBack }) {
                 <div className="lg:col-span-5 flex flex-col gap-5">
                     
                     <div className="bg-white p-6 rounded-3xl border-2 border-amber-300 shadow-md flex flex-col items-center">
-                        <h3 className="font-black text-xs text-amber-900 uppercase tracking-wider mb-3">👁️ Visor ({nombrePersonaje})</h3>
+                        <h3 className="font-black text-xs text-amber-900 uppercase tracking-wider mb-3">Visor ({nombrePersonaje})</h3>
                         
                         <div className="relative w-56 h-56 bg-amber-50 rounded-3xl border-4 border-amber-400 flex items-center justify-center shadow-inner overflow-hidden mb-4">
                             {capas.length === 0 ? <div className="text-center p-4"><span className="text-2xl">🎨</span></div> : (
@@ -481,7 +466,7 @@ export default function GeneradorDev({ onBack }) {
 
                         {capas.length > 0 && (
                             <div className="w-full space-y-3">
-                                <label className="block text-[11px] font-bold text-amber-800 uppercase">🖌️ Ajustes Vivos:</label>
+                                <label className="block text-[11px] font-bold text-amber-800 uppercase">Ajustes Vivos:</label>
                                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                                     {capas.map(capa => {
                                         const varActiva = variantesActivas[capa.id] || capa.variantes[0]?.id;
@@ -490,6 +475,11 @@ export default function GeneradorDev({ onBack }) {
                                                 <div className="flex items-center justify-between">
                                                     <span className="font-black text-amber-900">{capa.nombreCapa}</span>
                                                     <input type="color" value={coloresVivos[capa.id] || capa.colorDefault} onChange={(e) => setColoresVivos(prev => ({ ...prev, [capa.id]: e.target.value }))} onBlur={(e) => agregarColorReciente(e.target.value)} className="w-6 h-6 rounded-md border border-amber-300 cursor-pointer bg-transparent" />
+                                                </div>
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    {coloresRecientes.map((hex, i) => (
+                                                        <button key={i} type="button" onClick={() => setColoresVivos(prev => ({ ...prev, [capa.id]: hex }))} className="w-4 h-4 rounded-full border border-amber-900 shadow-xs cursor-pointer" style={{ backgroundColor: hex }} />
+                                                    ))}
                                                 </div>
                                                 {capa.variantes && capa.variantes.length > 1 && (
                                                     <div className="flex flex-wrap gap-1 pt-1 border-t border-amber-200/60">
@@ -510,7 +500,7 @@ export default function GeneradorDev({ onBack }) {
 
                     <div className="bg-white p-5 rounded-3xl border-2 border-amber-300 shadow-md">
                         <h3 className="font-bold text-xs mb-1 text-amber-900 flex justify-between items-center">
-                            <span>📚 GRUPOS ({capas.length})</span>
+                            <span>GRUPOS ({capas.length})</span>
                         </h3>
                         {capas.length === 0 ? <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-center text-xs text-amber-800 mb-4 font-medium">Vacío.</div> : (
                             <ul className="space-y-2 mb-4 max-h-48 overflow-y-auto pr-1">
@@ -541,7 +531,6 @@ export default function GeneradorDev({ onBack }) {
                                 <input type="text" value={nuevaCapa.nombreCapa} onChange={(e) => setNuevaCapa({...nuevaCapa, nombreCapa: e.target.value})} className="w-full px-3 py-2 border-2 border-amber-300 rounded-2xl text-xs bg-white text-amber-950 outline-none focus:border-amber-500" />
                             </div>
                             
-                            {/* Constructor de Sprites por Variantes */}
                             <div className="space-y-2 bg-white/80 p-3 rounded-2xl border border-amber-300 max-h-60 overflow-y-auto">
                                 <div className="flex justify-between items-center mb-1">
                                     <label className="text-[11px] font-black text-amber-900 uppercase">Variantes & Subcapas:</label>
@@ -561,14 +550,14 @@ export default function GeneradorDev({ onBack }) {
                                                     <input type="file" accept=".svg" onChange={(e) => handleSubCapaFileChange(indexVar, indexSub, e)} className="w-full sm:w-auto text-[9px] file:mr-1 file:py-0.5 file:px-1.5 file:rounded file:border-0 file:text-[9px] file:bg-amber-600 file:text-white cursor-pointer" />
                                                     <div className="flex gap-1 w-full sm:w-auto justify-end">
                                                         <button type="button" onClick={() => toggleSubCapaEditable(indexVar, indexSub)} className={`px-2 py-1 rounded-lg text-[10px] font-bold ${sc.editable ? 'bg-blue-100 text-blue-900 border border-blue-300' : 'bg-gray-200 text-gray-700 border border-gray-300'}`}>
-                                                            {sc.editable ? '🎨 Base' : '🔒 Fijo'}
+                                                            {sc.editable ? 'Base' : 'Fijo'}
                                                         </button>
                                                         <button type="button" onClick={() => eliminarSubCapa(indexVar, indexSub)} className="text-red-600 bg-red-50 px-2 py-1 rounded-lg text-[10px]">✕</button>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
-                                        <button type="button" onClick={() => agregarSubCapa(indexVar)} className="w-full text-center bg-amber-200 text-amber-900 font-bold py-1 rounded-lg text-[10px]">➕ Añadir Sprite (Subcapa)</button>
+                                        <button type="button" onClick={() => agregarSubCapa(indexVar)} className="w-full text-center bg-amber-200 text-amber-900 font-bold py-1 rounded-lg text-[10px]">➕ Añadir Subcapa</button>
                                     </div>
                                 ))}
                             </div>
@@ -603,7 +592,7 @@ export default function GeneradorDev({ onBack }) {
                                     <button type="button" onClick={cancelarEdicion} className="bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-2xl text-xs cursor-pointer">❌</button>
                                 )}
                                 <button type="button" onClick={handleGuardarCapa} className="flex-1 bg-amber-600 text-white font-black py-3 rounded-2xl text-xs cursor-pointer uppercase">
-                                    {capaEditandoId ? '💾 Guardar Grupo' : '🚀 Añadir Grupo'}
+                                    {capaEditandoId ? 'Guardar Grupo' : 'Añadir Grupo'}
                                 </button>
                             </div>
                         </div>
@@ -613,7 +602,7 @@ export default function GeneradorDev({ onBack }) {
                 <div className="lg:col-span-7 flex flex-col">
                     <div className="bg-[#1e1e1e] p-5 rounded-3xl border-2 border-amber-500 shadow-xl flex flex-col h-full">
                         <div className="flex justify-between items-center mb-3">
-                            <label className="text-xs font-black text-amber-400 uppercase tracking-wider">💻 Código Listo</label>
+                            <label className="text-xs font-black text-amber-400 uppercase tracking-wider">Código Listo</label>
                             <span className="text-[10px] text-gray-400 font-mono text-right max-w-[120px]">
                                 {modoGenerador === 'asset' ? 'Multi-Color Sprite' : 'Avatar Engine'}
                             </span>
@@ -623,8 +612,8 @@ export default function GeneradorDev({ onBack }) {
                             value={generarCodigoJSX()}
                             className="w-full flex-1 min-h-[520px] p-4 bg-[#141414] text-[#9cdcfe] font-mono text-[10px] rounded-2xl shadow-inner resize-none focus:outline-none leading-relaxed border border-gray-800"
                         />
-                        <button type="button" onClick={() => { navigator.clipboard.writeText(generarCodigoJSX()); alert('¡Código copiado al portapapeles! 📋'); }} className="mt-4 w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3.5 rounded-2xl cursor-pointer text-sm flex items-center justify-center gap-2">
-                            📋 Copiar Componente
+                        <button type="button" onClick={() => { navigator.clipboard.writeText(generarCodigoJSX()); alert('Código copiado al portapapeles'); }} className="mt-4 w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3.5 rounded-2xl cursor-pointer text-sm flex items-center justify-center gap-2">
+                            Copiar Componente
                         </button>
                     </div>
                 </div>
