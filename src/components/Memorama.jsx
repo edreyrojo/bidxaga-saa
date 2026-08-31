@@ -10,9 +10,8 @@ import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { useSonido } from '../hooks/useSonido';
 
-// 1. IMPORTAMOS LA CONFIGURACIÓN Y FUNCIONES DE FIREBASE
 import { auth, db } from '../firebaseConfig.js';
-import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
 const MAX_VIDAS = 10; 
 
@@ -46,9 +45,6 @@ const obtenerBaseDatosActiva = (modo, categoriasFaunaActivas = [], categoriasFlo
     }
 };
 
-// ==========================================
-// SUBCOMPONENTE INTEGRADO: TARJETA
-// ==========================================
 function Tarjeta({ card, handleChoice, flipped, disabled }) {
     const handleClick = () => {
         if (!disabled && !flipped && !card.isMatched) {
@@ -68,7 +64,6 @@ function Tarjeta({ card, handleChoice, flipped, disabled }) {
         <div className="relative aspect-square cursor-pointer perspective group" onClick={handleClick}>
             <div className={`w-full h-full duration-500 transform-style preserve-3d relative ${flipped ? 'rotate-y-180' : ''}`}>
 
-                {/* PARTE FRONTAL (Contenido) */}
                 <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-white border-2 border-amber-300 rounded-xl flex flex-col items-center justify-center p-2 shadow-inner hover:border-amber-400 transition-colors">
                     {card.type === 'image' ? (
                         <img
@@ -94,7 +89,6 @@ function Tarjeta({ card, handleChoice, flipped, disabled }) {
                     </div>
                 </div>
 
-                {/* PARTE TRASERA (Ficha oculta) */}
                 <div className="absolute inset-0 w-full h-full backface-hidden bg-amber-600 border-2 border-white rounded-xl flex items-center justify-center shadow-lg transition-all group-hover:bg-amber-500 group-hover:scale-[1.02]">
                     <span className="text-white/40 font-black text-3xl md:text-5xl select-none">?</span>
                 </div>
@@ -104,9 +98,6 @@ function Tarjeta({ card, handleChoice, flipped, disabled }) {
     );
 }
 
-// ==========================================
-// COMPONENTE PRINCIPAL: TABLERO
-// ==========================================
 export default function Tablero({
     onBack,
     user,
@@ -165,7 +156,7 @@ export default function Tablero({
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Récord ya guardado",
+                title: "Récord ya guardado",
                 message: "Ya guardaste tu récord global. Avanza o completa un nivel para volver a registrar tu puntaje."
             });
             return;
@@ -196,25 +187,27 @@ export default function Tablero({
         if (currentUser && nombreAUsar.trim()) {
             const scoreToSave = pendingGlobalScore || { level: level, turns: turns };
             try {
-                await addDoc(collection(db, "ranking"), {
+                const rankingRef = doc(db, "ranking", currentUser.uid);
+                await setDoc(rankingRef, {
                     name: nombreAUsar.trim(),
                     score: scoreToSave.turns,
                     level: scoreToSave.level,
                     fecha: new Date().toISOString()
-                });
+                }, { merge: true });
+
                 await cargarRankingGlobal();
                 setGuardadoEnNivel(true);
                 setPendingGlobalScore(null);
                 setFeedbackModal({
                     show: true,
-                    title: "🎉 ¡Guardado Exitoso!",
-                    message: `¡Partida guardada localmente (Nivel ${level}) y récord global registrado para el Nivel ${scoreToSave.level} con ${scoreToSave.turns} turnos!`
+                    title: "Guardado Exitoso",
+                    message: `Partida guardada localmente (Nivel ${level}) y récord global registrado para el Nivel ${scoreToSave.level} con ${scoreToSave.turns} turnos.`
                 });
             } catch (error) {
                 console.error("Error al guardar el puntaje en Firebase:", error);
                 setFeedbackModal({
                     show: true,
-                    title: "⚠️ Guardado Parcial",
+                    title: "Guardado Parcial",
                     message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
                 });
             }
@@ -267,8 +260,8 @@ export default function Tablero({
             const querySnapshot = await getDocs(q);
 
             const datosRanking = [];
-            querySnapshot.forEach((doc) => {
-                datosRanking.push({ id: doc.id, ...doc.data() });
+            querySnapshot.forEach((docSnap) => {
+                datosRanking.push({ id: docSnap.id, ...docSnap.data() });
             });
 
             setRanking(datosRanking);
@@ -422,8 +415,8 @@ export default function Tablero({
             setAvisoVistasMostrado(true);
             setFeedbackModal({
                 show: true,
-                title: "👀 ¡Tablero conocido!",
-                message: "¡Has visto todas las fichas del tablero! A partir de ahora, si repites una combinación incorrecta 3 veces, perderás una vida."
+                title: "Tablero conocido",
+                message: "Has visto todas las fichas del tablero. A partir de ahora, si repites una combinación incorrecta 3 veces, perderás una vida."
             });
         }
     }, [fichasVistas, cards.length, avisoVistasMostrado]);
@@ -434,7 +427,7 @@ export default function Tablero({
         if (!nombreLimpio) {
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Nombre requerido",
+                title: "Nombre requerido",
                 message: "Por favor escribe un nombre válido para registrarte en el ranking."
             });
             return;
@@ -444,28 +437,31 @@ export default function Tablero({
         localStorage.setItem('memoramaPlayerName', nombreLimpio);
         setShowGuardarModal(false);
 
+        const currentUser = user || auth.currentUser;
         const scoreToSave = pendingGlobalScore || { level: level, turns: turns };
 
         try {
-            await addDoc(collection(db, "ranking"), {
+            const rankingRef = currentUser ? doc(db, "ranking", currentUser.uid) : doc(collection(db, "ranking"));
+            await setDoc(rankingRef, {
                 name: nombreLimpio,
                 score: scoreToSave.turns,
                 level: scoreToSave.level,
                 fecha: new Date().toISOString()
-            });
+            }, { merge: true });
+
             await cargarRankingGlobal();
             setGuardadoEnNivel(true);
             setPendingGlobalScore(null);
             setFeedbackModal({
                 show: true,
-                title: "🎉 ¡Guardado Exitoso!",
-                message: `¡Partida guardada localmente (Nivel ${level}) y récord global registrado para el Nivel ${scoreToSave.level} con ${scoreToSave.turns} turnos!`
+                title: "Guardado Exitoso",
+                message: `Partida guardada localmente (Nivel ${level}) y récord global registrado para el Nivel ${scoreToSave.level} con ${scoreToSave.turns} turnos.`
             });
         } catch (error) {
             console.error("Error al guardar el puntaje en Firebase:", error);
             setFeedbackModal({
                 show: true,
-                title: "⚠️ Guardado Parcial",
+                title: "Guardado Parcial",
                 message: "Progreso guardado localmente, pero hubo un error al conectar con Firebase."
             });
         }
@@ -605,8 +601,8 @@ export default function Tablero({
         if (totopos < costoPaquete) {
             setFeedbackModal({
                 show: true,
-                title: "🌽 Totopos insuficientes",
-                message: `Te faltan ${costoPaquete - totopos} totopos para comprar el paquete de 3 vidas. ¡Sigue jugando o completa niveles!`
+                title: "Totopos insuficientes",
+                message: `Te faltan ${costoPaquete - totopos} totopos para comprar el paquete de 3 vidas. Sigue jugando o completa niveles.`
             });
             return;
         }
@@ -634,8 +630,8 @@ export default function Tablero({
 
         setFeedbackModal({
             show: true,
-            title: "❤️ ¡Vidas Recargadas!",
-            message: `¡Has comprado ${vidasGanadas} vidas extra por ${costoPaquete} totopos! Puedes continuar jugando.`
+            title: "Vidas Recargadas",
+            message: `Has comprado ${vidasGanadas} vidas extra por ${costoPaquete} totopos. Puedes continuar jugando.`
         });
     };
 
@@ -644,7 +640,7 @@ export default function Tablero({
         if (costo > 0 && totopos < costo) {
             setFeedbackModal({
                 show: true,
-                title: "🌽 Totopos insuficientes",
+                title: "Totopos insuficientes",
                 message: `Te faltan ${costo - totopos} totopos para desbloquear esta categoría.`
             });
             return;
@@ -682,10 +678,10 @@ export default function Tablero({
 
         setFeedbackModal({
             show: true,
-            title: "🔓 ¡Categoría desbloqueada!",
+            title: "Categoría desbloqueada",
             message: costo > 0
                 ? `Gastaste ${costo} totopos. Ya puedes practicar esta categoría.`
-                : "¡La reclamaste gratis por tu Nivel de Cuenta!"
+                : "La reclamaste gratis por tu Nivel de Cuenta."
         });
     };
 
@@ -735,7 +731,7 @@ export default function Tablero({
                                 actualizado[comboKey] = 0;
                                 setFeedbackModal({
                                     show: true,
-                                    title: "⚠️ ¡3 Errores con esta combinación!",
+                                    title: "3 Errores con esta combinación",
                                     message: "Has repetido el mismo par incorrecto 3 veces."
                                 });
                             }
@@ -792,7 +788,7 @@ export default function Tablero({
                 <div className="flex flex-col items-center w-full">
                     {matches === parejasEnJuego && parejasEnJuego > 0 && (
                         <div className="w-full max-w-2xl bg-green-50 border-2 border-green-500 rounded-xl p-3 mb-2 text-center animate-bounce">
-                            <p className="text-base sm:text-lg font-bold text-green-900 mb-0.5">🎉 ¡Nivel {level} completado!</p>
+                            <p className="text-base sm:text-lg font-bold text-green-900 mb-0.5">Nivel {level} completado</p>
                             <p className="text-xs font-bold text-amber-700 mb-2 inline-flex items-center justify-center gap-1">
                                 +{configActual.recompensa}
                                 <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none' }} />
@@ -855,7 +851,7 @@ export default function Tablero({
             </div>
 
             {showSinVidasModal && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-red-500 w-full max-w-sm flex flex-col items-center text-center animate-fade-in relative">
                         <div className="text-5xl mb-2 animate-bounce">💔</div>
                         <h3 className="text-2xl font-black text-red-700 mb-1">¡Te has quedado sin vidas!</h3>
@@ -878,13 +874,13 @@ export default function Tablero({
                                 onClick={reiniciarNivelActual}
                                 className="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
-                                🔄 Reiniciar Nivel {level} (10 Vidas)
+                                Reiniciar Nivel {level} (10 Vidas)
                             </button>
                             <button
                                 onClick={confirmarReiniciar}
                                 className="w-full bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold py-2.5 rounded-xl text-sm transition-colors cursor-pointer border border-amber-400"
                             >
-                                ⚠️ Reiniciar Todo (Volver a Nivel 1)
+                                Reiniciar Todo (Volver a Nivel 1)
                             </button>
                         </div>
                     </div>
@@ -892,9 +888,9 @@ export default function Tablero({
             )}
 
             {showGuardarModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Récord</h3>
+                        <h3 className="text-xl font-bold text-amber-950 mb-2">Guardar Récord</h3>
                         <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para guardar tu puntaje en el ranking global.</p>
 
                         <input
@@ -928,7 +924,7 @@ export default function Tablero({
             )}
 
             {showMenuModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <div className="text-3xl mb-2">⚠️</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
@@ -960,7 +956,7 @@ export default function Tablero({
             )}
 
             {showConfirmRestartModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <div className="text-3xl mb-2">🔄</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Reiniciar Progreso?</h3>
@@ -988,7 +984,7 @@ export default function Tablero({
             )}
 
             {feedbackModal.show && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">{feedbackModal.title}</h3>
                         <p className="text-xs text-amber-800 mb-5">{feedbackModal.message}</p>

@@ -9,7 +9,7 @@ import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { useSonido } from '../hooks/useSonido.js';
 import { auth, db } from '../firebaseConfig';
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, increment, query, orderBy, limit } from 'firebase/firestore';
+import { collection, setDoc, getDocs, doc, getDoc, updateDoc, increment, query, orderBy, limit } from 'firebase/firestore';
 
 export default function Trivia({ onBack, user, onSetControles, setControlesJuegoActivo }) {
     const { reproducirSonido } = useSonido();
@@ -17,11 +17,11 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     // Estados principales del juego
     const [nivel, setNivel] = useState(1);
     const [errores, setErrores] = useState(0);
-    const [erroresParaVida, setErroresParaVida] = useState(0); // 🛡️ Acumulador de errores para perder 1 vida cada 3
+    const [erroresParaVida, setErroresParaVida] = useState(0); // Acumulador de errores para perder 1 vida cada 3
     const [aciertosNivel, setAciertosNivel] = useState(0);
     const [modoDificil, setModoDificil] = useState(false);
-    const [totopos, setTotopos] = useState(0); // 🌽 Sistema de Economía Virtual
-    const [vidas, setVidas] = useState(3); // ❤️ Sistema de Vidas
+    const [totopos, setTotopos] = useState(0); // Sistema de Economia Virtual
+    const [vidas, setVidas] = useState(3); // Sistema de Vidas
     const [isGameOver, setIsGameOver] = useState(false); // Estado de Game Over por falta de vidas
     
     // Estados de la pregunta actual
@@ -40,11 +40,11 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     // Estados para las Modales Personalizadas del Juego
     const [showGuardarModal, setShowGuardarModal] = useState(false);
     const [inputPlayerName, setInputPlayerName] = useState('');
-    const [showMenuModal, setShowMenuModal] = useState(false); // ⚠️ Estado para la advertencia del menú
+    const [showMenuModal, setShowMenuModal] = useState(false); // Estado para la advertencia del menu
     const [showConfirmRestartModal, setShowConfirmRestartModal] = useState(false);
     const [feedbackModal, setFeedbackModal] = useState({ show: false, title: '', message: '' });
 
-    // 📚 Sistema de categorías desbloqueables (Trivia solo usa fauna)
+    // Sistema de categorias desbloqueables (Trivia solo usa fauna)
     const [nivelCuenta, setNivelCuenta] = useState(1);
     const [categoriasFaunaDesbloqueadas, setCategoriasFaunaDesbloqueadas] = useState(() => categoriaInicialPorDefecto('fauna'));
     const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => categoriaInicialPorDefecto('fauna'));
@@ -54,7 +54,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     const TOTOPOS_POR_NIVEL = 15; // Recompensa de totopos al completar nivel
     const COSTO_VIDAS = 30; // Costo en totopos para recuperar 3 vidas
 
-    // 💾 Función auxiliar para guardar el progreso local completo al salir o guardar
+    // Funcion auxiliar para guardar el progreso local completo al salir o guardar
     const guardarProgresoLocal = () => {
         localStorage.setItem('triviaNivel', nivel);
         localStorage.setItem('triviaErrores', errores);
@@ -63,24 +63,45 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         localStorage.setItem('triviaVidas', vidas);
     };
 
-    // Función auxiliar para guardar automáticamente si hay sesión activa y nickname configurado
+    // Funcion auxiliar para guardar automaticamente si hay sesion activa y nickname configurado
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
         const scoreToSave = pendingGlobalScore || { level: nivel, errores: errores };
+        const currentUser = user || auth.currentUser;
+        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
         try {
-            await addDoc(collection(db, "ranking_trivia"), {
-                name: nombreLimpio,
-                errores: scoreToSave.errores,
-                level: scoreToSave.level,
-                fecha: new Date().toISOString()
-            });
+            const docRef = doc(db, "ranking_trivia", docId);
+            const docSnap = await getDoc(docRef);
+
+            let guardar = true;
+            if (docSnap.exists()) {
+                const dataAntigua = docSnap.data();
+                const nivelAntiguo = dataAntigua.level || 1;
+                const erroresAntiguos = dataAntigua.errores || 0;
+
+                if (scoreToSave.level < nivelAntiguo || (scoreToSave.level === nivelAntiguo && scoreToSave.errores >= erroresAntiguos)) {
+                    guardar = false;
+                }
+            }
+
+            if (guardar) {
+                await setDoc(docRef, {
+                    name: nombreLimpio,
+                    errores: scoreToSave.errores,
+                    level: scoreToSave.level,
+                    fecha: new Date().toISOString()
+                }, { merge: true });
+            }
+
             await cargarRankingGlobal();
             setGuardadoEnNivel(true);
             setPendingGlobalScore(null);
             setFeedbackModal({
                 show: true,
                 title: "🎉 ¡Guardado Exitoso!",
-                message: `¡Hola ${nombreLimpio}! Récord registrado automáticamente en el ranking global para el Nivel ${scoreToSave.level} (${scoreToSave.errores} errores).`
+                message: guardar 
+                    ? `¡Hola ${nombreLimpio}! Récord registrado automáticamente en el ranking global para el Nivel ${scoreToSave.level} (${scoreToSave.errores} errores).`
+                    : `¡Hola ${nombreLimpio}! Ya tienes un récord igual o superior registrado en el ranking.`
             });
         } catch (error) {
             console.error("Error al guardar en Firebase:", error);
@@ -92,7 +113,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         }
     };
 
-    // Al hacer click en Guardar con verificación de sesión y nickname
+    // Al hacer click en Guardar con verificacion de sesion y nickname
     const handleClickGuardar = async () => {
         try { reproducirSonido('click1'); } catch (e) {}
         guardarProgresoLocal();
@@ -144,7 +165,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 level: nivel,
                 onMenuClick: () => {
                     try { reproducirSonido('click1'); } catch (e) {}
-                    setShowMenuModal(true); // ⚠️ Muestra la advertencia antes de salir
+                    setShowMenuModal(true); // Muestra la advertencia antes de salir
                 },
                 onGuardarClick: handleClickGuardar,
                 onReiniciarClick: () => {
@@ -166,7 +187,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         };
     }, [nivel, modoDificil, errores, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
-    // Cargar datos locales y sincronizar con Firebase si hay sesión activa
+    // Cargar datos locales y sincronizar con Firebase si hay sesion activa
     useEffect(() => {
         const nivelGuardado = localStorage.getItem('triviaNivel');
         const erroresGuardados = localStorage.getItem('triviaErrores');
@@ -185,7 +206,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
         if (vidasGuardadas !== null) setVidas(parseInt(vidasGuardadas, 10));
 
-        // 📚 Categorías: respaldo local
+        // Categorias: respaldo local
         try {
             const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
             if (faunaGuardadas) {
@@ -193,10 +214,10 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 setCategoriasFaunaActivas(prev => prev.filter(id => faunaGuardadas.includes(id)).length ? prev.filter(id => faunaGuardadas.includes(id)) : categoriaInicialPorDefecto('fauna'));
             }
         } catch (e) {
-            console.error("Error al leer categorías guardadas localmente:", e);
+            console.error("Error al leer categorias guardadas localmente:", e);
         }
 
-        // Sincronizar totopos y nickname del perfil en Firestore si el usuario está logueado
+        // Sincronizar totopos y nickname del perfil en Firestore si el usuario esta logueado
         const cargarDatosNube = async () => {
             const currentUser = user || auth.currentUser;
             if (currentUser) {
@@ -210,7 +231,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                             localStorage.setItem('totopos', data.totopos);
                         }
 
-                        // 🏅 Nivel de Cuenta + sincronización de categorías gratis por nivel
+                        // Nivel de Cuenta + sincronizacion de categorias gratis por nivel
                         const historico = data.totoposHistoricos !== undefined ? data.totoposHistoricos : (data.totopos || 0);
                         const nivelCalc = calcularNivelCuenta(historico);
                         setNivelCuenta(nivelCalc);
@@ -226,7 +247,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
                         if (JSON.stringify(faunaNube) !== JSON.stringify(data.categoriasFaunaDesbloqueadas || [])) {
                             updateDoc(userDocRef, { categoriasFaunaDesbloqueadas: faunaNube })
-                                .catch(err => console.error("Error al sincronizar categorías por nivel:", err));
+                                .catch(err => console.error("Error al sincronizar categorias por nivel:", err));
                         }
 
                         const nickNube = data.nickname || data.nombre || data.name;
@@ -245,7 +266,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         cargarRankingGlobal();
     }, [user]);
 
-    // Guardar en localStorage los cambios de nivel, errores, modo difícil o vidas de forma automática
+    // Guardar en localStorage los cambios de nivel, errores, modo dificil o vidas de forma automatica
     useEffect(() => {
         guardarProgresoLocal();
     }, [nivel, errores, modoDificil, vidas, totopos]);
@@ -256,7 +277,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             generarNuevaPregunta();
         } else if (aciertosNivel >= PREGUNTAS_POR_NIVEL) {
             if (!pendingGlobalScore) {
-                try { reproducirSonido('click3'); } catch (e) {} // 🎉 Nivel completado
+                try { reproducirSonido('click3'); } catch (e) {} // Nivel completado
             }
             setPendingGlobalScore({ level: nivel, errores: errores });
         }
@@ -289,7 +310,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         setOpcionSeleccionada(opcionElegida.id);
 
         if (opcionElegida.id === preguntaActual.id) {
-            try { reproducirSonido('click2'); } catch (e) {} // ✅ Respuesta correcta
+            try { reproducirSonido('click2'); } catch (e) {} // Respuesta correcta
             setEstadoRespuesta('correcta');
             setTimeout(() => {
                 setAciertosNivel(prev => prev + 1);
@@ -298,7 +319,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             setEstadoRespuesta('incorrecta');
             setErrores(prev => prev + 1);
             
-            // 🛡️ Incrementamos contador de errores acumulados para perder vida cada 3 errores
+            // Incrementamos contador de errores acumulados para perder vida cada 3 errores
             const nuevoErroresParaVida = erroresParaVida + 1;
             setErroresParaVida(nuevoErroresParaVida);
 
@@ -316,7 +337,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 }
             }
 
-            // Permite al usuario volver a intentar sin revelar cuál era la respuesta correcta
+            // Permite al usuario volver a intentar sin revelar cual era la respuesta correcta
             setTimeout(() => {
                 setEstadoRespuesta(null);
                 setOpcionSeleccionada(null);
@@ -326,6 +347,10 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
     const siguienteNivel = async () => {
         try { reproducirSonido('click1'); } catch (e) {}
+        
+        const scoreDelNivelSuperado = pendingGlobalScore || { level: nivel, errores: errores };
+        setPendingGlobalScore(scoreDelNivelSuperado);
+
         const proximoNivel = nivel + 1;
         
         // Sumar y guardar totopos localmente
@@ -333,7 +358,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         setTotopos(nuevosTotopos);
         localStorage.setItem('totopos', nuevosTotopos);
 
-        // Si hay un usuario con sesión iniciada, actualizar en Firestore
+        // Si hay un usuario con sesion iniciada, actualizar en Firestore
         const currentUser = user || auth.currentUser;
         if (currentUser) {
             try {
@@ -350,7 +375,6 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         setNivel(proximoNivel);
         setAciertosNivel(0);
         setGuardadoEnNivel(false);
-        setPendingGlobalScore(null);
 
         setFeedbackModal({
             show: true,
@@ -376,21 +400,42 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         setShowGuardarModal(false);
 
         const scoreToSave = pendingGlobalScore || { level: nivel, errores: errores };
+        const currentUser = user || auth.currentUser;
+        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
         try {
-            await addDoc(collection(db, "ranking_trivia"), {
-                name: nombreLimpio,
-                errores: scoreToSave.errores,
-                level: scoreToSave.level,
-                fecha: new Date().toISOString()
-            });
+            const docRef = doc(db, "ranking_trivia", docId);
+            const docSnap = await getDoc(docRef);
+
+            let guardar = true;
+            if (docSnap.exists()) {
+                const dataAntigua = docSnap.data();
+                const nivelAntiguo = dataAntigua.level || 1;
+                const erroresAntiguos = dataAntigua.errores || 0;
+
+                if (scoreToSave.level < nivelAntiguo || (scoreToSave.level === nivelAntiguo && scoreToSave.errores >= erroresAntiguos)) {
+                    guardar = false;
+                }
+            }
+
+            if (guardar) {
+                await setDoc(docRef, {
+                    name: nombreLimpio,
+                    errores: scoreToSave.errores,
+                    level: scoreToSave.level,
+                    fecha: new Date().toISOString()
+                }, { merge: true });
+            }
+
             await cargarRankingGlobal();
             setGuardadoEnNivel(true);
             setPendingGlobalScore(null);
             setFeedbackModal({
                 show: true,
                 title: "🎉 ¡Guardado Exitoso!",
-                message: `Récord registrado: Nivel ${scoreToSave.level} con ${scoreToSave.errores} errores.`
+                message: guardar 
+                    ? `Récord registrado: Nivel ${scoreToSave.level} con ${scoreToSave.errores} errores.`
+                    : `Ya tienes un récord igual o superior registrado en el ranking.`
             });
         } catch (error) {
             setFeedbackModal({
@@ -399,8 +444,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         }
     };
 
-    // 🛡️ Reinicia únicamente el Nivel actual con las 3 vidas restauradas
-    // 📚 Desbloquear una categoría de fauna pagando totopos actuales
+    // Desbloquear una categoria de fauna pagando totopos actuales
     const handleDesbloquearCategoria = async (categoriaId, costo) => {
         try { reproducirSonido('click1'); } catch (e) {}
         if (costo > 0 && totopos < costo) {
@@ -524,10 +568,8 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 </button>
             </header>
 
-            {/* 🖥️ CONTENEDOR DE TRES COLUMNAS EN PC */}
             <div className="w-full max-w-6xl xl:max-w-7xl flex flex-col lg:grid lg:grid-cols-[280px_1fr_300px] gap-6 items-center lg:items-start justify-center mt-1">
                 
-                {/* Columna Izquierda: Panel de Estado y Progreso del Nivel */}
                 <div className="hidden lg:flex flex-col gap-3 w-full">
                     <h3 className="font-black text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base">
                         📊 Estado del Nivel
@@ -571,7 +613,6 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     </div>
                 </div>
 
-                {/* Columna Central: Zona de Juego de la Trivia */}
                 <div className="w-full flex flex-col items-center">
                     {aciertosNivel === PREGUNTAS_POR_NIVEL ? (
                         <div className="w-full bg-amber-50 border-4 border-amber-600 rounded-3xl p-6 text-center animate-fade-in shadow-xl">
@@ -625,7 +666,6 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     )}
                 </div>
 
-                {/* Columna Derecha: Ranking Global con Guiechachi en PNG */}
                 <div className="w-full flex flex-col gap-3">
                     <h3 className="font-black text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base flex items-center justify-center lg:justify-start gap-1.5">
                         <img 
@@ -661,7 +701,6 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
             </div>
 
-            {/* 💔 MODAL DE GAME OVER (SIN VIDAS) */}
             {isGameOver && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center animate-fade-in">
@@ -701,7 +740,6 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 </div>
             )}
 
-            {/* MODAL GUARDAR */}
             {showGuardarModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <form onSubmit={confirmarGuardadoGlobal} className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
@@ -726,7 +764,6 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 </div>
             )}
 
-            {/* ⚠️ MODAL DE ADVERTENCIA PARA VOLVER AL MENÚ */}
             {showMenuModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center animate-fade-in">
@@ -739,7 +776,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                                 type="button" 
                                 onClick={() => {
                                     try { reproducirSonido('click1'); } catch (e) {}
-                                    guardarProgresoLocal(); // 💾 Guarda antes de salir al menú
+                                    guardarProgresoLocal(); 
                                     setShowMenuModal(false);
                                     if (onBack) onBack();
                                 }} 
@@ -752,7 +789,6 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 </div>
             )}
 
-            {/* MODAL REINICIAR */}
             {showConfirmRestartModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center">
@@ -769,7 +805,6 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 </div>
             )}
 
-            {/* MODAL FEEDBACK */}
             {feedbackModal.show && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center">
@@ -779,7 +814,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     </div>
                 </div>
             )}
-            {/* 📚 MODAL: SELECTOR DE CATEGORÍAS DESBLOQUEABLES (solo fauna en Trivia) */}
+
             {showSelectorCategorias && (
                 <SelectorCategorias
                     fauna={{

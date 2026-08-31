@@ -9,7 +9,7 @@ import {
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { auth, db } from '../firebaseConfig';
-import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
 const RECOMPENSAS_CRUCIGRAMA = {
     1: 15,
@@ -36,7 +36,7 @@ const obtenerBaseDatosActiva = (modo, categoriasFaunaActivas = [], categoriasFlo
             return [...faunaConOffset, ...floraConOffset];
         }
         default:
-            return floraFiltrada;
+            return faunaFiltrada;
     }
 };
 
@@ -166,7 +166,6 @@ export default function Crucigrama({
     setControlesJuegoActivo,
     onSetControles 
 }) {
-    // Funcion central para reproducir los sonidos de clic requeridos usando la carpeta public/audio/
     const reproducirSonido = (tipo) => {
         try {
             let archivo = '/audio/click1.mp3';
@@ -243,21 +242,42 @@ export default function Crucigrama({
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
         reproducirSonido(1);
         const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
+        const currentUser = user || auth.currentUser;
+        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
         try {
-            await addDoc(collection(db, "ranking_crucigrama"), {
-                name: nombreLimpio,
-                intentos: scoreToSave.intentos,
-                level: scoreToSave.level,
-                fecha: new Date().toISOString()
-            });
+            const docRef = doc(db, "ranking_crucigrama", docId);
+            const docSnap = await getDoc(docRef);
+
+            let guardar = true;
+            if (docSnap.exists()) {
+                const dataAntigua = docSnap.data();
+                const nivelAntiguo = dataAntigua.level || 1;
+                const intentosAntiguos = dataAntigua.intentos || 0;
+
+                if (scoreToSave.level < nivelAntiguo || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos)) {
+                    guardar = false;
+                }
+            }
+
+            if (guardar) {
+                await setDoc(docRef, {
+                    name: nombreLimpio,
+                    intentos: scoreToSave.intentos,
+                    level: scoreToSave.level,
+                    fecha: new Date().toISOString()
+                }, { merge: true });
+            }
+
             await cargarRankingGlobal();
             setGuardadoEnNivel(true);
             setPendingGlobalScore(null);
             setFeedbackModal({
                 show: true,
                 title: "Guardado Exitoso",
-                message: `Hola ${nombreLimpio}. Record registrado automaticamente en el ranking global para el Nivel ${scoreToSave.level} (${scoreToSave.intentos} intentos).`
+                message: guardar 
+                    ? `${nombreLimpio}: Record registrado en Nivel ${scoreToSave.level} (${scoreToSave.intentos} intentos).`
+                    : `Ya tienes un record igual o superior registrado.`
             });
         } catch (error) {
             console.error("Error al guardar en Firebase:", error);
@@ -287,9 +307,8 @@ export default function Crucigrama({
         }
 
         const currentUser = user || auth.currentUser;
-        if (currentUser) {
-            const nombreAutomatico = currentUser.displayName || currentUser.email.split('@')[0];
-            confirmarGuardadoAutomatico(nombreAutomatico);
+        if (currentUser && playerName) {
+            confirmarGuardadoAutomatico(playerName);
             return;
         }
 
@@ -393,12 +412,11 @@ export default function Crucigrama({
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('flora');
                         });
 
-                        if (JSON.stringify(faunaNube) !== JSON.stringify(data.categoriasFaunaDesbloqueadas || [])
-                            || JSON.stringify(floraNube) !== JSON.stringify(data.categoriasFloraDesbloqueadas || [])) {
-                            updateDoc(userDocRef, {
-                                categoriasFaunaDesbloqueadas: faunaNube,
-                                categoriasFloraDesbloqueadas: floraNube
-                            }).catch(err => console.error("Error al sincronizar categorias por nivel:", err));
+                        const nickNube = data.nickname || data.nombre || data.name;
+                        if (nickNube) {
+                            setPlayerName(nickNube);
+                            setInputPlayerName(nickNube);
+                            localStorage.setItem('crucigramaPlayerName', nickNube);
                         }
                     }
                 } catch (e) {
@@ -728,21 +746,42 @@ export default function Crucigrama({
         setShowGuardarModal(false);
 
         const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
+        const currentUser = user || auth.currentUser;
+        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
         try {
-            await addDoc(collection(db, "ranking_crucigrama"), {
-                name: nombreLimpio,
-                intentos: scoreToSave.intentos,
-                level: scoreToSave.level,
-                fecha: new Date().toISOString()
-            });
+            const docRef = doc(db, "ranking_crucigrama", docId);
+            const docSnap = await getDoc(docRef);
+
+            let guardar = true;
+            if (docSnap.exists()) {
+                const dataAntigua = docSnap.data();
+                const nivelAntiguo = dataAntigua.level || 1;
+                const intentosAntiguos = dataAntigua.intentos || 0;
+
+                if (scoreToSave.level < nivelAntiguo || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos)) {
+                    guardar = false;
+                }
+            }
+
+            if (guardar) {
+                await setDoc(docRef, {
+                    name: nombreLimpio,
+                    intentos: scoreToSave.intentos,
+                    level: scoreToSave.level,
+                    fecha: new Date().toISOString()
+                }, { merge: true });
+            }
+
             await cargarRankingGlobal();
             setGuardadoEnNivel(true);
             setPendingGlobalScore(null);
             setFeedbackModal({
                 show: true,
                 title: "Guardado Exitoso",
-                message: `¡Partida guardada localmente y record registrado en el ranking para el Nivel ${scoreToSave.level} (${scoreToSave.intentos} intentos)!`
+                message: guardar 
+                    ? `Puntaje guardado para el Nivel ${scoreToSave.level}.`
+                    : `Ya tienes un record igual o superior registrado.`
             });
         } catch (error) {
             console.error("Error al guardar en Firebase:", error);
@@ -863,8 +902,8 @@ export default function Crucigrama({
             const q = query(collection(db, "ranking_crucigrama"), orderBy("level", "desc"), orderBy("intentos", "asc"), limit(10));
             const querySnapshot = await getDocs(q);
             const docs = [];
-            querySnapshot.forEach((doc) => {
-                docs.push({ id: doc.id, ...doc.data() });
+            querySnapshot.forEach((docSnap) => {
+                docs.push({ id: docSnap.id, ...docSnap.data() });
             });
             setRanking(docs);
         } catch (error) {
@@ -953,10 +992,11 @@ export default function Crucigrama({
 
             <div className="w-full max-w-6xl xl:max-w-7xl flex flex-col lg:grid lg:grid-cols-[1fr_320px_320px] gap-6 items-center lg:items-start justify-center mt-1">
                 
-                <div className="w-full p-3 sm:p-5 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner overflow-x-auto custom-scrollbar flex justify-center items-center min-h-[380px]">
-                    <div className="flex justify-center min-w-max mx-auto">
+                {/* Contenedor optimizado y perfectamente centrado para el tablero */}
+                <div className="w-full p-3 sm:p-5 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner overflow-x-auto overflow-y-auto custom-scrollbar flex justify-center items-center min-h-[380px] max-h-[550px]">
+                    <div className="m-auto flex justify-center items-center min-w-max">
                         <div 
-                            className="grid gap-1 sm:gap-1.5 p-1.5" 
+                            className="grid gap-1 sm:gap-1.5 p-1.5 justify-center mx-auto" 
                             style={{ gridTemplateColumns: `repeat(${matriz[0]?.length || 1}, max-content)` }}
                         >
                             {matriz.map((fila, r) => 

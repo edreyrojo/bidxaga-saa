@@ -11,7 +11,7 @@ import SelectorCategorias from './SelectorCategorias.jsx';
 import ConfiguracionModal from './ConfiguracionModal';
 import { useSonido } from '../hooks/useSonido.js';
 import { db, auth } from '../firebaseConfig';
-import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 
 const LETRAS_RELLENO = ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'L', 'M', 'N', 'O', 'R', 'S', 'T', 'U', 'X', 'Y', 'Z'];
 
@@ -62,7 +62,6 @@ const limpiarPalabra = (texto, modoDificil = false) => {
         .replace(/[^A-Z]/g, "");
 };
 
-// Funcion auxiliar sincronica para calcular la ruta de celdas seleccionadas
 const obtenerCeldasRuta = (r1, c1, r2, c2) => {
     let celdas = [];
     const deltaR = r2 - r1;
@@ -154,21 +153,42 @@ export default function SopaLetras({
 
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
         const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
+        const currentUser = user || auth.currentUser;
+        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
         try {
-            await addDoc(collection(db, "ranking_sopa"), {
-                name: nombreLimpio,
-                intentos: scoreToSave.intentos,
-                level: scoreToSave.level,
-                fecha: new Date().toISOString()
-            });
+            const docRef = doc(db, "ranking_sopa", docId);
+            const docSnap = await getDoc(docRef);
+
+            let guardar = true;
+            if (docSnap.exists()) {
+                const dataAntigua = docSnap.data();
+                const nivelAntiguo = dataAntigua.level || 1;
+                const intentosAntiguos = dataAntigua.intentos || 0;
+
+                if (scoreToSave.level < nivelAntiguo || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos)) {
+                    guardar = false;
+                }
+            }
+
+            if (guardar) {
+                await setDoc(docRef, {
+                    name: nombreLimpio,
+                    intentos: scoreToSave.intentos,
+                    level: scoreToSave.level,
+                    fecha: new Date().toISOString()
+                }, { merge: true });
+            }
+
             await cargarRankingGlobal();
             setGuardadoEnNivel(true);
             setPendingGlobalScore(null);
             setFeedbackModal({
                 show: true,
                 title: "Guardado Exitoso",
-                message: `${nombreLimpio}: Record registrado en Nivel ${scoreToSave.level} (${scoreToSave.intentos} int.).`
+                message: guardar 
+                    ? `${nombreLimpio}: Record registrado en Nivel ${scoreToSave.level} (${scoreToSave.intentos} int.).`
+                    : `Ya tienes un record igual o superior registrado.`
             });
         } catch (error) {
             console.error("Error al guardar en Firebase:", error);
@@ -384,6 +404,8 @@ export default function SopaLetras({
         if (palabrasEncontradas.length === animalesObjetivo.length && animalesObjetivo.length > 0) {
             if (pendingGlobalScore) return;
 
+            try { reproducirSonido('click3'); } catch (e) {}
+
             setPendingGlobalScore({ level: nivel, intentos: intentos });
 
             const nuevosTotopos = totopos + recompensaActual;
@@ -577,15 +599,8 @@ export default function SopaLetras({
         });
 
         if (animalEncontrado) {
+            try { reproducirSonido('click2'); } catch (e) {}
             const nuevasEncontradas = [...palabrasEncontradas, animalEncontrado.id];
-            
-            // Verificacion sincrona vinculada a la accion directa del usuario para el bypass del Autoplay Policy
-            if (nuevasEncontradas.length === animalesObjetivo.length) {
-                try { reproducirSonido('click3'); } catch (e) {} // Terminar nivel
-            } else {
-                try { reproducirSonido('click2'); } catch (e) {} // Palabra completada
-            }
-            
             setPalabrasEncontradas(nuevasEncontradas);
         } else {
             if (modoDificil) {
@@ -642,7 +657,8 @@ export default function SopaLetras({
         });
     };
 
-    const confirmarGuardadoGlobal = async () => {
+    const confirmarGuardadoGlobal = async (e) => {
+        if (e?.preventDefault) e.preventDefault();
         try { reproducirSonido('click1'); } catch (e) {}
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
@@ -659,21 +675,42 @@ export default function SopaLetras({
         setShowGuardarModal(false);
 
         const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
+        const currentUser = user || auth.currentUser;
+        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
         try {
-            await addDoc(collection(db, "ranking_sopa"), {
-                name: nombreLimpio,
-                intentos: scoreToSave.intentos,
-                level: scoreToSave.level,
-                fecha: new Date().toISOString()
-            });
+            const docRef = doc(db, "ranking_sopa", docId);
+            const docSnap = await getDoc(docRef);
+
+            let guardar = true;
+            if (docSnap.exists()) {
+                const dataAntigua = docSnap.data();
+                const nivelAntiguo = dataAntigua.level || 1;
+                const intentosAntiguos = dataAntigua.intentos || 0;
+
+                if (scoreToSave.level < nivelAntiguo || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos)) {
+                    guardar = false;
+                }
+            }
+
+            if (guardar) {
+                await setDoc(docRef, {
+                    name: nombreLimpio,
+                    intentos: scoreToSave.intentos,
+                    level: scoreToSave.level,
+                    fecha: new Date().toISOString()
+                }, { merge: true });
+            }
+
             await cargarRankingGlobal();
             setGuardadoEnNivel(true);
             setPendingGlobalScore(null);
             setFeedbackModal({
                 show: true,
                 title: "Guardado Exitoso",
-                message: `Puntaje guardado para el Nivel ${scoreToSave.level}.`
+                message: guardar 
+                    ? `Puntaje guardado para el Nivel ${scoreToSave.level}.`
+                    : `Ya tienes un record igual o superior registrado.`
             });
         } catch (error) {
             console.error("Error al guardar:", error);
@@ -971,7 +1008,7 @@ export default function SopaLetras({
             </div>
 
             {showComprarVidasModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-red-300 w-full max-w-sm flex flex-col items-center text-center">
                         <div className="text-4xl mb-2">💔</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¡Sin vidas!</h3>
@@ -1003,8 +1040,8 @@ export default function SopaLetras({
             )}
 
             {showGuardarModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center relative">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <form onSubmit={confirmarGuardadoGlobal} className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center relative">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Record</h3>
                         <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para registrarte en el ranking.</p>
 
@@ -1026,19 +1063,18 @@ export default function SopaLetras({
                                 Cancelar
                             </button>
                             <button
-                                type="button"
-                                onClick={confirmarGuardadoGlobal}
+                                type="submit"
                                 className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
                                 Guardar
                             </button>
                         </div>
-                    </div>
+                    </form>
                 </div>
             )}
 
             {showMenuModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
                         <div className="text-3xl mb-2">⚠️</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menu?</h3>
@@ -1065,7 +1101,7 @@ export default function SopaLetras({
             )}
 
             {showConfirmRestartModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
                         <div className="text-3xl mb-2">🔄</div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Reiniciar Progreso?</h3>
@@ -1092,7 +1128,7 @@ export default function SopaLetras({
             )}
 
             {feedbackModal.show && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
                         <h3 className="text-xl font-bold text-amber-950 mb-2">{feedbackModal.title}</h3>
                         <p className="text-xs text-amber-800 mb-5">{feedbackModal.message}</p>
