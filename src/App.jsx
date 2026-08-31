@@ -176,6 +176,8 @@ function RenderAvatarSuperior({ avatar }) {
 function App() {
   const [vistaActual, setVistaActual] = useState('menu');
   const [user, setUser] = useState(null);
+  const [mostrarSplash, setMostrarSplash] = useState(true);
+  const [animandoSalida, setAnimandoSalida] = useState(false);
   
   const [perfilInfo, setPerfilInfo] = useState({ nombre: '', avatar: 'default', nivel: 1 });
   
@@ -191,6 +193,19 @@ function App() {
   const [indicePista, setIndicePista] = useState(0);
 
   const [controlesJuegoActivo, setControlesJuegoActivo] = useState(null);
+
+  useEffect(() => {
+    // Temporizador para controlar la animación inicial del banner
+    const timerAnimacion = setTimeout(() => {
+      setAnimandoSalida(true);
+      const timerOcultar = setTimeout(() => {
+        setMostrarSplash(false);
+      }, 700); // Tiempo de la transición de salida
+      return () => clearTimeout(timerOcultar);
+    }, 2000); // Duración que se muestra el banner en pantalla
+
+    return () => clearTimeout(timerAnimacion);
+  }, []);
 
   const cargarPerfil = async (currentUser) => {
     if (currentUser) {
@@ -294,6 +309,18 @@ function App() {
 
   return (
     <div className="min-h-screen bg-orange-50/50 font-sans text-amber-950 pb-10 relative">
+
+      {mostrarSplash && (
+        <div className={`fixed inset-0 z-[100] bg-orange-50 flex items-center justify-center transition-opacity duration-700 ${animandoSalida ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <div className="flex flex-col items-center p-6 animate-fade-in">
+            <img 
+              src="/images/bannerinicio.png" 
+              alt="Bidxaga Saa Inicio" 
+              className="max-w-xs sm:max-w-md w-full object-contain drop-shadow-2xl animate-pulse" 
+            />
+          </div>
+        </div>
+      )}
 
       <AudioFondo 
         isPlaying={isPlayingMusic} 

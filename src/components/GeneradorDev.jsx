@@ -14,7 +14,7 @@ export default function GeneradorDev({ onBack }) {
             id: 'silueta', 
             nombreCapa: 'Silueta / Ropa', 
             colorDefault: '#1A1A1A', 
-            paleta: ['#1A1A1A', '#333333', '#555555', '#7F8C8D', '#BDC3C7', '#FFFFFF'],
+            paleta: ['#1A1A1A', '#333333', '#555555', '#7F8C8D', '#BDC3C7', '#FFFFFF'], 
             editable: true,
             variantes: [
                 { 
@@ -31,7 +31,7 @@ export default function GeneradorDev({ onBack }) {
             id: 'piel', 
             nombreCapa: 'Tono de Piel', 
             colorDefault: '#F5C6A0', 
-            paleta: ['#F5C6A0', '#E0AC69', '#C68642', '#8D5524', '#ffdbac', '#f1c27d'],
+            paleta: ['#F5C6A0', '#E0AC69', '#C68642', '#8D5524', '#ffdbac', '#f1c27d'], 
             editable: true,
             variantes: [
                 { 
@@ -41,7 +41,7 @@ export default function GeneradorDev({ onBack }) {
                     subCapas: [
                         { id: 'sc1', archivo: '1piel_base.svg', editable: true, previewUrl: null },
                         { id: 'sc2', archivo: '1piel_sombra.svg', editable: false, previewUrl: null }
-                    ]
+                    ] 
                 }
             ]
         }
@@ -116,13 +116,18 @@ export default function GeneradorDev({ onBack }) {
             const tempUrl = URL.createObjectURL(file);
             setNuevaCapa(prev => {
                 const copyVar = [...prev.variantesTemp];
-                const targetSub = { ...copyVar[indexVar].subCapas[indexSub] };
-                
-                targetSub.archivoFile = file;
-                targetSub.archivo = file.name;
-                targetSub.previewUrl = tempUrl;
+                const subCapasCopy = [...copyVar[indexVar].subCapas];
+                subCapasCopy[indexSub] = {
+                    ...subCapasCopy[indexSub],
+                    archivoFile: file,
+                    archivo: file.name,
+                    previewUrl: tempUrl
+                };
+                copyVar[indexVar] = {
+                    ...copyVar[indexVar],
+                    subCapas: subCapasCopy
+                };
 
-                copyVar[indexVar].subCapas[indexSub] = targetSub;
                 let sugName = prev.nombreCapa;
                 if(!sugName && indexVar === 0 && indexSub === 0) {
                     sugName = file.name.replace(/\.[^/.]+$/, "").charAt(0).toUpperCase() + file.name.slice(1).replace(/\.[^/.]+$/, "");
@@ -136,13 +141,20 @@ export default function GeneradorDev({ onBack }) {
     const agregarSubCapa = (indexVar) => {
         setNuevaCapa(prev => {
             const copyVar = [...prev.variantesTemp];
-            copyVar[indexVar].subCapas.push({
-                id: `sc_${Date.now()}`,
-                archivo: `sprite_${copyVar[indexVar].subCapas.length + 1}.svg`,
-                editable: true,
-                archivoFile: null,
-                previewUrl: null
-            });
+            const subCapasActuales = copyVar[indexVar].subCapas || [];
+            copyVar[indexVar] = {
+                ...copyVar[indexVar],
+                subCapas: [
+                    ...subCapasActuales,
+                    {
+                        id: `sc_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+                        archivo: `sprite_${subCapasActuales.length + 1}.svg`,
+                        editable: true,
+                        archivoFile: null,
+                        previewUrl: null
+                    }
+                ]
+            };
             return { ...prev, variantesTemp: copyVar };
         });
     };
@@ -150,8 +162,12 @@ export default function GeneradorDev({ onBack }) {
     const eliminarSubCapa = (indexVar, indexSub) => {
         setNuevaCapa(prev => {
             const copyVar = [...prev.variantesTemp];
-            if (copyVar[indexVar].subCapas.length <= 1) return prev;
-            copyVar[indexVar].subCapas.splice(indexSub, 1);
+            const subCapasActuales = copyVar[indexVar].subCapas || [];
+            if (subCapasActuales.length <= 1) return prev;
+            copyVar[indexVar] = {
+                ...copyVar[indexVar],
+                subCapas: subCapasActuales.filter((_, idx) => idx !== indexSub)
+            };
             return { ...prev, variantesTemp: copyVar };
         });
     };
@@ -159,8 +175,15 @@ export default function GeneradorDev({ onBack }) {
     const toggleSubCapaEditable = (indexVar, indexSub) => {
         setNuevaCapa(prev => {
             const copyVar = [...prev.variantesTemp];
-            const target = copyVar[indexVar].subCapas[indexSub];
-            target.editable = !target.editable;
+            const subCapasCopy = [...copyVar[indexVar].subCapas];
+            subCapasCopy[indexSub] = {
+                ...subCapasCopy[indexSub],
+                editable: !subCapasCopy[indexSub].editable
+            };
+            copyVar[indexVar] = {
+                ...copyVar[indexVar],
+                subCapas: subCapasCopy
+            };
             return { ...prev, variantesTemp: copyVar };
         });
     };
@@ -309,7 +332,7 @@ export default function GeneradorDev({ onBack }) {
 
         if (modoGenerador === 'asset') {
             const nombreComp = nombrePersonaje.charAt(0).toUpperCase() + nombrePersonaje.slice(1);
-            codigo += `/* Componente Asset: ${nombreComp} */\nimport React from 'react';\n\n`;
+            codigo += `import React from 'react';\n\n`;
             codigo += `export default function ${nombreComp}({ \n`;
             capas.forEach(capa => {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
@@ -349,7 +372,6 @@ export default function GeneradorDev({ onBack }) {
 
         } else {
             codigo += `/* Codigo Generado Avatar Multi-Sprites: ${nombrePersonaje} */\n\n`;
-            codigo += `// Estados Base\n`;
             codigo += `const [personajeBase, setPersonajeBase] = useState('${nombrePersonaje}');\n`;
             capas.forEach(capa => {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
@@ -358,20 +380,13 @@ export default function GeneradorDev({ onBack }) {
                 codigo += `const [variante${idCap}, setVariante${idCap}] = useState('${varIdDef}');\n`;
             });
 
-            codigo += `\n// Catalogo de Variantes y SubCapas\n`;
+            codigo += `\n`;
             capas.forEach(capa => {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
                 codigo += `const variantes${idCap} = ${JSON.stringify(capa.variantes || [], null, 4)};\n`;
             });
 
-            codigo += `\n// Paletas\n`;
-            capas.forEach(capa => {
-                const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
-                codigo += `const paleta${idCap} = ${JSON.stringify(capa.paleta || [capa.colorDefault])};\n`;
-            });
-
-            codigo += `\n// Estructura Visor \n`;
-            codigo += `<div className="relative w-48 h-48 mx-auto bg-white rounded-3xl overflow-hidden">\n`;
+            codigo += `\n<div className="relative w-48 h-48 mx-auto bg-white rounded-3xl overflow-hidden">\n`;
             capas.forEach((capa) => {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
                 codigo += `    {variantes${idCap}.find(v => v.id === variante${idCap})?.subCapas.map((sub, i) => (\n`;
@@ -550,7 +565,7 @@ export default function GeneradorDev({ onBack }) {
                                                     <input type="file" accept=".svg" onChange={(e) => handleSubCapaFileChange(indexVar, indexSub, e)} className="w-full sm:w-auto text-[9px] file:mr-1 file:py-0.5 file:px-1.5 file:rounded file:border-0 file:text-[9px] file:bg-amber-600 file:text-white cursor-pointer" />
                                                     <div className="flex gap-1 w-full sm:w-auto justify-end">
                                                         <button type="button" onClick={() => toggleSubCapaEditable(indexVar, indexSub)} className={`px-2 py-1 rounded-lg text-[10px] font-bold ${sc.editable ? 'bg-blue-100 text-blue-900 border border-blue-300' : 'bg-gray-200 text-gray-700 border border-gray-300'}`}>
-                                                            {sc.editable ? 'Base' : 'Fijo'}
+                                                            {sc.editable ? '🎨 Base' : '🔒 Fijo'}
                                                         </button>
                                                         <button type="button" onClick={() => eliminarSubCapa(indexVar, indexSub)} className="text-red-600 bg-red-50 px-2 py-1 rounded-lg text-[10px]">✕</button>
                                                     </div>
@@ -562,9 +577,16 @@ export default function GeneradorDev({ onBack }) {
                                 ))}
                             </div>
                             
-                            <div className="bg-white p-2 rounded-2xl border-2 border-amber-300 shadow-inner flex items-center justify-between">
-                                <span className="text-[11px] font-bold text-amber-900">Color Base del Grupo:</span>
-                                <input type="color" value={nuevaCapa.colorDefault} onChange={(e) => setNuevaCapa({...nuevaCapa, colorDefault: e.target.value})} onBlur={(e) => agregarColorReciente(e.target.value)} className="w-7 h-7 rounded-xl border border-amber-300 cursor-pointer bg-transparent" />
+                            <div className="bg-white p-2 rounded-2xl border-2 border-amber-300 shadow-inner flex flex-col gap-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-bold text-amber-900">Color Base del Grupo:</span>
+                                    <input type="color" value={nuevaCapa.colorDefault} onChange={(e) => setNuevaCapa({...nuevaCapa, colorDefault: e.target.value})} onBlur={(e) => agregarColorReciente(e.target.value)} className="w-7 h-7 rounded-xl border border-amber-300 cursor-pointer bg-transparent" />
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                    {coloresRecientes.map((hex, i) => (
+                                        <button key={i} type="button" onClick={() => setNuevaCapa(prev => ({ ...prev, colorDefault: hex }))} className="w-4 h-4 rounded-full border border-amber-900 shadow-xs cursor-pointer" style={{ backgroundColor: hex }} title={`Usar ${hex}`} />
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="bg-white/80 p-3 rounded-2xl border-2 border-amber-200 shadow-xs space-y-2">
@@ -575,6 +597,11 @@ export default function GeneradorDev({ onBack }) {
                                 <div className="flex flex-wrap items-center gap-2">
                                     <input type="color" value={nuevaCapa.colorTemp} onChange={(e) => setNuevaCapa({...nuevaCapa, colorTemp: e.target.value})} onBlur={(e) => agregarColorReciente(e.target.value)} className="w-6 h-6 rounded-lg border border-amber-300 cursor-pointer bg-transparent" />
                                     <button type="button" onClick={handleAgregarColorAPaleta} className="bg-amber-700 text-white font-bold py-1 px-2 rounded-xl text-[10px] cursor-pointer">➕ Añadir</button>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                    {coloresRecientes.map((hex, i) => (
+                                        <button key={i} type="button" onClick={() => setNuevaCapa(prev => ({ ...prev, colorTemp: hex }))} className="w-4 h-4 rounded-full border border-amber-900 shadow-xs cursor-pointer" style={{ backgroundColor: hex }} title={`Seleccionar ${hex}`} />
+                                    ))}
                                 </div>
                                 <div className="flex flex-wrap gap-1.5 pt-1">
                                     {nuevaCapa.paletaColors.map((hex, idx) => (
