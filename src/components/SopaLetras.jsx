@@ -111,10 +111,26 @@ export default function SopaLetras({
     const [nivelCuenta, setNivelCuenta] = useState(1);
     const [categoriasFaunaDesbloqueadas, setCategoriasFaunaDesbloqueadas] = useState(() => categoriaInicialPorDefecto('fauna'));
     const [categoriasFloraDesbloqueadas, setCategoriasFloraDesbloqueadas] = useState(() => categoriaInicialPorDefecto('flora'));
-    const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => categoriaInicialPorDefecto('fauna'));
-    const [categoriasFloraActivas, setCategoriasFloraActivas] = useState(() => categoriaInicialPorDefecto('flora'));
-    const [showSelectorCategorias, setShowSelectorCategorias] = useState(false);
+    
+    const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => {
+        try {
+            const guardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFaunaActivas') || 'null');
+            return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('fauna');
+        } catch (e) {
+            return categoriaInicialPorDefecto('fauna');
+        }
+    });
+    
+    const [categoriasFloraActivas, setCategoriasFloraActivas] = useState(() => {
+        try {
+            const guardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFloraActivas') || 'null');
+            return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('flora');
+        } catch (e) {
+            return categoriaInicialPorDefecto('flora');
+        }
+    });
 
+    const [showSelectorCategorias, setShowSelectorCategorias] = useState(false);
     const [animalesCoords, setAnimalesCoords] = useState({});
 
     const [isSelecting, setIsSelecting] = useState(false);
@@ -297,12 +313,22 @@ export default function SopaLetras({
             const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
             if (faunaGuardadas) {
                 setCategoriasFaunaDesbloqueadas(faunaGuardadas);
-                setCategoriasFaunaActivas(prev => prev.filter(id => faunaGuardadas.includes(id)).length ? prev.filter(id => faunaGuardadas.includes(id)) : categoriaInicialPorDefecto('fauna'));
             }
             const floraGuardadas = JSON.parse(localStorage.getItem('categoriasFloraDesbloqueadas') || 'null');
             if (floraGuardadas) {
                 setCategoriasFloraDesbloqueadas(floraGuardadas);
-                setCategoriasFloraActivas(prev => prev.filter(id => floraGuardadas.includes(id)).length ? prev.filter(id => floraGuardadas.includes(id)) : categoriaInicialPorDefecto('flora'));
+            }
+
+            const faunaActivasGuardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFaunaActivas') || 'null');
+            if (faunaActivasGuardadas) {
+                const validas = faunaActivasGuardadas.filter(id => (faunaGuardadas || categoriaInicialPorDefecto('fauna')).includes(id));
+                if (validas.length > 0) setCategoriasFaunaActivas(validas);
+            }
+
+            const floraActivasGuardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFloraActivas') || 'null');
+            if (floraActivasGuardadas) {
+                const validas = floraActivasGuardadas.filter(id => (floraGuardadas || categoriaInicialPorDefecto('flora')).includes(id));
+                if (validas.length > 0) setCategoriasFloraActivas(validas);
             }
         } catch (e) {
             console.error("Error al leer categorias:", e);
@@ -332,12 +358,17 @@ export default function SopaLetras({
                         localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
                         localStorage.setItem('categoriasFloraDesbloqueadas', JSON.stringify(floraNube));
 
+                        const faunaActivasGuardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFaunaActivas') || 'null');
                         setCategoriasFaunaActivas(prev => {
-                            const activasValidas = prev.filter(id => faunaNube.includes(id));
+                            const base = faunaActivasGuardadas || prev;
+                            const activasValidas = base.filter(id => faunaNube.includes(id));
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('fauna');
                         });
+
+                        const floraActivasGuardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFloraActivas') || 'null');
                         setCategoriasFloraActivas(prev => {
-                            const activasValidas = prev.filter(id => floraNube.includes(id));
+                            const base = floraActivasGuardadas || prev;
+                            const activasValidas = base.filter(id => floraNube.includes(id));
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('flora');
                         });
 
@@ -408,6 +439,20 @@ export default function SopaLetras({
 
             setPendingGlobalScore({ level: nivel, intentos: intentos });
 
+            const activoActual = tipoContenido === 'flora' ? categoriasFloraActivas : categoriasFaunaActivas;
+            if (activoActual.length === 1 && nivel >= 3) {
+                const avisoClave = `avisoCategoria_sopa_nivel_${nivel}`;
+                const yaMostrado = sessionStorage.getItem(avisoClave);
+                if (!yaMostrado) {
+                    sessionStorage.setItem(avisoClave, 'true');
+                    setFeedbackModal({
+                        show: true,
+                        title: "Desafío Bajo",
+                        message: "Has dominado esta categoría con facilidad. Abre el selector de categorías para añadir más grupos y subir la dificultad."
+                    });
+                }
+            }
+
             const nuevosTotopos = totopos + recompensaActual;
             setTotopos(nuevosTotopos);
             localStorage.setItem('totopos', nuevosTotopos);
@@ -442,7 +487,7 @@ export default function SopaLetras({
                 abonarTotopos();
             }
         }
-    }, [palabrasEncontradas, animalesObjetivo, nivel, intentos, user, recompensaActual, pendingGlobalScore, totopos]);
+    }, [palabrasEncontradas, animalesObjetivo, nivel, intentos, user, recompensaActual, pendingGlobalScore, totopos, categoriasFaunaActivas, categoriasFloraActivas, tipoContenido]);
 
     const generarNuevoJuego = () => {
         const baseDatosActiva = obtenerBaseDatosActiva(tipoContenido, categoriasFaunaActivas, categoriasFloraActivas);
@@ -745,7 +790,16 @@ export default function SopaLetras({
             localStorage.setItem(claveLocal, JSON.stringify(nuevasDesbloqueadas));
             return nuevasDesbloqueadas;
         });
-        setActivas(prev => (prev.includes(categoriaId) ? prev : [...prev, categoriaId]));
+
+        setActivas(prev => {
+            const actualizadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
+            if (tipo === 'flora') {
+                localStorage.setItem('sopaLetrasCategoriasFloraActivas', JSON.stringify(actualizadas));
+            } else {
+                localStorage.setItem('sopaLetrasCategoriasFaunaActivas', JSON.stringify(actualizadas));
+            }
+            return actualizadas;
+        });
 
         if (costo > 0) {
             setTotopos(nuevosTotopos);
@@ -773,13 +827,19 @@ export default function SopaLetras({
     const handleToggleCategoriaActiva = (tipo, categoriaId) => {
         try { reproducirSonido('click1'); } catch (e) {}
         const setActivas = tipo === 'flora' ? setCategoriasFloraActivas : setCategoriasFaunaActivas;
+        const claveStorage = tipo === 'flora' ? 'sopaLetrasCategoriasFloraActivas' : 'sopaLetrasCategoriasFaunaActivas';
+
         setActivas(prev => {
             const yaActiva = prev.includes(categoriaId);
+            let nuevasActivas = [];
             if (yaActiva) {
                 if (prev.length === 1) return prev;
-                return prev.filter(id => id !== categoriaId);
+                nuevasActivas = prev.filter(id => id !== categoriaId);
+            } else {
+                nuevasActivas = [...prev, categoriaId];
             }
-            return [...prev, categoriaId];
+            localStorage.setItem(claveStorage, JSON.stringify(nuevasActivas));
+            return nuevasActivas;
         });
     };
 
@@ -848,7 +908,6 @@ export default function SopaLetras({
                 <div className="text-xs sm:text-sm text-amber-800 font-medium mt-1 flex flex-wrap justify-center items-center gap-2.5">
                     <span className="text-red-600 font-bold inline-flex items-center gap-1">
                         <img src="/tuna-vida.png" alt="Vidas" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none' }} />
-                        <span style={{ display: 'none' }}>❤️</span>
                         {vidas}
                     </span>
                     <span>•</span>
@@ -858,7 +917,6 @@ export default function SopaLetras({
                     <span>•</span>
                     <span className="text-orange-600 font-bold inline-flex items-center gap-1">
                         <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none' }} />
-                        <span style={{ display: 'none' }}>🌽</span>
                         {totopos}
                     </span>
                 </div>

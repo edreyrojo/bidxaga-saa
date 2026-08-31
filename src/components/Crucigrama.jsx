@@ -233,8 +233,25 @@ export default function Crucigrama({
     const [nivelCuenta, setNivelCuenta] = useState(1);
     const [categoriasFaunaDesbloqueadas, setCategoriasFaunaDesbloqueadas] = useState(() => categoriaInicialPorDefecto('fauna'));
     const [categoriasFloraDesbloqueadas, setCategoriasFloraDesbloqueadas] = useState(() => categoriaInicialPorDefecto('flora'));
-    const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => categoriaInicialPorDefecto('fauna'));
-    const [categoriasFloraActivas, setCategoriasFloraActivas] = useState(() => categoriaInicialPorDefecto('flora'));
+    
+    const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => {
+        try {
+            const guardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFaunaActivas') || 'null');
+            return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('fauna');
+        } catch (e) {
+            return categoriaInicialPorDefecto('fauna');
+        }
+    });
+    
+    const [categoriasFloraActivas, setCategoriasFloraActivas] = useState(() => {
+        try {
+            const guardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFloraActivas') || 'null');
+            return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('flora');
+        } catch (e) {
+            return categoriaInicialPorDefecto('flora');
+        }
+    });
+
     const [showSelectorCategorias, setShowSelectorCategorias] = useState(false);
 
     const recompensaActual = RECOMPENSAS_CRUCIGRAMA[nivel] || (20 * nivel);
@@ -368,12 +385,22 @@ export default function Crucigrama({
             const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
             if (faunaGuardadas) {
                 setCategoriasFaunaDesbloqueadas(faunaGuardadas);
-                setCategoriasFaunaActivas(prev => prev.filter(id => faunaGuardadas.includes(id)).length ? prev.filter(id => faunaGuardadas.includes(id)) : categoriaInicialPorDefecto('fauna'));
             }
             const floraGuardadas = JSON.parse(localStorage.getItem('categoriasFloraDesbloqueadas') || 'null');
             if (floraGuardadas) {
                 setCategoriasFloraDesbloqueadas(floraGuardadas);
-                setCategoriasFloraActivas(prev => prev.filter(id => floraGuardadas.includes(id)).length ? prev.filter(id => floraGuardadas.includes(id)) : categoriaInicialPorDefecto('flora'));
+            }
+
+            const faunaActivasGuardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFaunaActivas') || 'null');
+            if (faunaActivasGuardadas) {
+                const validas = faunaActivasGuardadas.filter(id => (faunaGuardadas || categoriaInicialPorDefecto('fauna')).includes(id));
+                if (validas.length > 0) setCategoriasFaunaActivas(validas);
+            }
+
+            const floraActivasGuardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFloraActivas') || 'null');
+            if (floraActivasGuardadas) {
+                const validas = floraActivasGuardadas.filter(id => (floraGuardadas || categoriaInicialPorDefecto('flora')).includes(id));
+                if (validas.length > 0) setCategoriasFloraActivas(validas);
             }
         } catch (e) {
             console.error("Error al leer categorias guardadas localmente:", e);
@@ -403,12 +430,17 @@ export default function Crucigrama({
                         localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
                         localStorage.setItem('categoriasFloraDesbloqueadas', JSON.stringify(floraNube));
 
+                        const faunaActivasGuardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFaunaActivas') || 'null');
                         setCategoriasFaunaActivas(prev => {
-                            const activasValidas = prev.filter(id => faunaNube.includes(id));
+                            const base = faunaActivasGuardadas || prev;
+                            const activasValidas = base.filter(id => faunaNube.includes(id));
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('fauna');
                         });
+
+                        const floraActivasGuardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFloraActivas') || 'null');
                         setCategoriasFloraActivas(prev => {
-                            const activasValidas = prev.filter(id => floraNube.includes(id));
+                            const base = floraActivasGuardadas || prev;
+                            const activasValidas = base.filter(id => floraNube.includes(id));
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('flora');
                         });
 
@@ -461,6 +493,20 @@ export default function Crucigrama({
             reproducirSonido(3); 
             setPendingGlobalScore({ level: nivel, intentos: intentos });
 
+            const activoActual = tipoContenido === 'flora' ? categoriasFloraActivas : categoriasFaunaActivas;
+            if (activoActual.length === 1 && nivel >= 3) {
+                const avisoClave = `avisoCategoria_crucigrama_nivel_${nivel}`;
+                const yaMostrado = sessionStorage.getItem(avisoClave);
+                if (!yaMostrado) {
+                    sessionStorage.setItem(avisoClave, 'true');
+                    setFeedbackModal({
+                        show: true,
+                        title: "Desafío Bajo",
+                        message: "Has dominado esta categoría con facilidad. Abre el selector de categorías para añadir más grupos y subir la dificultad."
+                    });
+                }
+            }
+
             setTotopos(prevTotopos => {
                 const nuevosTotopos = prevTotopos + recompensaActual;
                 localStorage.setItem('totopos', nuevosTotopos);
@@ -498,7 +544,7 @@ export default function Crucigrama({
                 return nuevosTotopos;
             });
         }
-    }, [palabrasResueltas, placements, nivel, intentos, user, recompensaActual, pendingGlobalScore]);
+    }, [palabrasResueltas, placements, nivel, intentos, user, recompensaActual, pendingGlobalScore, categoriasFaunaActivas, categoriasFloraActivas, tipoContenido]);
 
     const generarNuevoJuego = () => {
         setVidas(prev => {
@@ -816,7 +862,16 @@ export default function Crucigrama({
             localStorage.setItem(claveLocal, JSON.stringify(nuevasDesbloqueadas));
             return nuevasDesbloqueadas;
         });
-        setActivas(prev => (prev.includes(categoriaId) ? prev : [...prev, categoriaId]));
+
+        setActivas(prev => {
+            const actualizadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
+            if (tipo === 'flora') {
+                localStorage.setItem('crucigramaCategoriasFloraActivas', JSON.stringify(actualizadas));
+            } else {
+                localStorage.setItem('crucigramaCategoriasFaunaActivas', JSON.stringify(actualizadas));
+            }
+            return actualizadas;
+        });
 
         if (costo > 0) {
             setTotopos(nuevosTotopos);
@@ -846,13 +901,19 @@ export default function Crucigrama({
     const handleToggleCategoriaActiva = (tipo, categoriaId) => {
         reproducirSonido(1);
         const setActivas = tipo === 'flora' ? setCategoriasFloraActivas : setCategoriasFaunaActivas;
+        const claveStorage = tipo === 'flora' ? 'crucigramaCategoriasFloraActivas' : 'crucigramaCategoriasFaunaActivas';
+
         setActivas(prev => {
             const yaActiva = prev.includes(categoriaId);
+            let nuevasActivas = [];
             if (yaActiva) {
                 if (prev.length === 1) return prev;
-                return prev.filter(id => id !== categoriaId);
+                nuevasActivas = prev.filter(id => id !== categoriaId);
+            } else {
+                nuevasActivas = [...prev, categoriaId];
             }
-            return [...prev, categoriaId];
+            localStorage.setItem(claveStorage, JSON.stringify(nuevasActivas));
+            return nuevasActivas;
         });
     };
 
@@ -992,7 +1053,6 @@ export default function Crucigrama({
 
             <div className="w-full max-w-6xl xl:max-w-7xl flex flex-col lg:grid lg:grid-cols-[1fr_320px_320px] gap-6 items-center lg:items-start justify-center mt-1">
                 
-                {/* Contenedor optimizado y perfectamente centrado para el tablero */}
                 <div className="w-full p-3 sm:p-5 bg-amber-100/50 border-2 border-amber-300 rounded-2xl shadow-inner overflow-x-auto overflow-y-auto custom-scrollbar flex justify-center items-center min-h-[380px] max-h-[550px]">
                     <div className="m-auto flex justify-center items-center min-w-max">
                         <div 
@@ -1256,7 +1316,7 @@ export default function Crucigrama({
                             )}
 
                             <button 
-                                onClick={reiniciarNivelActual}
+                                onClick={reiniciarNivelActual} 
                                 className="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >
                                 Reiniciar Nivel {nivel} (5 Vidas)

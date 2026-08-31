@@ -57,7 +57,7 @@ function Tarjeta({ card, handleChoice, flipped, disabled }) {
     const responsiveTextClass = () => {
         if (textLength > 12) return "text-[10px] md:text-sm"; 
         if (textLength > 8) return "text-xs md:text-base";    
-        return "text-sm md:text-xl font-bold";                
+        return "text-sm md:text-xl font-bold";            
     };
 
     return (
@@ -129,8 +129,25 @@ export default function Tablero({
     const [nivelCuenta, setNivelCuenta] = useState(1); 
     const [categoriasFaunaDesbloqueadas, setCategoriasFaunaDesbloqueadas] = useState(() => categoriaInicialPorDefecto('fauna'));
     const [categoriasFloraDesbloqueadas, setCategoriasFloraDesbloqueadas] = useState(() => categoriaInicialPorDefecto('flora'));
-    const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => categoriaInicialPorDefecto('fauna'));
-    const [categoriasFloraActivas, setCategoriasFloraActivas] = useState(() => categoriaInicialPorDefecto('flora'));
+    
+    const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => {
+        try {
+            const guardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFaunaActivas') || 'null');
+            return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('fauna');
+        } catch (e) {
+            return categoriaInicialPorDefecto('fauna');
+        }
+    });
+
+    const [categoriasFloraActivas, setCategoriasFloraActivas] = useState(() => {
+        try {
+            const guardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFloraActivas') || 'null');
+            return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('flora');
+        } catch (e) {
+            return categoriaInicialPorDefecto('flora');
+        }
+    });
+
     const [showSelectorCategorias, setShowSelectorCategorias] = useState(false);
     const [parejasEnJuego, setParejasEnJuego] = useState(0); 
 
@@ -291,12 +308,22 @@ export default function Tablero({
             const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
             if (faunaGuardadas) {
                 setCategoriasFaunaDesbloqueadas(faunaGuardadas);
-                setCategoriasFaunaActivas(prev => prev.filter(id => faunaGuardadas.includes(id)).length ? prev.filter(id => faunaGuardadas.includes(id)) : categoriaInicialPorDefecto('fauna'));
             }
             const floraGuardadas = JSON.parse(localStorage.getItem('categoriasFloraDesbloqueadas') || 'null');
             if (floraGuardadas) {
                 setCategoriasFloraDesbloqueadas(floraGuardadas);
-                setCategoriasFloraActivas(prev => prev.filter(id => floraGuardadas.includes(id)).length ? prev.filter(id => floraGuardadas.includes(id)) : categoriaInicialPorDefecto('flora'));
+            }
+
+            const faunaActivasGuardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFaunaActivas') || 'null');
+            if (faunaActivasGuardadas) {
+                const validas = faunaActivasGuardadas.filter(id => (faunaGuardadas || categoriaInicialPorDefecto('fauna')).includes(id));
+                if (validas.length > 0) setCategoriasFaunaActivas(validas);
+            }
+
+            const floraActivasGuardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFloraActivas') || 'null');
+            if (floraActivasGuardadas) {
+                const validas = floraActivasGuardadas.filter(id => (floraGuardadas || categoriaInicialPorDefecto('flora')).includes(id));
+                if (validas.length > 0) setCategoriasFloraActivas(validas);
             }
         } catch (e) {
             console.error("Error al leer categorías guardadas localmente:", e);
@@ -330,12 +357,17 @@ export default function Tablero({
                         localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
                         localStorage.setItem('categoriasFloraDesbloqueadas', JSON.stringify(floraNube));
 
+                        const faunaActivasGuardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFaunaActivas') || 'null');
                         setCategoriasFaunaActivas(prev => {
-                            const activasValidas = prev.filter(id => faunaNube.includes(id));
+                            const base = faunaActivasGuardadas || prev;
+                            const activasValidas = base.filter(id => faunaNube.includes(id));
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('fauna');
                         });
+
+                        const floraActivasGuardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFloraActivas') || 'null');
                         setCategoriasFloraActivas(prev => {
-                            const activasValidas = prev.filter(id => floraNube.includes(id));
+                            const base = floraActivasGuardadas || prev;
+                            const activasValidas = base.filter(id => floraNube.includes(id));
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('flora');
                         });
 
@@ -370,6 +402,26 @@ export default function Tablero({
         if (matches === parejasEnJuego && parejasEnJuego > 0 && !pendingGlobalScore) {
             reproducirSonido('click3');
             setPendingGlobalScore({ level: level, turns: turns });
+
+            const totalCategoriasActivas = tipoContenido === 'flora' 
+                ? categoriasFloraActivas.length 
+                : tipoContenido === 'ambos' 
+                    ? categoriasFaunaActivas.length + categoriasFloraActivas.length 
+                    : categoriasFaunaActivas.length;
+
+            if (totalCategoriasActivas === 1 && level >= 3) {
+                const avisoClave = `avisoCategoria_memorama_${tipoContenido}_nivel_${level}`;
+                const yaMostrado = sessionStorage.getItem(avisoClave);
+
+                if (!yaMostrado) {
+                    sessionStorage.setItem(avisoClave, 'true');
+                    setFeedbackModal({
+                        show: true,
+                        title: "¡Desafío Bajo!",
+                        message: "Has dominado esta categoría con facilidad. Abre el selector de categorías para añadir más grupos y subir la dificultad."
+                    });
+                }
+            }
 
             setTotopos(prevTotopos => {
                 const nuevosTotopos = prevTotopos + configActual.recompensa;
@@ -408,7 +460,7 @@ export default function Tablero({
                 return nuevosTotopos;
             });
         }
-    }, [matches, parejasEnJuego, level, turns, user, configActual.recompensa, pendingGlobalScore]);
+    }, [matches, parejasEnJuego, level, turns, user, configActual.recompensa, pendingGlobalScore, tipoContenido, categoriasFaunaActivas, categoriasFloraActivas]);
 
     useEffect(() => {
         if (!avisoVistasMostrado && cards.length > 0 && fichasVistas.length >= cards.length) {
@@ -658,7 +710,16 @@ export default function Tablero({
             localStorage.setItem(claveLocal, JSON.stringify(nuevasDesbloqueadas));
             return nuevasDesbloqueadas;
         });
-        setActivas(prev => (prev.includes(categoriaId) ? prev : [...prev, categoriaId]));
+
+        setActivas(prev => {
+            const actualizadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
+            if (tipo === 'flora') {
+                localStorage.setItem('memoramaCategoriasFloraActivas', JSON.stringify(actualizadas));
+            } else {
+                localStorage.setItem('memoramaCategoriasFaunaActivas', JSON.stringify(actualizadas));
+            }
+            return actualizadas;
+        });
 
         if (costo > 0) {
             setTotopos(nuevosTotopos);
@@ -688,13 +749,19 @@ export default function Tablero({
     const handleToggleCategoriaActiva = (tipo, categoriaId) => {
         reproducirSonido('click1');
         const setActivas = tipo === 'flora' ? setCategoriasFloraActivas : setCategoriasFaunaActivas;
+        const claveStorage = tipo === 'flora' ? 'memoramaCategoriasFloraActivas' : 'memoramaCategoriasFaunaActivas';
+
         setActivas(prev => {
             const yaActiva = prev.includes(categoriaId);
+            let nuevasActivas = [];
             if (yaActiva) {
                 if (prev.length === 1) return prev;
-                return prev.filter(id => id !== categoriaId);
+                nuevasActivas = prev.filter(id => id !== categoriaId);
+            } else {
+                nuevasActivas = [...prev, categoriaId];
             }
-            return [...prev, categoriaId];
+            localStorage.setItem(claveStorage, JSON.stringify(nuevasActivas));
+            return nuevasActivas;
         });
     };
 

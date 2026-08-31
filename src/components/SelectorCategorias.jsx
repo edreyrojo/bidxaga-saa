@@ -31,7 +31,7 @@ function BloqueCategoria({ tipoLabel, tipoDataset, data, totopos, nivelCuenta })
                             <div className="flex-1 min-w-0">
                                 <span className="block font-bold text-sm text-amber-950 truncate">{cat.nombre}</span>
                                 <span className="text-[10px] font-bold text-amber-700">
-                                    {estaActiva ? '✅ Practicando esta categoría' : 'Desbloqueada — toca para incluirla'}
+                                    {estaActiva ? 'Practicando esta categoría' : 'Desbloqueada — toca para incluirla'}
                                 </span>
                             </div>
                             <span
@@ -53,7 +53,7 @@ function BloqueCategoria({ tipoLabel, tipoDataset, data, totopos, nivelCuenta })
                     >
                         <span className="text-2xl flex-shrink-0 grayscale opacity-60">{cat.emoji}</span>
                         <div className="flex-1 min-w-0">
-                            <span className="block font-bold text-sm text-amber-900/70 truncate">🔒 {cat.nombre}</span>
+                            <span className="block font-bold text-sm text-amber-900/70 truncate">{cat.nombre}</span>
                             <span className="text-[10px] font-bold text-amber-700/80">
                                 {faltaNivel ? `Gratis al llegar a Nivel de Cuenta ${cat.nivelCuentaRequerido}` : '¡Ya la puedes reclamar gratis!'}
                             </span>
@@ -62,14 +62,22 @@ function BloqueCategoria({ tipoLabel, tipoDataset, data, totopos, nivelCuenta })
                             type="button"
                             disabled={cat.costoTotopos > 0 && !alcanzaParaComprar}
                             onClick={() => onDesbloquear(cat.id, cat.costoTotopos)}
-                            className={`px-3 py-2 rounded-xl text-[11px] font-black flex-shrink-0 flex items-center gap-1 transition-colors cursor-pointer ${
+                            className={`px-3 py-2 rounded-xl text-[11px] font-black flex-shrink-0 flex items-center gap-1.5 transition-colors cursor-pointer ${
                                 cat.costoTotopos === 0 || alcanzaParaComprar
                                     ? 'bg-amber-600 hover:bg-amber-700 text-white shadow'
                                     : 'bg-amber-100 text-amber-400 cursor-not-allowed'
                             }`}
                         >
                             {cat.costoTotopos === 0 ? 'Reclamar' : (
-                                <>🌽 {cat.costoTotopos}</>
+                                <>
+                                    <span>{cat.costoTotopos}</span>
+                                    <img 
+                                        src="/totopo.png" 
+                                        alt="Totopo" 
+                                        className="w-4 h-4 object-contain inline-block align-middle" 
+                                        onError={(e) => { e.target.style.display = 'none'; }} 
+                                    />
+                                </>
                             )}
                         </button>
                     </div>
@@ -94,7 +102,6 @@ export default function SelectorCategorias({
     const mostrarFauna = modoActivo === 'fauna' || modoActivo === 'ambos';
     const mostrarFlora = flora && (modoActivo === 'flora' || modoActivo === 'ambos');
 
-    // 🛡️ "Listo" solo se habilita si cada tipo visible en juego tiene al menos 1 categoría activa
     const faunaOk = !mostrarFauna || (fauna?.activas?.length > 0);
     const floraOk = !mostrarFlora || (flora?.activas?.length > 0);
     const listoHabilitado = faunaOk && floraOk;
@@ -121,7 +128,6 @@ export default function SelectorCategorias({
 
                 <div className="p-4 space-y-4 overflow-y-auto flex-1">
 
-                    {/* 🆕 SELECTOR DE TIPO DE CONTENIDO (antes vivía en Configuración) */}
                     {mostrarSelectorTipo && (
                         <div className="grid grid-cols-3 gap-1.5 bg-amber-100/70 p-1 rounded-xl border border-amber-300">
                             <button
@@ -131,7 +137,7 @@ export default function SelectorCategorias({
                                     modoActivo === 'fauna' ? 'bg-amber-600 text-white shadow-xs' : 'text-amber-900 hover:bg-amber-200/60'
                                 }`}
                             >
-                                🐾 Fauna
+                                Fauna
                             </button>
                             <button
                                 type="button"
@@ -142,7 +148,7 @@ export default function SelectorCategorias({
                                     modoActivo === 'flora' ? 'bg-amber-600 text-white shadow-xs cursor-pointer' : 'text-amber-900 hover:bg-amber-200/60 cursor-pointer'
                                 }`}
                             >
-                                🌿 Flora
+                                Flora
                             </button>
                             <button
                                 type="button"
@@ -153,14 +159,14 @@ export default function SelectorCategorias({
                                     modoActivo === 'ambos' ? 'bg-amber-600 text-white shadow-xs cursor-pointer' : 'text-amber-900 hover:bg-amber-200/60 cursor-pointer'
                                 }`}
                             >
-                                🌟 Ambos
+                                Ambos
                             </button>
                         </div>
                     )}
 
                     {mostrarFauna && (
                         <BloqueCategoria
-                            tipoLabel="🐾 Fauna"
+                            tipoLabel="Fauna"
                             tipoDataset="fauna"
                             data={fauna || {}}
                             totopos={totopos}
@@ -170,7 +176,7 @@ export default function SelectorCategorias({
 
                     {mostrarFlora && (
                         <BloqueCategoria
-                            tipoLabel="🌿 Flora"
+                            tipoLabel="Flora"
                             tipoDataset="flora"
                             data={flora || {}}
                             totopos={totopos}
@@ -181,7 +187,7 @@ export default function SelectorCategorias({
 
                 <div className="bg-amber-100 px-5 py-3 border-t-2 border-amber-300 flex items-center justify-between">
                     <span className="text-xs font-bold text-amber-900">
-                        {!listoHabilitado ? '⚠️ Elige al menos una categoría' : `${totalActivas} categoría(s) activa(s)`}
+                        {!listoHabilitado ? 'Elige al menos una categoría' : `${totalActivas} categoría(s) activa(s)`}
                     </span>
                     <button
                         type="button"
