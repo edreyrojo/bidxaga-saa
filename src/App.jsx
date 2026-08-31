@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 
 import MenuPrincipal from './components/MenuPrincipal';
 import Memorama from './components/Memorama';
@@ -15,19 +15,6 @@ import PerfilModal from './components/PerfilModal';
 import ConfiguracionModal from './components/ConfiguracionModal';
 
 const RUTA_MERCADO_ACCESORIOS = '/avatares/mercado/';
-
-const AVATAR_EMOJIS = {
-    default: 'Coraza',
-    iguana: 'Iguana',
-    tortuga: 'Tortuga',
-    huipil: 'Huipil',
-    colibri: 'Colibri',
-    jaguar: 'Jaguar',
-    mezcal: 'Mezcal',
-    sol: 'Sol',
-    bandera: 'Bandera',
-    corona: 'Corona'
-};
 
 const calcularNivelRapido = (totalHistorico) => {
     if (totalHistorico < 100) return 1;
@@ -195,7 +182,11 @@ function App() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showPerfilModal, setShowPerfilModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showAvisosModal, setShowAvisosModal] = useState(false);
+  const [showAyudaModal, setShowAyudaModal] = useState(false);
+  const [juegoAyudaSeleccionado, setJuegoAyudaSeleccionado] = useState(null);
 
+  const [listaAvisos, setListaAvisos] = useState([]);
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [indicePista, setIndicePista] = useState(0);
 
@@ -227,11 +218,23 @@ function App() {
     }
   };
 
+  const cargarAvisos = async () => {
+    try {
+      const q = query(collection(db, 'avisos'), orderBy('fecha', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const avisos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setListaAvisos(avisos);
+    } catch (error) {
+      console.error("Error cargando avisos:", error);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       await cargarPerfil(currentUser);
     });
+    cargarAvisos();
     return () => unsubscribe();
   }, []);
 
@@ -241,6 +244,22 @@ function App() {
     } else {
       setShowLoginModal(true);
     }
+  };
+
+  const handleAyudaClick = () => {
+    if (vistaActual === 'menu') {
+      setJuegoAyudaSeleccionado(null);
+    } else {
+      setJuegoAyudaSeleccionado(vistaActual);
+    }
+    setShowAyudaModal(true);
+  };
+
+  const TUTORIALES_JUEGOS = {
+    memorama: { titulo: "Memorama", desc: "Encuentra las parejas de cartas iguales volteándolas de par en par. Pon a prueba tu memoria." },
+    trivia: { titulo: "Trivia", desc: "Responde correctamente a las preguntas sobre vocabulario y cultura diidxazá." },
+    crucigrama: { titulo: "Crucigrama", desc: "Completa el tablero escribiendo las palabras correctas con base en las pistas proporcionadas." },
+    sopa: { titulo: "Sopa de Letras", desc: "Localiza y desliza el dedo sobre las palabras ocultas en la cuadrícula de letras." }
   };
 
   const togglePlayMusic = () => {
@@ -286,7 +305,7 @@ function App() {
         
         <button
           onClick={handlePanelSuperiorClick}
-          className="bg-amber-100/90 hover:bg-amber-200/90 backdrop-blur-md text-amber-950 px-3 py-1.5 rounded-2xl font-bold shadow-md transition-transform transform active:scale-95 flex items-center gap-2.5 cursor-pointer border-2 border-amber-300 hover:border-amber-400 text-xs sm:text-sm"
+          className="bg-amber-100/95 hover:bg-amber-200/95 backdrop-blur-md text-amber-950 px-3 py-1.5 rounded-2xl font-bold shadow-md transition-transform transform active:scale-95 flex items-center gap-2.5 cursor-pointer border-2 border-amber-300 hover:border-amber-400 text-xs sm:text-sm"
           title={user ? "Ver Perfil" : "Iniciar Sesion"}
         >
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-50 text-amber-900 flex items-center justify-center text-lg sm:text-xl shadow-inner border-2 border-amber-300 flex-shrink-0 overflow-hidden relative">
@@ -347,6 +366,27 @@ function App() {
         )}
 
         <button
+          onClick={() => setShowAvisosModal(true)}
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2 relative"
+          title="Avisos"
+        >
+          <span className="text-lg">📢</span>
+          {listaAvisos.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              {listaAvisos.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={handleAyudaClick}
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2"
+          title="Ayuda y Tutoriales"
+        >
+          <span className="text-lg">❓</span>
+        </button>
+
+        <button
           onClick={() => setShowConfigModal(true)}
           className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center shadow-md transition-transform transform active:scale-95 border-2 cursor-pointer overflow-hidden p-2 ${
             isPlayingMusic 
@@ -365,7 +405,7 @@ function App() {
             }}
           />
           <span style={{ display: 'none' }} className="w-full h-full items-center justify-center text-lg">
-            Config
+            ⚙️
           </span>
         </button>
 
@@ -459,6 +499,86 @@ function App() {
             }));
           }}
         />
+      )}
+
+      {showAvisosModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-md flex flex-col relative animate-fade-in max-h-[80vh] overflow-y-auto">
+            <h3 className="text-xl font-black text-amber-950 mb-4 text-center">📢 Avisos y Novedades</h3>
+            {listaAvisos.length === 0 ? (
+              <p className="text-sm text-amber-800 text-center py-6">No hay avisos disponibles por el momento.</p>
+            ) : (
+              <div className="flex flex-col gap-3 mb-6">
+                {listaAvisos.map((aviso) => (
+                  <div key={aviso.id} className="bg-amber-50 p-4 rounded-2xl border border-amber-200">
+                    <h4 className="font-bold text-amber-950 text-sm mb-1">{aviso.titulo}</h4>
+                    <p className="text-xs text-amber-900">{aviso.mensaje}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setShowAvisosModal(false)}
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-md transition-colors cursor-pointer"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showAyudaModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-md flex flex-col relative animate-fade-in max-h-[80vh] overflow-y-auto">
+            <h3 className="text-xl font-black text-amber-950 mb-4 text-center">❓ Centro de Ayuda</h3>
+            
+            {!juegoAyudaSeleccionado && vistaActual === 'menu' ? (
+              <div className="flex flex-col gap-2.5 mb-6">
+                <p className="text-xs text-amber-800 text-center mb-2">Selecciona el juego del que deseas ver el tutorial:</p>
+                {Object.entries(TUTORIALES_JUEGOS).map(([key, val]) => (
+                  <button
+                    key={key}
+                    onClick={() => setJuegoAyudaSeleccionado(key)}
+                    className="w-full text-left bg-amber-50 hover:bg-amber-100 p-3 rounded-2xl border border-amber-200 font-bold text-amber-950 text-sm flex items-center justify-between cursor-pointer"
+                  >
+                    <span>{val.titulo}</span>
+                    <span>➡️</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 mb-6">
+                <h4 className="font-black text-amber-900 text-base">
+                  {TUTORIALES_JUEGOS[juegoAyudaSeleccionado || vistaActual]?.titulo || "Tutorial"}
+                </h4>
+                <p className="text-xs text-amber-800 leading-relaxed bg-amber-50 p-4 rounded-2xl border border-amber-200">
+                  {TUTORIALES_JUEGOS[juegoAyudaSeleccionado || vistaActual]?.desc || "Instrucciones generales de la actividad."}
+                </p>
+                <div className="bg-amber-100/50 p-4 rounded-2xl border border-amber-200 text-center text-xs text-amber-900 font-bold">
+                  🎥 Próximamente: Video tutorial disponible para este juego.
+                </div>
+                {vistaActual === 'menu' && (
+                  <button
+                    onClick={() => setJuegoAyudaSeleccionado(null)}
+                    className="text-xs text-amber-700 underline font-bold cursor-pointer text-center mt-1"
+                  >
+                    ← Volver a la lista de juegos
+                  </button>
+                )}
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                setShowAyudaModal(false);
+                setJuegoAyudaSeleccionado(null);
+              }}
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-md transition-colors cursor-pointer"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
       )}
 
       <ConfiguracionModal
