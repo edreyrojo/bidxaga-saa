@@ -237,7 +237,16 @@ export default function Tablero({
             }
         }
 
-        if (currentUser && nombreAUsar.trim()) {
+        if (!currentUser) {
+            setFeedbackModal({
+                show: true,
+                title: "Inicia sesión para el ranking",
+                message: "Tu progreso se guarda en este dispositivo. Para aparecer en el ranking global, inicia sesión."
+            });
+            return;
+        }
+
+        if (nombreAUsar.trim()) {
             try {
                 const rankingRef = doc(db, "ranking", currentUser.uid);
                 const rankingSnap = await getDoc(rankingRef);
@@ -304,10 +313,8 @@ export default function Tablero({
                     setShowMenuModal(true); 
                 },
                 onGuardarClick: pendingGlobalScore ? handleClickGuardar : null,
-                onReiniciarClick: () => {
-                    reproducirSonido('click1');
-                    setShowConfirmRestartModal(true);
-                },
+                onReiniciarClick: reiniciarNivelActual,
+                onReiniciarDesdeCeroClick: confirmarReiniciar,
                 modoDificil: modoDificil,
                 onToggleModoDificil: () => {
                     reproducirSonido('click1');
@@ -533,6 +540,18 @@ export default function Tablero({
 
     const confirmarGuardadoGlobal = async () => {
         reproducirSonido('click1');
+
+        const currentUser = user || auth.currentUser;
+        if (!currentUser) {
+            setShowGuardarModal(false);
+            setFeedbackModal({
+                show: true,
+                title: "Inicia sesión para el ranking",
+                message: "Tu progreso se guarda en este dispositivo. Para aparecer en el ranking global, inicia sesión."
+            });
+            return;
+        }
+
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
             setFeedbackModal({
@@ -557,9 +576,8 @@ export default function Tablero({
         almacen.setItem('memoramaPlayerName', nombreLimpio);
         setShowGuardarModal(false);
 
-        const currentUser = user || auth.currentUser;
         const scoreToSave = pendingGlobalScore;
-        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
+        const docId = currentUser.uid;
 
         try {
             const rankingRef = doc(db, "ranking", docId);
@@ -884,7 +902,7 @@ export default function Tablero({
                 <p className="text-xs sm:text-sm text-amber-800 font-medium flex flex-wrap justify-center items-center gap-2">
                     <span>Nivel {level}</span> •
                     <span>Turnos: {turns}</span> •
-                    <span className="text-orange-600 font-bold inline-flex items-center gap-1">
+                    <span className="text-orange-700 font-bold inline-flex items-center gap-1">
                         <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none' }} />
                         <span style={{ display: 'none' }}>🏆</span>
                         {totopos} Totopos
@@ -968,7 +986,7 @@ export default function Tablero({
                                 {ranking.map((r, i) => (
                                     <div key={r.id || i} className="flex justify-between items-center border-b py-1.5 text-xs border-gray-100 last:border-0 hover:bg-amber-50 rounded px-2 transition-colors">
                                         <span className="font-bold text-amber-950 truncate max-w-[180px]">
-                                            <span className="text-orange-600 font-black mr-1">{i + 1}.</span> {r.name}
+                                            <span className="text-orange-700 font-black mr-1">{i + 1}.</span> {r.name}
                                             <span className="text-[9px] text-amber-700 font-bold ml-1.5 bg-amber-100 px-1 py-0.5 rounded">Niv {r.level}</span>
                                         </span>
                                         <span className="font-black text-amber-900 whitespace-nowrap">{r.score} turnos</span>

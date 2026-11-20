@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Caché local de los scripts de optimización
+scripts/.imagenes-optimizadas.json
+scripts/.audio-optimizado.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

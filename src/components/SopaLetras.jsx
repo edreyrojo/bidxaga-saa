@@ -296,7 +296,16 @@ export default function SopaLetras({
             }
         }
 
-        if (currentUser && nombreAUsar.trim()) {
+        if (!currentUser) {
+            setFeedbackModal({
+                show: true,
+                title: "Inicia sesión para el ranking",
+                message: "Tu progreso se guarda en este dispositivo. Para aparecer en el ranking global, inicia sesión."
+            });
+            return;
+        }
+
+        if (nombreAUsar.trim()) {
             confirmarGuardadoAutomatico(nombreAUsar.trim());
         } else {
             setInputPlayerName(nombreAUsar);
@@ -311,7 +320,8 @@ export default function SopaLetras({
                 level: nivel,
                 onMenuClick: () => { try { reproducirSonido('click1'); } catch(e){} setShowMenuModal(true); },
                 onGuardarClick: pendingGlobalScore ? handleClickGuardar : null,
-                onReiniciarClick: () => { try { reproducirSonido('click1'); } catch(e){} setShowConfirmRestartModal(true); },
+                onReiniciarClick: reiniciarNivelActual,
+                onReiniciarDesdeCeroClick: confirmarReiniciar,
                 modoDificil: modoDificil,
                 onToggleModoDificil: () => {
                     try { reproducirSonido('click1'); } catch(e){}
@@ -731,6 +741,18 @@ export default function SopaLetras({
     const confirmarGuardadoGlobal = async (e) => {
         if (e?.preventDefault) e.preventDefault();
         try { reproducirSonido('click1'); } catch (e) {}
+
+        const currentUser = user || auth.currentUser;
+        if (!currentUser) {
+            setShowGuardarModal(false);
+            setFeedbackModal({
+                show: true,
+                title: "Inicia sesión para el ranking",
+                message: "Tu progreso se guarda en este dispositivo. Para aparecer en el ranking global, inicia sesión."
+            });
+            return;
+        }
+
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
             setFeedbackModal({
@@ -756,8 +778,7 @@ export default function SopaLetras({
         setShowGuardarModal(false);
 
         const scoreToSave = pendingGlobalScore;
-        const currentUser = user || auth.currentUser;
-        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
+        const docId = currentUser.uid;
 
         try {
             const docRef = doc(db, "ranking_sopa", docId);
@@ -880,6 +901,16 @@ export default function SopaLetras({
         almacen.setItem('tipoContenidoJuego', nuevoModo);
     };
 
+    const reiniciarNivelActual = () => {
+        try { reproducirSonido('click1'); } catch (e) {}
+        setVidas(VIDAS_POR_JUEGO.sopa.max);
+        setPendingGlobalScore(null);
+        setGuardadoEnNivel(false);
+        setShowConfirmRestartModal(false);
+        setShowComprarVidasModal(false);
+        generarNuevoJuego();
+    };
+
     const confirmarReiniciar = () => {
         try { reproducirSonido('click1'); } catch (e) {}
         almacen.removeItem('sopaLetrasNivel');
@@ -947,7 +978,7 @@ export default function SopaLetras({
                     <span>•</span>
                     <span>{intentos} int.</span>
                     <span>•</span>
-                    <span className="text-orange-600 font-bold inline-flex items-center gap-1">
+                    <span className="text-orange-700 font-bold inline-flex items-center gap-1">
                         <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none' }} />
                         {totopos}
                     </span>
@@ -974,7 +1005,8 @@ export default function SopaLetras({
                 level={nivel}
                 onMenuClick={onBack ? () => { try { reproducirSonido('click1'); } catch(e){} setShowMenuModal(true); } : null}
                 onGuardarClick={pendingGlobalScore ? handleClickGuardar : null}
-                onReiniciarClick={() => { try { reproducirSonido('click1'); } catch(e){} setShowConfirmRestartModal(true); }}
+                onReiniciarClick={reiniciarNivelActual}
+                onReiniciarDesdeCeroClick={confirmarReiniciar}
                 modoDificil={modoDificil}
                 onToggleModoDificil={() => {
                     try { reproducirSonido('click1'); } catch (e) {}
@@ -1110,10 +1142,10 @@ export default function SopaLetras({
                         <div className="flex gap-3 w-full">
                             <button
                                 type="button"
-                                onClick={confirmarReiniciar}
+                                onClick={reiniciarNivelActual}
                                 className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 py-2.5 rounded-xl font-bold text-sm border border-amber-300 transition-colors cursor-pointer"
                             >
-                                Reiniciar
+                                Reiniciar Nivel {nivel}
                             </button>
                             <button
                                 type="button"

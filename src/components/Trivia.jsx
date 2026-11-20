@@ -176,7 +176,16 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             }
         }
 
-        if (currentUser && nombreAUsar.trim()) {
+        if (!currentUser) {
+            setFeedbackModal({
+                show: true,
+                title: "Inicia sesión para el ranking",
+                message: "Tu progreso se guarda en este dispositivo. Para aparecer en el ranking global, inicia sesión."
+            });
+            return;
+        }
+
+        if (nombreAUsar.trim()) {
             confirmarGuardadoAutomatico(nombreAUsar.trim());
         } else {
             setInputPlayerName(nombreAUsar);
@@ -194,10 +203,8 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     setShowMenuModal(true); 
                 },
                 onGuardarClick: pendingGlobalScore ? handleClickGuardar : null,
-                onReiniciarClick: () => {
-                    try { reproducirSonido('click1'); } catch (e) {}
-                    setShowConfirmRestartModal(true);
-                },
+                onReiniciarClick: confirmarReiniciar,
+                onReiniciarDesdeCeroClick: reiniciarJuegoCompleto,
                 modoDificil: modoDificil,
                 onToggleModoDificil: () => {
                     try { reproducirSonido('click1'); } catch (e) {}
@@ -440,7 +447,18 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     const confirmarGuardadoGlobal = async (e) => {
         if (e?.preventDefault) e.preventDefault();
         try { reproducirSonido('click1'); } catch (err) {}
-        
+
+        const currentUser = user || auth.currentUser;
+        if (!currentUser) {
+            setShowGuardarModal(false);
+            setFeedbackModal({
+                show: true,
+                title: "Inicia sesión para el ranking",
+                message: "Tu progreso se guarda en este dispositivo. Para aparecer en el ranking global, inicia sesión."
+            });
+            return;
+        }
+
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
             setFeedbackModal({
@@ -464,8 +482,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         setShowGuardarModal(false);
 
         const scoreToSave = pendingGlobalScore;
-        const currentUser = user || auth.currentUser;
-        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
+        const docId = currentUser.uid;
 
         try {
             const docRef = doc(db, "ranking_trivia", docId);
@@ -564,6 +581,30 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         });
     };
 
+    const reiniciarJuegoCompleto = (e) => {
+        if (e?.preventDefault) e.preventDefault();
+        try { reproducirSonido('click1'); } catch (err) {}
+        almacen.removeItem('triviaNivel');
+        almacen.removeItem('triviaErrores');
+        almacen.removeItem('triviaModoDificil');
+        almacen.removeItem('triviaPlayerName');
+        setNivel(1);
+        setErrores(0);
+        setErroresParaVida(0);
+        setErroresNivel(0);
+        setAciertosNivel(0);
+        setIsGameOver(false);
+        setVidas(VIDAS_POR_JUEGO.trivia.max);
+        setModoDificil(false);
+        setPlayerName('');
+        setInputPlayerName('');
+        setGuardadoEnNivel(false);
+        setPendingGlobalScore(null);
+        setShowConfirmRestartModal(false);
+        setShowMenuModal(false);
+        generarNuevaPregunta();
+    };
+
     const confirmarReiniciar = (e) => {
         if (e?.preventDefault) e.preventDefault();
         try { reproducirSonido('click1'); } catch (err) {}
@@ -613,7 +654,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                         ))}
                     </span>
                     <span>•</span>
-                    <span className="text-orange-600 font-bold inline-flex items-center gap-1">
+                    <span className="text-orange-700 font-bold inline-flex items-center gap-1">
                         <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
                         {totopos} Totopos
                     </span>
@@ -661,7 +702,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                         </div>
                         <div className="flex justify-between items-center text-sm font-bold text-amber-950 border-b border-amber-100 pb-2">
                             <span>Totopos:</span>
-                            <span className="text-orange-600 font-bold inline-flex items-center gap-1">
+                            <span className="text-orange-700 font-bold inline-flex items-center gap-1">
                                 <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
                                 {totopos}
                             </span>
@@ -751,7 +792,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                             ranking.map((r, i) => (
                                 <div key={r.id || i} className="flex justify-between items-center border-b py-2.5 text-xs sm:text-sm border-amber-100 last:border-0 hover:bg-amber-50 rounded-xl px-2 transition-colors">
                                     <span className="font-bold text-amber-950 flex items-center gap-2 truncate pr-2">
-                                        <span className="text-orange-600 font-black">{i + 1}.</span> <span className="truncate">{r.name}</span> 
+                                        <span className="text-orange-700 font-black">{i + 1}.</span> <span className="truncate">{r.name}</span>
                                         <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full flex-shrink-0">Nivel {r.level}</span>
                                     </span>
                                     <span className="font-bold text-red-700 flex-shrink-0">{r.errores} err.</span>

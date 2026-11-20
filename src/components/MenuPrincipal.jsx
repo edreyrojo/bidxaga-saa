@@ -98,7 +98,7 @@ export default function MenuPrincipal({ setVistaActual }) {
                     }}
                     className="group relative bg-white hover:bg-orange-50/80 active:scale-98 text-orange-950 p-4 pl-9 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border-2 border-orange-200/80 hover:border-orange-400 flex items-center justify-between overflow-hidden cursor-pointer"
                 >
-                    <span className={`${estiloNivelVertical} bg-orange-500 text-orange-950/80`}>Avanzado</span>
+                    <span className={`${estiloNivelVertical} bg-orange-500 text-orange-950`}>Avanzado</span>
                     <div className="flex items-center gap-4 pl-2">
                         <span className="text-3xl p-3 bg-orange-100/80 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">✏️</span>
                         <div className="text-left">
@@ -119,7 +119,7 @@ export default function MenuPrincipal({ setVistaActual }) {
                     }}
                     className="group relative bg-white hover:bg-emerald-50/80 active:scale-98 text-emerald-950 p-4 pl-9 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border-2 border-emerald-200/80 hover:border-emerald-400 flex items-center justify-between overflow-hidden cursor-pointer"
                 >
-                    <span className={`${estiloNivelVertical} bg-emerald-500 text-emerald-950/80`}>Experto</span>
+                    <span className={`${estiloNivelVertical} bg-emerald-500 text-emerald-950`}>Experto</span>
                     <div className="flex items-center gap-4 pl-2">
                         <span className="text-3xl p-3 bg-emerald-100/80 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">🔎</span>
                         <div className="text-left">
@@ -349,7 +349,7 @@ export default function MenuPrincipal({ setVistaActual }) {
                                     className="flex items-center justify-between hover:bg-orange-100 transition-colors bg-white p-2.5 rounded-xl border border-orange-100 shadow-sm"
                                 >
                                     <span className="flex items-center gap-2"><span>📸</span> Instagram: <span className="font-normal text-gray-600">@edreyngasi</span></span>
-                                    <span className="text-orange-600 font-bold">Ir →</span>
+                                    <span className="text-orange-700 font-bold">Ir →</span>
                                 </a>
 
                                 <a
@@ -360,7 +360,7 @@ export default function MenuPrincipal({ setVistaActual }) {
                                     className="flex items-center justify-between hover:bg-orange-100 transition-colors bg-white p-2.5 rounded-xl border border-orange-100 shadow-sm"
                                 >
                                     <span className="flex items-center gap-2"><span>📘</span> Facebook: <span className="font-normal text-gray-600">Ver Perfil</span></span>
-                                    <span className="text-orange-600 font-bold">Ir →</span>
+                                    <span className="text-orange-700 font-bold">Ir →</span>
                                 </a>
 
                                 <div

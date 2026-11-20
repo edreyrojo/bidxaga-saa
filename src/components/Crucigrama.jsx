@@ -347,7 +347,16 @@ export default function Crucigrama({
         }
 
         const currentUser = user || auth.currentUser;
-        if (currentUser && playerName) {
+        if (!currentUser) {
+            setFeedbackModal({
+                show: true,
+                title: "Inicia sesión para el ranking",
+                message: "Tu progreso se guarda en este dispositivo. Para aparecer en el ranking global, inicia sesión."
+            });
+            return;
+        }
+
+        if (playerName) {
             confirmarGuardadoAutomatico(playerName);
             return;
         }
@@ -362,10 +371,8 @@ export default function Crucigrama({
             registrarControles({
                 level: nivel,
                 onGuardarClick: pendingGlobalScore ? handleClickGuardar : null,
-                onReiniciarClick: () => {
-                    reproducirSonido(1);
-                    setShowConfirmRestartModal(true);
-                },
+                onReiniciarClick: reiniciarNivelActual,
+                onReiniciarDesdeCeroClick: reiniciarJuegoCompleto,
                 onMenuClick: () => {
                     reproducirSonido(1);
                     setShowMenuModal(true);
@@ -791,6 +798,18 @@ export default function Crucigrama({
 
     const confirmarGuardadoGlobal = async () => {
         reproducirSonido(1);
+
+        const currentUser = user || auth.currentUser;
+        if (!currentUser) {
+            setShowGuardarModal(false);
+            setFeedbackModal({
+                show: true,
+                title: "Inicia sesión para el ranking",
+                message: "Tu progreso se guarda en este dispositivo. Para aparecer en el ranking global, inicia sesión."
+            });
+            return;
+        }
+
         const nombreLimpio = inputPlayerName.trim();
         if (!nombreLimpio) {
             setFeedbackModal({
@@ -816,8 +835,7 @@ export default function Crucigrama({
         setShowGuardarModal(false);
 
         const scoreToSave = pendingGlobalScore;
-        const currentUser = user || auth.currentUser;
-        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
+        const docId = currentUser.uid;
 
         try {
             const docRef = doc(db, "ranking_crucigrama", docId);
@@ -1035,7 +1053,7 @@ export default function Crucigrama({
                         ))}
                     </span>
                     <span>•</span>
-                    <span className="text-orange-600 font-bold inline-flex items-center gap-1">
+                    <span className="text-orange-700 font-bold inline-flex items-center gap-1">
                         <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
                         {totopos} Totopos
                     </span>

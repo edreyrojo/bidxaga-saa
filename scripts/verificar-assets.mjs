@@ -53,6 +53,11 @@ for (const accesorio of CATALOGO_ACCESORIOS) {
 const estaticos = [
     '/favicon.png',
     '/manifest.json',
+    '/sw.js',
+    '/icons/icon-192.png',
+    '/icons/icon-512.png',
+    '/icons/maskable-512.png',
+    '/icons/apple-touch-icon.png',
     '/totopo.png',
     '/tuna-vida.png',
     '/engrane.png',

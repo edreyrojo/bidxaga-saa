@@ -8,6 +8,11 @@
     "build": "vite build",
     "prebuild": "npm run check:assets",
     "check:assets": "node scripts/verificar-assets.mjs",
+    "optimizar:imagenes": "node scripts/optimizar-imagenes.mjs",
+    "optimizar:audio": "node scripts/optimizar-audio.mjs",
+    "optimizar": "npm run optimizar:imagenes && npm run optimizar:audio",
+    "check:rules": "firebase deploy --only firestore:rules --dry-run",
+    "deploy:rules": "firebase deploy --only firestore:rules",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -22,8 +27,10 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.2",
+    "ffmpeg-static": "^5.3.0",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.16",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.2",
     "vite": "^8.1.1"
   }

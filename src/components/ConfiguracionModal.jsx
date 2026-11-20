@@ -43,26 +43,33 @@ export default function ConfiguracionModal({
                 return;
             }
 
-            try {
-                const userRef = doc(db, 'usuarios', user.uid);
-                const userSnap = await getDoc(userRef);
+            let esAdminClaim = false;
+            let esAdminRol = false;
 
+            try {
+                const token = await user.getIdTokenResult(true);
+                esAdminClaim = token.claims?.admin === true;
+            } catch (error) {
+                console.error("Error al refrescar el token de administrador:", error);
+            }
+
+            try {
+                const userSnap = await getDoc(doc(db, 'usuarios', user.uid));
                 if (userSnap.exists()) {
                     const data = userSnap.data();
-                    if (data.role && data.role.toLowerCase() === 'admin') {
-                        setEsAdmin(true);
-                        cargarUsuarios();
-                        cargarRecords(coleccionSeleccionada);
-                        cargarAvisosAdmin();
-                    } else {
-                        setEsAdmin(false);
-                    }
-                } else {
-                    setEsAdmin(false);
+                    esAdminRol = typeof data.role === 'string' && data.role.toLowerCase() === 'admin';
                 }
             } catch (error) {
-                console.error("Error al verificar rol de administrador:", error);
-                setEsAdmin(false);
+                console.error("Error al verificar el rol de administrador:", error);
+            }
+
+            const esAdmin = esAdminClaim || esAdminRol;
+            setEsAdmin(esAdmin);
+
+            if (esAdmin) {
+                cargarUsuarios();
+                cargarRecords(coleccionSeleccionada);
+                cargarAvisosAdmin();
             }
         };
 
@@ -225,33 +232,36 @@ export default function ConfiguracionModal({
                             <h3 className="font-black text-amber-950 text-sm uppercase tracking-wider">
                                 Opciones de Reinicio
                             </h3>
+                            <p className="text-[10px] text-amber-800 leading-snug">
+                                Reiniciar Nivel conserva tu nivel y tus totopos. Reiniciar Desde 0 te devuelve al Nivel 1.
+                            </p>
                             <div className="flex flex-col gap-2 mt-1">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowOpcionesReiniciar(false);
-                                        if (onReiniciarClick) onReiniciarClick();
-                                        onClose();
-                                    }}
-                                    className="w-full bg-amber-950 hover:bg-black text-white py-2 px-3 rounded-xl text-[11px] font-bold transition-all cursor-pointer text-center"
-                                >
-                                    Reiniciar Nivel Actual
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowOpcionesReiniciar(false);
-                                        if (onReiniciarDesdeCeroClick) {
-                                            onReiniciarDesdeCeroClick();
-                                        } else if (onReiniciarClick) {
+                                {onReiniciarClick && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowOpcionesReiniciar(false);
                                             onReiniciarClick();
-                                        }
-                                        onClose();
-                                    }}
-                                    className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-xl text-[11px] font-bold transition-all cursor-pointer text-center"
-                                >
-                                    Reiniciar Desde 0
-                                </button>
+                                            onClose();
+                                        }}
+                                        className="w-full bg-amber-950 hover:bg-black text-white py-2 px-3 rounded-xl text-[11px] font-bold transition-all cursor-pointer text-center"
+                                    >
+                                        Reiniciar Nivel Actual
+                                    </button>
+                                )}
+                                {onReiniciarDesdeCeroClick && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowOpcionesReiniciar(false);
+                                            onReiniciarDesdeCeroClick();
+                                            onClose();
+                                        }}
+                                        className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-xl text-[11px] font-bold transition-all cursor-pointer text-center"
+                                    >
+                                        Reiniciar Desde 0
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={() => setShowOpcionesReiniciar(false)}

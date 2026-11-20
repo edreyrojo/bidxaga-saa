@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { auth, db } from './firebaseConfig';
 import { almacen, configurarScope } from './utils/almacen.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 
 import MenuPrincipal from './components/MenuPrincipal';
-import Memorama from './components/Memorama';
-import SopaLetras from './components/SopaLetras';
-import Crucigrama from './components/Crucigrama';
-import Trivia from './components/Trivia';
-import GeneradorDev from './components/GeneradorDev';
 import AudioFondo, { LISTA_PISTAS } from './components/AudioFondo';
+
+const Memorama = lazy(() => import('./components/Memorama'));
+const SopaLetras = lazy(() => import('./components/SopaLetras'));
+const Crucigrama = lazy(() => import('./components/Crucigrama'));
+const Trivia = lazy(() => import('./components/Trivia'));
+const GeneradorDev = lazy(() => import('./components/GeneradorDev'));
 import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
 import ConfiguracionModal from './components/ConfiguracionModal';
@@ -187,6 +188,7 @@ function App() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showAvisosModal, setShowAvisosModal] = useState(false);
   const [showAyudaModal, setShowAyudaModal] = useState(false);
+  const [showHerramientasMovil, setShowHerramientasMovil] = useState(false);
   const [juegoAyudaSeleccionado, setJuegoAyudaSeleccionado] = useState(null);
 
   const [listaAvisos, setListaAvisos] = useState([]);
@@ -258,6 +260,10 @@ function App() {
   }, []);
 
   useEffect(() => {
+    setShowHerramientasMovil(false);
+  }, [vistaActual, user]);
+
+  useEffect(() => {
     const mostrarLogro = (evento) => {
       setLogroToast(evento.detail);
       if (logroTimerRef.current) clearTimeout(logroTimerRef.current);
@@ -289,10 +295,10 @@ function App() {
   };
 
   const TUTORIALES_JUEGOS = {
-    memorama: { titulo: "Memorama", desc: "Encuentra las parejas de cartas iguales volteándolas de par en par. Pon a prueba tu memoria." },
-    trivia: { titulo: "Trivia", desc: "Responde correctamente a las preguntas sobre vocabulario y cultura diidxazá." },
-    crucigrama: { titulo: "Crucigrama", desc: "Completa el tablero escribiendo las palabras correctas con base en las pistas proporcionadas." },
-    sopa: { titulo: "Sopa de Letras", desc: "Localiza y desliza el dedo sobre las palabras ocultas en la cuadrícula de letras." }
+    memorama: { titulo: "Memorama", desc: "Voltea dos cartas por turno y empareja cada imagen con su palabra en diidxazá. Completa el nivel sin fallar para ganar el logro Memoria de Rayo." },
+    trivia: { titulo: "Trivia", desc: "Responde 5 preguntas de vocabulario. En Modo Difícil, termina un nivel sin errores para ganar el logro Sabio Zapoteco." },
+    crucigrama: { titulo: "Crucigrama", desc: "Toca una pista y arma la palabra con el dial de letras. Alcanza el Nivel 5 para ganar el logro Erudito del Crucigrama." },
+    sopa: { titulo: "Sopa de Letras", desc: "Desliza el dedo sobre las letras para encontrar cada palabra oculta. Llega al Nivel 10 para ganar el logro Ojo de Águila." }
   };
 
   const togglePlayMusic = () => {
@@ -346,7 +352,7 @@ function App() {
         onPlayStateChange={setIsPlayingMusic} 
       />
 
-      <div className="fixed top-3 left-3 sm:top-4 sm:left-4 z-40 flex items-center gap-2">
+      <div className="fixed top-[calc(0.75rem+env(safe-area-inset-top))] left-[calc(0.75rem+env(safe-area-inset-left))] sm:top-[calc(1rem+env(safe-area-inset-top))] sm:left-[calc(1rem+env(safe-area-inset-left))] z-40 flex items-center gap-2">
         
         <button
           onClick={handlePanelSuperiorClick}
@@ -358,7 +364,7 @@ function App() {
           </div>
 
           <div className="flex flex-col text-left leading-tight">
-            <span className="font-black text-amber-950 truncate max-w-[110px] sm:max-w-[150px]">
+            <span className="font-black text-amber-950 truncate max-w-[72px] sm:max-w-[150px]">
               {displayNickname}
             </span>
             {user && (
@@ -410,10 +416,76 @@ function App() {
           </button>
         )}
 
+        <div className="relative sm:hidden">
+          <button
+            type="button"
+            onClick={() => setShowHerramientasMovil((visible) => !visible)}
+            className="w-10 h-10 rounded-2xl flex items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2 relative"
+            title="Más opciones"
+            aria-label="⋯ Más opciones"
+            aria-expanded={showHerramientasMovil}
+          >
+            <span className="text-xl font-black leading-none">⋯</span>
+            {listaAvisos.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {listaAvisos.length}
+              </span>
+            )}
+          </button>
+
+          {showHerramientasMovil && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowHerramientasMovil(false)}
+                aria-hidden="true"
+              />
+              <div className="absolute left-0 top-12 z-50 w-48 bg-white rounded-2xl border-2 border-amber-300 shadow-2xl p-2 flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAvisosModal(true);
+                    setShowHerramientasMovil(false);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-100 text-sm font-bold text-amber-950 flex items-center justify-between gap-2 cursor-pointer"
+                >
+                  <span>📢 Avisos</span>
+                  {listaAvisos.length > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      {listaAvisos.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleAyudaClick();
+                    setShowHerramientasMovil(false);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-100 text-sm font-bold text-amber-950 flex items-center gap-2 cursor-pointer"
+                >
+                  ❓ Ayuda
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConfigModal(true);
+                    setShowHerramientasMovil(false);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-100 text-sm font-bold text-amber-950 flex items-center gap-2 cursor-pointer"
+                >
+                  ⚙️ Configuración
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
         <button
           onClick={() => setShowAvisosModal(true)}
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2 relative"
+          className="hidden sm:flex w-10 h-10 sm:w-11 sm:h-11 rounded-2xl items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2 relative"
           title="Avisos"
+          aria-label="Avisos"
         >
           <span className="text-lg">📢</span>
           {listaAvisos.length > 0 && (
@@ -425,20 +497,22 @@ function App() {
 
         <button
           onClick={handleAyudaClick}
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2"
+          className="hidden sm:flex w-10 h-10 sm:w-11 sm:h-11 rounded-2xl items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2"
           title="Ayuda y Tutoriales"
+          aria-label="Ayuda y tutoriales"
         >
           <span className="text-lg">❓</span>
         </button>
 
         <button
           onClick={() => setShowConfigModal(true)}
-          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center shadow-md transition-transform transform active:scale-95 border-2 cursor-pointer overflow-hidden p-2 ${
+          className={`hidden sm:flex w-10 h-10 sm:w-11 sm:h-11 rounded-2xl items-center justify-center shadow-md transition-transform transform active:scale-95 border-2 cursor-pointer overflow-hidden p-2 ${
             isPlayingMusic 
               ? 'bg-amber-100/90 hover:bg-amber-200/90 text-amber-900 border-amber-300 hover:border-amber-400' 
               : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
           }`}
           title="Abrir Configuracion y Musica"
+          aria-label="Configuración y música"
         >
           <img 
             src="/engrane.png" 
@@ -456,7 +530,13 @@ function App() {
 
       </div>
 
-      <main className="pt-16 sm:pt-20">
+      <main className="pt-[calc(4.5rem_+_env(safe-area-inset-top))] sm:pt-[calc(5rem_+_env(safe-area-inset-top))]">
+        <Suspense fallback={(
+          <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-amber-900">
+            <div className="w-10 h-10 rounded-full border-4 border-amber-300 border-t-amber-700 animate-spin" />
+            <p className="text-sm font-bold">Cargando juego…</p>
+          </div>
+        )}>
         {vistaActual === 'menu' && (
           <MenuPrincipal setVistaActual={(vista) => {
             setControlesJuegoActivo(null);
@@ -528,6 +608,7 @@ function App() {
             }} 
           />
         )}
+        </Suspense>
       </main>
 
       {showLoginModal && (
@@ -644,7 +725,7 @@ function App() {
       />
 
       {logroToast && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[300] w-[calc(100%-2rem)] max-w-sm bg-amber-950 text-white rounded-2xl shadow-2xl border-2 border-amber-400 p-4 flex items-center gap-3">
+        <div className="fixed bottom-[calc(1rem_+_env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[300] w-[calc(100%-2rem)] max-w-sm bg-amber-950 text-white rounded-2xl shadow-2xl border-2 border-amber-400 p-4 flex items-center gap-3">
           <span className="text-3xl flex-shrink-0" aria-hidden="true">{logroToast.emoji}</span>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-wider text-amber-300 font-black">¡Logro desbloqueado!</p>

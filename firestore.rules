@@ -1,0 +1,125 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Un administrador puede serlo por custom claim (`admin: true`) o por el
+    // campo `role` de su propio documento. El campo `role` queda protegido
+    // abajo para que un usuario no pueda ascenderse a sí mismo.
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.admin == true ||
+        (
+          exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin'
+        )
+      );
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    match /usuarios/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+
+      allow create: if isOwner(uid)
+        && request.resource.data.email == request.auth.token.email
+        && !('role' in request.resource.data)
+        && request.resource.data.totopos is number
+        && request.resource.data.totopos >= 0;
+
+      allow update: if (isOwner(uid) || isAdmin())
+        // El dueño no puede cambiar su rol, correo ni fecha de creación.
+        && (
+          isAdmin() ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'email', 'createdAt'])
+        )
+        && (!('totopos' in request.resource.data) || (
+          request.resource.data.totopos is number && request.resource.data.totopos >= 0
+        ))
+        && (!('totoposHistoricos' in request.resource.data) || (
+          request.resource.data.totoposHistoricos is number && request.resource.data.totoposHistoricos >= 0
+        ))
+        // Se acepta el formato antiguo (número) además del mapa por juego.
+        && (!('vidas' in request.resource.data) || (
+          request.resource.data.vidas is map ||
+          (request.resource.data.vidas is number && request.resource.data.vidas >= 0)
+        ))
+        && (!('progreso' in request.resource.data) || request.resource.data.progreso is map)
+        && (!('logrosDesbloqueados' in request.resource.data) || request.resource.data.logrosDesbloqueados is list);
+
+      allow delete: if isAdmin();
+    }
+
+    match /avisos/{avisoId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /ranking/{docId} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && docId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.level is number
+        && request.resource.data.level >= 1
+        && request.resource.data.score is number
+        && request.resource.data.score > 0
+        && request.resource.data.completado == true;
+      allow delete: if isAdmin() || (signedIn() && docId == request.auth.uid);
+    }
+
+    match /ranking_trivia/{docId} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && docId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.level is number
+        && request.resource.data.level >= 1
+        && request.resource.data.errores is number
+        && request.resource.data.errores >= 0
+        && request.resource.data.completado == true;
+      allow delete: if isAdmin() || (signedIn() && docId == request.auth.uid);
+    }
+
+    match /ranking_sopa/{docId} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && docId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.level is number
+        && request.resource.data.level >= 1
+        && request.resource.data.intentos is number
+        && request.resource.data.intentos > 0
+        && request.resource.data.completado == true;
+      allow delete: if isAdmin() || (signedIn() && docId == request.auth.uid);
+    }
+
+    match /ranking_crucigrama/{docId} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && docId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.level is number
+        && request.resource.data.level >= 1
+        && request.resource.data.intentos is number
+        && request.resource.data.intentos > 0
+        && request.resource.data.completado == true;
+      allow delete: if isAdmin() || (signedIn() && docId == request.auth.uid);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
