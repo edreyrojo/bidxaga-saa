@@ -7,9 +7,15 @@ import {
     filtrarContenidoPorCategorias
 } from '../data/Categoriascontenido.js';
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
+import { almacen } from '../utils/almacen.js';
+import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
+import { useVidasJuego } from '../hooks/useVidasJuego.js';
+import { useTotopos } from '../hooks/useTotopos.js';
+import { useProgresoJuego } from '../hooks/useProgresoJuego.js';
+import { useLogros } from '../hooks/useLogros.js';
 import { auth, db } from '../firebaseConfig';
-import { collection, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, doc, getDoc, setDoc } from 'firebase/firestore';
 
 const RECOMPENSAS_CRUCIGRAMA = {
     1: 15,
@@ -19,7 +25,7 @@ const RECOMPENSAS_CRUCIGRAMA = {
     5: 90
 };
 
-const MAX_VIDAS = 5;
+const MAX_VIDAS = VIDAS_POR_JUEGO.crucigrama.max;
 
 const obtenerBaseDatosActiva = (modo, categoriasFaunaActivas = [], categoriasFloraActivas = []) => {
     const faunaFiltrada = filtrarContenidoPorCategorias(listaAnimales, categoriasFaunaActivas);
@@ -179,35 +185,30 @@ export default function Crucigrama({
     };
 
     const [nivel, setNivel] = useState(() => {
-        const n = localStorage.getItem('crucigramaNivel');
+        const n = almacen.getItem('crucigramaNivel');
         return n ? parseInt(n, 10) : 1;
     });
     
     const [intentos, setIntentos] = useState(() => {
-        const i = localStorage.getItem('crucigramaIntentos');
+        const i = almacen.getItem('crucigramaIntentos');
         return i ? parseInt(i, 10) : 0;
     });
 
     const [tipoContenido, setTipoContenido] = useState(() => {
-        return localStorage.getItem('tipoContenidoJuego') || 'fauna';
+        return almacen.getItem('tipoContenidoJuego') || 'fauna';
     });
 
-    const [vidas, setVidas] = useState(() => {
-        const vidasGuardadas = localStorage.getItem('crucigramaVidas');
-        const v = parseInt(vidasGuardadas, 10);
-        if (!isNaN(v) && v > 0 && v <= MAX_VIDAS) {
-            return v;
-        }
-        localStorage.setItem('crucigramaVidas', MAX_VIDAS);
-        return MAX_VIDAS;
-    });
+    const { vidas, setVidas } = useVidasJuego('crucigrama', user);
 
     const [placements, setPlacements] = useState([]);
     const [matriz, setMatriz] = useState([]);
     const [respuestasUsuario, setRespuestasUsuario] = useState({});
     const [palabrasResueltas, setPalabrasResueltas] = useState([]);
     const [modoDificil, setModoDificil] = useState(false);
-    const [totopos, setTotopos] = useState(0);
+    const { totopos, abonar, gastar, comprar } = useTotopos(user);
+    const { progresoRemoto, listo: progresoListo, guardarProgreso } = useProgresoJuego('crucigrama', user);
+    const { desbloquear, listo: logrosListos } = useLogros(user);
+    const [progresoAplicado, setProgresoAplicado] = useState(false);
     const [intentosErroneosPalabras, setIntentosErroneosPalabras] = useState({});
     const [fichasVistas, setFichasVistas] = useState([]);
     const [activePlacement, setActivePlacement] = useState(null);
@@ -236,7 +237,7 @@ export default function Crucigrama({
     
     const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => {
         try {
-            const guardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFaunaActivas') || 'null');
+            const guardadas = JSON.parse(almacen.getItem('crucigramaCategoriasFaunaActivas') || 'null');
             return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('fauna');
         } catch (e) {
             return categoriaInicialPorDefecto('fauna');
@@ -245,7 +246,7 @@ export default function Crucigrama({
     
     const [categoriasFloraActivas, setCategoriasFloraActivas] = useState(() => {
         try {
-            const guardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFloraActivas') || 'null');
+            const guardadas = JSON.parse(almacen.getItem('crucigramaCategoriasFloraActivas') || 'null');
             return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('flora');
         } catch (e) {
             return categoriaInicialPorDefecto('flora');
@@ -258,7 +259,17 @@ export default function Crucigrama({
 
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
         reproducirSonido(1);
-        const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
+
+        if (!pendingGlobalScore || !Number.isFinite(pendingGlobalScore.intentos) || pendingGlobalScore.intentos <= 0) {
+            setFeedbackModal({
+                show: true,
+                title: "Nivel sin completar",
+                message: "Resuelve todas las palabras del crucigrama antes de guardar tu récord."
+            });
+            return;
+        }
+
+        const scoreToSave = pendingGlobalScore;
         const currentUser = user || auth.currentUser;
         const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
@@ -270,9 +281,12 @@ export default function Crucigrama({
             if (docSnap.exists()) {
                 const dataAntigua = docSnap.data();
                 const nivelAntiguo = dataAntigua.level || 1;
-                const intentosAntiguos = dataAntigua.intentos || 0;
+                const intentosAntiguos = Number(dataAntigua.intentos);
+                const intentosAntiguosValidos = Number.isFinite(intentosAntiguos) && intentosAntiguos > 0;
 
-                if (scoreToSave.level < nivelAntiguo || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos)) {
+                if (intentosAntiguosValidos
+                    && (scoreToSave.level < nivelAntiguo
+                        || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos))) {
                     guardar = false;
                 }
             }
@@ -282,6 +296,7 @@ export default function Crucigrama({
                     name: nombreLimpio,
                     intentos: scoreToSave.intentos,
                     level: scoreToSave.level,
+                    completado: true,
                     fecha: new Date().toISOString()
                 }, { merge: true });
             }
@@ -308,17 +323,25 @@ export default function Crucigrama({
 
     const handleClickGuardar = () => {
         reproducirSonido(1);
-        localStorage.setItem('crucigramaNivel', nivel);
-        localStorage.setItem('crucigramaIntentos', intentos);
-        localStorage.setItem('crucigramaVidas', vidas);
-        localStorage.setItem('crucigramaModoDificil', modoDificil);
-        localStorage.setItem('totopos', totopos);
+        almacen.setItem('crucigramaNivel', nivel);
+        almacen.setItem('crucigramaIntentos', intentos);
+        almacen.setItem('crucigramaModoDificil', modoDificil);
 
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
                 show: true,
                 title: "Nivel ya guardado",
                 message: `Ya guardaste tu record global para el Nivel ${nivel}. Avanza al siguiente nivel para volver a registrar tu puntaje en el ranking.`
+            });
+            return;
+        }
+
+        // 🛡️ Solo se guarda un nivel realmente completado.
+        if (!pendingGlobalScore || !Number.isFinite(pendingGlobalScore.intentos) || pendingGlobalScore.intentos <= 0) {
+            setFeedbackModal({
+                show: true,
+                title: "Nivel sin completar",
+                message: "Resuelve todas las palabras del crucigrama antes de guardar tu récord."
             });
             return;
         }
@@ -338,7 +361,7 @@ export default function Crucigrama({
         if (registrarControles) {
             registrarControles({
                 level: nivel,
-                onGuardarClick: handleClickGuardar,
+                onGuardarClick: pendingGlobalScore ? handleClickGuardar : null,
                 onReiniciarClick: () => {
                     reproducirSonido(1);
                     setShowConfirmRestartModal(true);
@@ -352,7 +375,7 @@ export default function Crucigrama({
                     reproducirSonido(1);
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
-                    localStorage.setItem('crucigramaModoDificil', nuevoModo);
+                    almacen.setItem('crucigramaModoDificil', nuevoModo);
                 }
             });
         }
@@ -370,34 +393,32 @@ export default function Crucigrama({
     };
 
     useEffect(() => {
-        const modoDificilGuardado = localStorage.getItem('crucigramaModoDificil');
-        const nombreGuardado = localStorage.getItem('crucigramaPlayerName');
-        const totoposGuardados = localStorage.getItem('totopos');
+        const modoDificilGuardado = almacen.getItem('crucigramaModoDificil');
+        const nombreGuardado = almacen.getItem('crucigramaPlayerName');
 
         if (modoDificilGuardado) setModoDificil(modoDificilGuardado === 'true');
         if (nombreGuardado) {
             setPlayerName(nombreGuardado);
             setInputPlayerName(nombreGuardado);
         }
-        if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
 
         try {
-            const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
+            const faunaGuardadas = JSON.parse(almacen.getItem('categoriasFaunaDesbloqueadas') || 'null');
             if (faunaGuardadas) {
                 setCategoriasFaunaDesbloqueadas(faunaGuardadas);
             }
-            const floraGuardadas = JSON.parse(localStorage.getItem('categoriasFloraDesbloqueadas') || 'null');
+            const floraGuardadas = JSON.parse(almacen.getItem('categoriasFloraDesbloqueadas') || 'null');
             if (floraGuardadas) {
                 setCategoriasFloraDesbloqueadas(floraGuardadas);
             }
 
-            const faunaActivasGuardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFaunaActivas') || 'null');
+            const faunaActivasGuardadas = JSON.parse(almacen.getItem('crucigramaCategoriasFaunaActivas') || 'null');
             if (faunaActivasGuardadas) {
                 const validas = faunaActivasGuardadas.filter(id => (faunaGuardadas || categoriaInicialPorDefecto('fauna')).includes(id));
                 if (validas.length > 0) setCategoriasFaunaActivas(validas);
             }
 
-            const floraActivasGuardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFloraActivas') || 'null');
+            const floraActivasGuardadas = JSON.parse(almacen.getItem('crucigramaCategoriasFloraActivas') || 'null');
             if (floraActivasGuardadas) {
                 const validas = floraActivasGuardadas.filter(id => (floraGuardadas || categoriaInicialPorDefecto('flora')).includes(id));
                 if (validas.length > 0) setCategoriasFloraActivas(validas);
@@ -414,30 +435,31 @@ export default function Crucigrama({
                     const userSnap = await getDoc(userDocRef);
                     if (userSnap.exists()) {
                         const data = userSnap.data();
-                        if (data.totopos !== undefined) {
-                            setTotopos(data.totopos);
-                            localStorage.setItem('totopos', data.totopos);
-                        }
-
                         const historico = data.totoposHistoricos !== undefined ? data.totoposHistoricos : (data.totopos || 0);
                         const nivelCalc = calcularNivelCuenta(historico);
                         setNivelCuenta(nivelCalc);
 
-                        const faunaNube = sincronizarDesbloqueosPorNivel('fauna', data.categoriasFaunaDesbloqueadas || categoriaInicialPorDefecto('fauna'), nivelCalc);
-                        const floraNube = sincronizarDesbloqueosPorNivel('flora', data.categoriasFloraDesbloqueadas || categoriaInicialPorDefecto('flora'), nivelCalc);
+                        const faunaNube = sincronizarDesbloqueosPorNivel('fauna', [
+                            ...(data.categoriasFaunaDesbloqueadas || categoriaInicialPorDefecto('fauna')),
+                            ...categoriasFaunaDesbloqueadas
+                        ], nivelCalc);
+                        const floraNube = sincronizarDesbloqueosPorNivel('flora', [
+                            ...(data.categoriasFloraDesbloqueadas || categoriaInicialPorDefecto('flora')),
+                            ...categoriasFloraDesbloqueadas
+                        ], nivelCalc);
                         setCategoriasFaunaDesbloqueadas(faunaNube);
                         setCategoriasFloraDesbloqueadas(floraNube);
-                        localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
-                        localStorage.setItem('categoriasFloraDesbloqueadas', JSON.stringify(floraNube));
+                        almacen.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
+                        almacen.setItem('categoriasFloraDesbloqueadas', JSON.stringify(floraNube));
 
-                        const faunaActivasGuardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFaunaActivas') || 'null');
+                        const faunaActivasGuardadas = JSON.parse(almacen.getItem('crucigramaCategoriasFaunaActivas') || 'null');
                         setCategoriasFaunaActivas(prev => {
                             const base = faunaActivasGuardadas || prev;
                             const activasValidas = base.filter(id => faunaNube.includes(id));
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('fauna');
                         });
 
-                        const floraActivasGuardadas = JSON.parse(localStorage.getItem('crucigramaCategoriasFloraActivas') || 'null');
+                        const floraActivasGuardadas = JSON.parse(almacen.getItem('crucigramaCategoriasFloraActivas') || 'null');
                         setCategoriasFloraActivas(prev => {
                             const base = floraActivasGuardadas || prev;
                             const activasValidas = base.filter(id => floraNube.includes(id));
@@ -448,7 +470,7 @@ export default function Crucigrama({
                         if (nickNube) {
                             setPlayerName(nickNube);
                             setInputPlayerName(nickNube);
-                            localStorage.setItem('crucigramaPlayerName', nickNube);
+                            almacen.setItem('crucigramaPlayerName', nickNube);
                         }
                     }
                 } catch (e) {
@@ -459,6 +481,45 @@ export default function Crucigrama({
         cargarTotoposNube();
         cargarRankingGlobal();
     }, [user]);
+
+    useEffect(() => {
+        if (!progresoListo) return;
+
+        if (progresoRemoto) {
+            if (Number.isInteger(progresoRemoto.nivel)) setNivel(progresoRemoto.nivel);
+            if (Number.isInteger(progresoRemoto.intentos)) setIntentos(progresoRemoto.intentos);
+            if (typeof progresoRemoto.modoDificil === 'boolean') setModoDificil(progresoRemoto.modoDificil);
+            if (['fauna', 'flora', 'ambos'].includes(progresoRemoto.tipoContenido)) {
+                setTipoContenido(progresoRemoto.tipoContenido);
+            }
+            if (Array.isArray(progresoRemoto.categoriasFaunaActivas) && progresoRemoto.categoriasFaunaActivas.length > 0) {
+                setCategoriasFaunaActivas(progresoRemoto.categoriasFaunaActivas);
+            }
+            if (Array.isArray(progresoRemoto.categoriasFloraActivas) && progresoRemoto.categoriasFloraActivas.length > 0) {
+                setCategoriasFloraActivas(progresoRemoto.categoriasFloraActivas);
+            }
+        }
+
+        setProgresoAplicado(true);
+    }, [progresoListo, progresoRemoto]);
+
+    useEffect(() => {
+        if (!progresoAplicado) return;
+        guardarProgreso({
+            nivel,
+            intentos,
+            modoDificil,
+            tipoContenido,
+            categoriasFaunaActivas,
+            categoriasFloraActivas
+        });
+    }, [progresoAplicado, nivel, intentos, modoDificil, tipoContenido, categoriasFaunaActivas, categoriasFloraActivas, guardarProgreso]);
+
+    useEffect(() => {
+        if (logrosListos && nivel >= 5) {
+            desbloquear('logro_crucigrama_5');
+        }
+    }, [nivel, desbloquear, logrosListos]);
 
     useEffect(() => {
         generarNuevoJuego();
@@ -489,7 +550,7 @@ export default function Crucigrama({
     }, [isDragging]);
 
     useEffect(() => {
-        if (palabrasResueltas.length === placements.length && placements.length > 0 && !pendingGlobalScore) {
+        if (palabrasResueltas.length === placements.length && placements.length > 0 && !pendingGlobalScore && !guardadoEnNivel) {
             reproducirSonido(3); 
             setPendingGlobalScore({ level: nivel, intentos: intentos });
 
@@ -507,55 +568,11 @@ export default function Crucigrama({
                 }
             }
 
-            setTotopos(prevTotopos => {
-                const nuevosTotopos = prevTotopos + recompensaActual;
-                localStorage.setItem('totopos', nuevosTotopos);
-
-                const currentUser = user || auth.currentUser;
-                if (currentUser) {
-                    const abonarTotopos = async () => {
-                        try {
-                            const userRef = doc(db, 'usuarios', currentUser.uid);
-                            const userSnap = await getDoc(userRef);
-                            
-                            if (userSnap.exists()) {
-                                await updateDoc(userRef, {
-                                    totopos: increment(recompensaActual),
-                                    totoposHistoricos: increment(recompensaActual)
-                                });
-                            } else {
-                                await setDoc(userRef, {
-                                    email: currentUser.email,
-                                    totopos: nuevosTotopos,
-                                    totoposHistoricos: nuevosTotopos,
-                                    avatar: 'default',
-                                    avataresDesbloqueados: ['default'],
-                                    categoriasFaunaDesbloqueadas: categoriaInicialPorDefecto('fauna'),
-                                    categoriasFloraDesbloqueadas: categoriaInicialPorDefecto('flora')
-                                }, { merge: true });
-                            }
-                        } catch (err) {
-                            console.error("Error al abonar totopos:", err);
-                        }
-                    };
-                    abonarTotopos();
-                }
-
-                return nuevosTotopos;
-            });
+            abonar(recompensaActual);
         }
-    }, [palabrasResueltas, placements, nivel, intentos, user, recompensaActual, pendingGlobalScore, categoriasFaunaActivas, categoriasFloraActivas, tipoContenido]);
+    }, [palabrasResueltas, placements, nivel, intentos, user, recompensaActual, pendingGlobalScore, guardadoEnNivel, abonar, categoriasFaunaActivas, categoriasFloraActivas, tipoContenido]);
 
     const generarNuevoJuego = () => {
-        setVidas(prev => {
-            if (prev <= 0) {
-                localStorage.setItem('crucigramaVidas', MAX_VIDAS);
-                return MAX_VIDAS;
-            }
-            return prev;
-        });
-        setShowGameOverModal(false);
-
         const baseDatosActiva = obtenerBaseDatosActiva(tipoContenido, categoriasFaunaActivas, categoriasFloraActivas);
         const poolSeguro = baseDatosActiva.length > 0 ? baseDatosActiva : filtrarContenidoPorCategorias(listaAnimales, categoriaInicialPorDefecto('fauna'));
         const cantidadAnimales = Math.min(2 + nivel, 6);
@@ -573,6 +590,7 @@ export default function Crucigrama({
         setIntentosErroneosPalabras({});
         setFichasVistas([]);
         setGuardadoEnNivel(false);
+        setPendingGlobalScore(null);
     };
 
     const abrirDialParaPalabra = (p) => {
@@ -599,12 +617,13 @@ export default function Crucigrama({
         }
     };
 
-    const usarPistaRevelar = () => {
+    const usarPistaRevelar = async () => {
         reproducirSonido(1); 
         if (!activePlacement) return;
         const COSTO_PISTA = 10;
         
-        if (totopos < COSTO_PISTA) {
+        const resultado = await gastar(COSTO_PISTA);
+        if (!resultado.ok) {
             setFeedbackModal({
                 show: true,
                 title: "Totopos Insuficientes",
@@ -612,10 +631,6 @@ export default function Crucigrama({
             });
             return;
         }
-
-        const nuevosTotopos = totopos - COSTO_PISTA;
-        setTotopos(nuevosTotopos);
-        localStorage.setItem('totopos', nuevosTotopos);
 
         const nuevasRespuestas = { ...respuestasUsuario };
         for (let i = 0; i < activePlacement.text.length; i++) {
@@ -710,7 +725,7 @@ export default function Crucigrama({
 
         const nuevosIntentos = intentos + 1;
         setIntentos(nuevosIntentos);
-        localStorage.setItem('crucigramaIntentos', nuevosIntentos);
+        almacen.setItem('crucigramaIntentos', nuevosIntentos);
 
         if (palabraFormada === activePlacement.text) {
             reproducirSonido(2); 
@@ -758,7 +773,6 @@ export default function Crucigrama({
             } else {
                 const nuevasVidas = Math.max(0, vidas - 1);
                 setVidas(nuevasVidas);
-                localStorage.setItem('crucigramaVidas', nuevasVidas);
 
                 if (nuevasVidas === 0) {
                     setActivePlacement(null); 
@@ -787,11 +801,21 @@ export default function Crucigrama({
             return;
         }
 
+        if (!pendingGlobalScore || !Number.isFinite(pendingGlobalScore.intentos) || pendingGlobalScore.intentos <= 0) {
+            setShowGuardarModal(false);
+            setFeedbackModal({
+                show: true,
+                title: "Nivel sin completar",
+                message: "Resuelve todas las palabras del crucigrama antes de guardar tu récord."
+            });
+            return;
+        }
+
         setPlayerName(nombreLimpio);
-        localStorage.setItem('crucigramaPlayerName', nombreLimpio);
+        almacen.setItem('crucigramaPlayerName', nombreLimpio);
         setShowGuardarModal(false);
 
-        const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
+        const scoreToSave = pendingGlobalScore;
         const currentUser = user || auth.currentUser;
         const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
@@ -803,9 +827,12 @@ export default function Crucigrama({
             if (docSnap.exists()) {
                 const dataAntigua = docSnap.data();
                 const nivelAntiguo = dataAntigua.level || 1;
-                const intentosAntiguos = dataAntigua.intentos || 0;
+                const intentosAntiguos = Number(dataAntigua.intentos);
+                const intentosAntiguosValidos = Number.isFinite(intentosAntiguos) && intentosAntiguos > 0;
 
-                if (scoreToSave.level < nivelAntiguo || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos)) {
+                if (intentosAntiguosValidos
+                    && (scoreToSave.level < nivelAntiguo
+                        || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos))) {
                     guardar = false;
                 }
             }
@@ -815,6 +842,7 @@ export default function Crucigrama({
                     name: nombreLimpio,
                     intentos: scoreToSave.intentos,
                     level: scoreToSave.level,
+                    completado: true,
                     fecha: new Date().toISOString()
                 }, { merge: true });
             }
@@ -841,53 +869,44 @@ export default function Crucigrama({
 
     const handleDesbloquearCategoria = async (tipo, categoriaId, costo) => {
         reproducirSonido(1);
-        if (costo > 0 && totopos < costo) {
-            setFeedbackModal({
-                show: true,
-                title: "Totopos insuficientes",
-                message: `Te faltan ${costo - totopos} totopos para desbloquear esta categoria.`
-            });
-            return;
-        }
-
-        const nuevosTotopos = totopos - costo;
         const setDesbloqueadas = tipo === 'flora' ? setCategoriasFloraDesbloqueadas : setCategoriasFaunaDesbloqueadas;
         const setActivas = tipo === 'flora' ? setCategoriasFloraActivas : setCategoriasFaunaActivas;
         const claveLocal = tipo === 'flora' ? 'categoriasFloraDesbloqueadas' : 'categoriasFaunaDesbloqueadas';
         const campoNube = tipo === 'flora' ? 'categoriasFloraDesbloqueadas' : 'categoriasFaunaDesbloqueadas';
+        const desbloqueadasActuales = tipo === 'flora'
+            ? categoriasFloraDesbloqueadas
+            : categoriasFaunaDesbloqueadas;
 
-        let nuevasDesbloqueadas = [];
-        setDesbloqueadas(prev => {
-            nuevasDesbloqueadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
-            localStorage.setItem(claveLocal, JSON.stringify(nuevasDesbloqueadas));
-            return nuevasDesbloqueadas;
+        const resultado = await comprar(costo, (data) => {
+            const actuales = Array.isArray(data?.[campoNube])
+                ? data[campoNube]
+                : desbloqueadasActuales;
+            const nuevas = actuales.includes(categoriaId) ? actuales : [...actuales, categoriaId];
+            return { [campoNube]: nuevas };
         });
+
+        if (!resultado.ok) {
+            setFeedbackModal({
+                show: true,
+                title: "Totopos insuficientes",
+                message: `Te faltan ${costo - (resultado.saldo ?? totopos)} totopos para desbloquear esta categoria.`
+            });
+            return;
+        }
+
+        const nuevasDesbloqueadas = resultado.extra[campoNube] || desbloqueadasActuales;
+        setDesbloqueadas(nuevasDesbloqueadas);
+        almacen.setItem(claveLocal, JSON.stringify(nuevasDesbloqueadas));
 
         setActivas(prev => {
             const actualizadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
             if (tipo === 'flora') {
-                localStorage.setItem('crucigramaCategoriasFloraActivas', JSON.stringify(actualizadas));
+                almacen.setItem('crucigramaCategoriasFloraActivas', JSON.stringify(actualizadas));
             } else {
-                localStorage.setItem('crucigramaCategoriasFaunaActivas', JSON.stringify(actualizadas));
+                almacen.setItem('crucigramaCategoriasFaunaActivas', JSON.stringify(actualizadas));
             }
             return actualizadas;
         });
-
-        if (costo > 0) {
-            setTotopos(nuevosTotopos);
-            localStorage.setItem('totopos', nuevosTotopos);
-        }
-
-        const currentUser = user || auth.currentUser;
-        if (currentUser) {
-            try {
-                const payload = { [campoNube]: nuevasDesbloqueadas };
-                if (costo > 0) payload.totopos = nuevosTotopos;
-                await updateDoc(doc(db, 'usuarios', currentUser.uid), payload);
-            } catch (err) {
-                console.error("Error al sincronizar categoria desbloqueada:", err);
-            }
-        }
 
         setFeedbackModal({
             show: true,
@@ -912,7 +931,7 @@ export default function Crucigrama({
             } else {
                 nuevasActivas = [...prev, categoriaId];
             }
-            localStorage.setItem(claveStorage, JSON.stringify(nuevasActivas));
+            almacen.setItem(claveStorage, JSON.stringify(nuevasActivas));
             return nuevasActivas;
         });
     };
@@ -920,13 +939,12 @@ export default function Crucigrama({
     const handleCambiarTipoContenido = (nuevoModo) => {
         reproducirSonido(1);
         setTipoContenido(nuevoModo);
-        localStorage.setItem('tipoContenidoJuego', nuevoModo);
+        almacen.setItem('tipoContenidoJuego', nuevoModo);
     };
 
     const reiniciarNivelActual = () => {
         reproducirSonido(1);
         setVidas(MAX_VIDAS);
-        localStorage.setItem('crucigramaVidas', MAX_VIDAS);
         setIntentosErroneosPalabras({});
         setFichasVistas([]);
         setPendingGlobalScore(null);
@@ -937,15 +955,13 @@ export default function Crucigrama({
 
     const reiniciarJuegoCompleto = () => {
         reproducirSonido(1);
-        localStorage.removeItem('crucigramaNivel');
-        localStorage.removeItem('crucigramaIntentos');
-        localStorage.removeItem('crucigramaVidas');
-        localStorage.removeItem('crucigramaModoDificil');
-        localStorage.removeItem('crucigramaPlayerName');
+        almacen.removeItem('crucigramaNivel');
+        almacen.removeItem('crucigramaIntentos');
+        almacen.removeItem('crucigramaModoDificil');
+        almacen.removeItem('crucigramaPlayerName');
         setNivel(1);
         setIntentos(0);
         setVidas(MAX_VIDAS);
-        localStorage.setItem('crucigramaVidas', MAX_VIDAS);
         setModoDificil(false);
         setPlayerName('');
         setInputPlayerName('');
@@ -960,13 +976,14 @@ export default function Crucigrama({
     const cargarRankingGlobal = async () => {
         setCargandoRanking(true);
         try {
-            const q = query(collection(db, "ranking_crucigrama"), orderBy("level", "desc"), orderBy("intentos", "asc"), limit(10));
+            const q = query(collection(db, "ranking_crucigrama"), orderBy("level", "desc"), orderBy("intentos", "asc"), limit(50));
             const querySnapshot = await getDocs(q);
             const docs = [];
             querySnapshot.forEach((docSnap) => {
                 docs.push({ id: docSnap.id, ...docSnap.data() });
             });
-            setRanking(docs);
+            // Los récords con 0 intentos son imposibles en un crucigrama resuelto.
+            setRanking(docs.filter((r) => Number(r.intentos) > 0).slice(0, 10));
         } catch (error) {
             console.error("Error al cargar ranking:", error);
         }
@@ -978,13 +995,18 @@ export default function Crucigrama({
         const proximoNivel = nivel + 1;
         setNivel(proximoNivel);
         setVidas(MAX_VIDAS);
-        localStorage.setItem('crucigramaNivel', proximoNivel);
-        localStorage.setItem('crucigramaVidas', MAX_VIDAS);
+        setPalabrasResueltas([]);
+        setPlacements([]);
+        almacen.setItem('crucigramaNivel', proximoNivel);
         setGuardadoEnNivel(false);
         setPendingGlobalScore(null);
         setIntentosErroneosPalabras({});
         setFichasVistas([]);
     };
+
+    useEffect(() => {
+        setShowGameOverModal(vidas === 0);
+    }, [vidas]);
 
     const nivelCompletado = palabrasResueltas.length === placements.length && placements.length > 0;
 
@@ -1292,15 +1314,20 @@ export default function Crucigrama({
                         <div className="flex flex-col gap-2.5 w-full">
                             {totopos >= 15 ? (
                                 <button 
-                                    onClick={() => {
+                                    onClick={async () => {
                                         reproducirSonido(1);
-                                        setTotopos(prev => {
-                                            const nuevo = prev - 15;
-                                            localStorage.setItem('totopos', nuevo);
-                                            return nuevo;
-                                        });
-                                        setVidas(MAX_VIDAS);
-                                        localStorage.setItem('crucigramaVidas', MAX_VIDAS);
+
+                                        const resultado = await gastar(15);
+                                        if (!resultado.ok) {
+                                            setFeedbackModal({
+                                                show: true,
+                                                title: "Totopos insuficientes",
+                                                message: "No tienes suficientes totopos para recuperar vidas."
+                                            });
+                                            return;
+                                        }
+
+                                        await setVidas(MAX_VIDAS);
                                         setShowGameOverModal(false);
                                     }}
                                     className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
@@ -1327,7 +1354,6 @@ export default function Crucigrama({
                                     reproducirSonido(1);
                                     setShowGameOverModal(false);
                                     setVidas(1);
-                                    localStorage.setItem('crucigramaVidas', 1);
                                 }}
                                 className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-colors cursor-pointer"
                             >

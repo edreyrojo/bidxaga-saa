@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebaseConfig';
-import { collection, getDocs, doc, updateDoc, getDoc, deleteDoc, addDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, getDoc, deleteDoc, addDoc, query, orderBy, increment } from 'firebase/firestore';
+import { totalVidas } from '../utils/vidas.js';
 
 export default function ConfiguracionModal({ 
     isOpen, 
@@ -135,7 +136,7 @@ export default function ConfiguracionModal({
         }
     };
 
-    const handleRegalarTotopos = async (targetUserId, totoposActuales) => {
+    const handleRegalarTotopos = async (targetUserId) => {
         const cantidadAEnviar = parseInt(totoposRegalo[targetUserId], 10);
         if (isNaN(cantidadAEnviar) || cantidadAEnviar <= 0) {
             alert("Ingresa una cantidad valida de totopos.");
@@ -144,8 +145,7 @@ export default function ConfiguracionModal({
 
         try {
             const userRef = doc(db, 'usuarios', targetUserId);
-            const nuevosTotopos = (totoposActuales || 0) + cantidadAEnviar;
-            await updateDoc(userRef, { totopos: nuevosTotopos });
+            await updateDoc(userRef, { totopos: increment(cantidadAEnviar) });
             alert(`Se enviaron ${cantidadAEnviar} totopos exitosamente.`);
             setTotoposRegalo({ ...totoposRegalo, [targetUserId]: '' });
             cargarUsuarios();
@@ -359,7 +359,7 @@ export default function ConfiguracionModal({
                                                             {u.nombre || u.email || 'Sin Nombre'}
                                                         </span>
                                                         <div className="flex gap-2 font-bold text-amber-900 items-center">
-                                                            <span>Vidas: {u.vidas ?? 3}</span>
+                                                            <span>Vidas: {totalVidas(u.vidas)}</span>
                                                             <span>Totopos: {u.totopos ?? 0}</span>
                                                         </div>
                                                     </div>
@@ -373,7 +373,7 @@ export default function ConfiguracionModal({
                                                             className="w-full text-[11px] bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 outline-none font-medium text-amber-950"
                                                         />
                                                         <button
-                                                            onClick={() => handleRegalarTotopos(u.id, u.totopos)}
+                                                            onClick={() => handleRegalarTotopos(u.id)}
                                                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-3 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap"
                                                         >
                                                             Enviar

@@ -6,21 +6,31 @@ import {
     filtrarContenidoPorCategorias
 } from '../data/Categoriascontenido.js';
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
+import { almacen } from '../utils/almacen.js';
+import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { useSonido } from '../hooks/useSonido.js';
+import { useVidasJuego } from '../hooks/useVidasJuego.js';
+import { useTotopos } from '../hooks/useTotopos.js';
+import { useProgresoJuego } from '../hooks/useProgresoJuego.js';
+import { useLogros } from '../hooks/useLogros.js';
 import { auth, db } from '../firebaseConfig';
-import { collection, setDoc, getDocs, doc, getDoc, updateDoc, increment, query, orderBy, limit } from 'firebase/firestore';
+import { collection, setDoc, getDocs, doc, getDoc, updateDoc, query, orderBy, limit } from 'firebase/firestore';
 
 export default function Trivia({ onBack, user, onSetControles, setControlesJuegoActivo }) {
     const { reproducirSonido } = useSonido();
 
     const [nivel, setNivel] = useState(1);
     const [errores, setErrores] = useState(0);
+    const [erroresNivel, setErroresNivel] = useState(0);
     const [erroresParaVida, setErroresParaVida] = useState(0); 
     const [aciertosNivel, setAciertosNivel] = useState(0);
     const [modoDificil, setModoDificil] = useState(false);
-    const [totopos, setTotopos] = useState(0); 
-    const [vidas, setVidas] = useState(3); 
+    const { totopos, abonar, gastar, comprar } = useTotopos(user);
+    const { vidas, setVidas } = useVidasJuego('trivia', user);
+    const { progresoRemoto, listo: progresoListo, guardarProgreso } = useProgresoJuego('trivia', user);
+    const { desbloquear, listo: logrosListos } = useLogros(user);
+    const [progresoAplicado, setProgresoAplicado] = useState(false);
     const [isGameOver, setIsGameOver] = useState(false); 
     
     const [preguntaActual, setPreguntaActual] = useState(null);
@@ -44,7 +54,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     const [categoriasFaunaDesbloqueadas, setCategoriasFaunaDesbloqueadas] = useState(() => categoriaInicialPorDefecto('fauna'));
     const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => {
         try {
-            const guardadas = JSON.parse(localStorage.getItem('triviaCategoriasFaunaActivas') || 'null');
+            const guardadas = JSON.parse(almacen.getItem('triviaCategoriasFaunaActivas') || 'null');
             return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('fauna');
         } catch (e) {
             return categoriaInicialPorDefecto('fauna');
@@ -57,15 +67,22 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     const COSTO_VIDAS = 30; 
 
     const guardarProgresoLocal = () => {
-        localStorage.setItem('triviaNivel', nivel);
-        localStorage.setItem('triviaErrores', errores);
-        localStorage.setItem('triviaModoDificil', modoDificil);
-        localStorage.setItem('totopos', totopos);
-        localStorage.setItem('triviaVidas', vidas);
+        almacen.setItem('triviaNivel', nivel);
+        almacen.setItem('triviaErrores', errores);
+        almacen.setItem('triviaModoDificil', modoDificil);
     };
 
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
-        const scoreToSave = pendingGlobalScore || { level: nivel, errores: errores };
+        if (!pendingGlobalScore) {
+            setFeedbackModal({
+                show: true,
+                title: "Nivel sin completar",
+                message: "Responde correctamente las 5 preguntas del nivel antes de guardar tu récord."
+            });
+            return;
+        }
+
+        const scoreToSave = pendingGlobalScore;
         const currentUser = user || auth.currentUser;
         const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
@@ -89,6 +106,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     name: nombreLimpio,
                     errores: scoreToSave.errores,
                     level: scoreToSave.level,
+                    completado: true,
                     fecha: new Date().toISOString()
                 }, { merge: true });
             }
@@ -126,6 +144,16 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             return;
         }
 
+        // 🛡️ Solo se guarda un nivel realmente completado.
+        if (!pendingGlobalScore) {
+            setFeedbackModal({
+                show: true,
+                title: "Nivel sin completar",
+                message: "Responde correctamente las 5 preguntas del nivel antes de guardar tu récord."
+            });
+            return;
+        }
+
         const currentUser = user || auth.currentUser;
         let nombreAUsar = playerName;
 
@@ -140,7 +168,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                         nombreAUsar = nickNube;
                         setPlayerName(nickNube);
                         setInputPlayerName(nickNube);
-                        localStorage.setItem('triviaPlayerName', nickNube);
+                        almacen.setItem('triviaPlayerName', nickNube);
                     }
                 }
             } catch (e) {
@@ -165,7 +193,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     try { reproducirSonido('click1'); } catch (e) {}
                     setShowMenuModal(true); 
                 },
-                onGuardarClick: handleClickGuardar,
+                onGuardarClick: pendingGlobalScore ? handleClickGuardar : null,
                 onReiniciarClick: () => {
                     try { reproducirSonido('click1'); } catch (e) {}
                     setShowConfirmRestartModal(true);
@@ -186,12 +214,10 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     }, [nivel, modoDificil, errores, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
     useEffect(() => {
-        const nivelGuardado = localStorage.getItem('triviaNivel');
-        const erroresGuardados = localStorage.getItem('triviaErrores');
-        const modoDificilGuardado = localStorage.getItem('triviaModoDificil');
-        const nombreGuardado = localStorage.getItem('triviaPlayerName');
-        const totoposGuardados = localStorage.getItem('totopos');
-        const vidasGuardadas = localStorage.getItem('triviaVidas');
+        const nivelGuardado = almacen.getItem('triviaNivel');
+        const erroresGuardados = almacen.getItem('triviaErrores');
+        const modoDificilGuardado = almacen.getItem('triviaModoDificil');
+        const nombreGuardado = almacen.getItem('triviaPlayerName');
         
         if (nivelGuardado) setNivel(parseInt(nivelGuardado, 10));
         if (erroresGuardados) setErrores(parseInt(erroresGuardados, 10));
@@ -200,12 +226,10 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             setPlayerName(nombreGuardado);
             setInputPlayerName(nombreGuardado);
         }
-        if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
-        if (vidasGuardadas !== null) setVidas(parseInt(vidasGuardadas, 10));
 
         try {
-            const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
-            const activasGuardadas = JSON.parse(localStorage.getItem('triviaCategoriasFaunaActivas') || 'null');
+            const faunaGuardadas = JSON.parse(almacen.getItem('categoriasFaunaDesbloqueadas') || 'null');
+            const activasGuardadas = JSON.parse(almacen.getItem('triviaCategoriasFaunaActivas') || 'null');
 
             if (faunaGuardadas) {
                 setCategoriasFaunaDesbloqueadas(faunaGuardadas);
@@ -228,20 +252,18 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     const userSnap = await getDoc(userDocRef);
                     if (userSnap.exists()) {
                         const data = userSnap.data();
-                        if (data.totopos !== undefined) {
-                            setTotopos(data.totopos);
-                            localStorage.setItem('totopos', data.totopos);
-                        }
-
                         const historico = data.totoposHistoricos !== undefined ? data.totoposHistoricos : (data.totopos || 0);
                         const nivelCalc = calcularNivelCuenta(historico);
                         setNivelCuenta(nivelCalc);
 
-                        const faunaNube = sincronizarDesbloqueosPorNivel('fauna', data.categoriasFaunaDesbloqueadas || categoriaInicialPorDefecto('fauna'), nivelCalc);
+                        const faunaNube = sincronizarDesbloqueosPorNivel('fauna', [
+                            ...(data.categoriasFaunaDesbloqueadas || categoriaInicialPorDefecto('fauna')),
+                            ...categoriasFaunaDesbloqueadas
+                        ], nivelCalc);
                         setCategoriasFaunaDesbloqueadas(faunaNube);
-                        localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
+                        almacen.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
 
-                        const activasGuardadas = JSON.parse(localStorage.getItem('triviaCategoriasFaunaActivas') || 'null');
+                        const activasGuardadas = JSON.parse(almacen.getItem('triviaCategoriasFaunaActivas') || 'null');
                         setCategoriasFaunaActivas(prev => {
                             const base = activasGuardadas || prev;
                             const activasValidas = base.filter(id => faunaNube.includes(id));
@@ -257,7 +279,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                         if (nickNube) {
                             setPlayerName(nickNube);
                             setInputPlayerName(nickNube);
-                            localStorage.setItem('triviaPlayerName', nickNube);
+                            almacen.setItem('triviaPlayerName', nickNube);
                         }
                     }
                 } catch (e) {
@@ -270,13 +292,43 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     }, [user]);
 
     useEffect(() => {
+        if (!progresoListo) return;
+
+        if (progresoRemoto) {
+            if (Number.isInteger(progresoRemoto.nivel)) setNivel(progresoRemoto.nivel);
+            if (Number.isInteger(progresoRemoto.errores)) setErrores(progresoRemoto.errores);
+            if (typeof progresoRemoto.modoDificil === 'boolean') setModoDificil(progresoRemoto.modoDificil);
+            if (Array.isArray(progresoRemoto.categoriasFaunaActivas) && progresoRemoto.categoriasFaunaActivas.length > 0) {
+                setCategoriasFaunaActivas(progresoRemoto.categoriasFaunaActivas);
+            }
+            setErroresNivel(0);
+        }
+
+        setProgresoAplicado(true);
+    }, [progresoListo, progresoRemoto]);
+
+    useEffect(() => {
+        if (!progresoAplicado) return;
+        guardarProgreso({
+            nivel,
+            errores,
+            modoDificil,
+            categoriasFaunaActivas
+        });
+    }, [progresoAplicado, nivel, errores, modoDificil, categoriasFaunaActivas, guardarProgreso]);
+
+    useEffect(() => {
         guardarProgresoLocal();
-    }, [nivel, errores, modoDificil, vidas, totopos]);
+    }, [nivel, errores, modoDificil, vidas]);
+
+    useEffect(() => {
+        setIsGameOver(vidas === 0);
+    }, [vidas]);
 
     useEffect(() => {
         if (aciertosNivel < PREGUNTAS_POR_NIVEL && !isGameOver) {
             generarNuevaPregunta();
-        } else if (aciertosNivel >= PREGUNTAS_POR_NIVEL) {
+        } else if (aciertosNivel >= PREGUNTAS_POR_NIVEL && !guardadoEnNivel) {
             if (!pendingGlobalScore) {
                 try { reproducirSonido('click3'); } catch (e) {} 
             }
@@ -295,7 +347,13 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 }
             }
         }
-    }, [nivel, aciertosNivel, isGameOver, categoriasFaunaActivas]);
+    }, [nivel, aciertosNivel, isGameOver, guardadoEnNivel, categoriasFaunaActivas]);
+
+    useEffect(() => {
+        if (logrosListos && aciertosNivel >= PREGUNTAS_POR_NIVEL && modoDificil && erroresNivel === 0) {
+            desbloquear('logro_trivia_maestro');
+        }
+    }, [aciertosNivel, modoDificil, erroresNivel, desbloquear, logrosListos]);
 
     const generarNuevaPregunta = () => {
         setEstadoRespuesta(null);
@@ -332,15 +390,15 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         } else {
             setEstadoRespuesta('incorrecta');
             setErrores(prev => prev + 1);
+            setErroresNivel(prev => prev + 1);
             
             const nuevoErroresParaVida = erroresParaVida + 1;
             setErroresParaVida(nuevoErroresParaVida);
 
             if (nuevoErroresParaVida >= 3) {
                 setErroresParaVida(0); 
-                const nuevasVidas = vidas - 1;
+                const nuevasVidas = Math.max(0, vidas - 1);
                 setVidas(nuevasVidas);
-                localStorage.setItem('triviaVidas', nuevasVidas);
 
                 if (nuevasVidas <= 0) {
                     setTimeout(() => {
@@ -360,30 +418,16 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     const siguienteNivel = async () => {
         try { reproducirSonido('click1'); } catch (e) {}
         
-        const scoreDelNivelSuperado = pendingGlobalScore || { level: nivel, errores: errores };
-        setPendingGlobalScore(scoreDelNivelSuperado);
+        setPendingGlobalScore(null);
 
         const proximoNivel = nivel + 1;
         
         const nuevosTotopos = totopos + TOTOPOS_POR_NIVEL;
-        setTotopos(nuevosTotopos);
-        localStorage.setItem('totopos', nuevosTotopos);
-
-        const currentUser = user || auth.currentUser;
-        if (currentUser) {
-            try {
-                const userDocRef = doc(db, 'usuarios', currentUser.uid);
-                await updateDoc(userDocRef, {
-                    totopos: increment(TOTOPOS_POR_NIVEL),
-                    totoposHistoricos: increment(TOTOPOS_POR_NIVEL)
-                });
-            } catch (error) {
-                console.error("Error al actualizar totopos en Firestore:", error);
-            }
-        }
+        abonar(TOTOPOS_POR_NIVEL);
 
         setNivel(proximoNivel);
         setAciertosNivel(0);
+        setErroresNivel(0);
         setGuardadoEnNivel(false);
 
         setFeedbackModal({
@@ -405,11 +449,21 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             return;
         }
 
+        if (!pendingGlobalScore) {
+            setShowGuardarModal(false);
+            setFeedbackModal({
+                show: true,
+                title: "Nivel sin completar",
+                message: "Responde correctamente las 5 preguntas del nivel antes de guardar tu récord."
+            });
+            return;
+        }
+
         setPlayerName(nombreLimpio);
-        localStorage.setItem('triviaPlayerName', nombreLimpio);
+        almacen.setItem('triviaPlayerName', nombreLimpio);
         setShowGuardarModal(false);
 
-        const scoreToSave = pendingGlobalScore || { level: nivel, errores: errores };
+        const scoreToSave = pendingGlobalScore;
         const currentUser = user || auth.currentUser;
         const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
@@ -433,6 +487,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     name: nombreLimpio,
                     errores: scoreToSave.errores,
                     level: scoreToSave.level,
+                    completado: true,
                     fecha: new Date().toISOString()
                 }, { merge: true });
             }
@@ -456,43 +511,33 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
     const handleDesbloquearCategoria = async (categoriaId, costo) => {
         try { reproducirSonido('click1'); } catch (e) {}
-        if (costo > 0 && totopos < costo) {
+
+        const resultado = await comprar(costo, (data) => {
+            const actuales = Array.isArray(data?.categoriasFaunaDesbloqueadas)
+                ? data.categoriasFaunaDesbloqueadas
+                : categoriasFaunaDesbloqueadas;
+            const nuevas = actuales.includes(categoriaId) ? actuales : [...actuales, categoriaId];
+            return { categoriasFaunaDesbloqueadas: nuevas };
+        });
+
+        if (!resultado.ok) {
             setFeedbackModal({
                 show: true,
                 title: "Totopos insuficientes",
-                message: `Te faltan ${costo - totopos} totopos para desbloquear esta categoría.`
+                message: `Te faltan ${costo - (resultado.saldo ?? totopos)} totopos para desbloquear esta categoría.`
             });
             return;
         }
 
-        const nuevosTotopos = totopos - costo;
-        let nuevasDesbloqueadas = [];
-        setCategoriasFaunaDesbloqueadas(prev => {
-            nuevasDesbloqueadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
-            localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(nuevasDesbloqueadas));
-            return nuevasDesbloqueadas;
-        });
+        const nuevasDesbloqueadas = resultado.extra.categoriasFaunaDesbloqueadas || categoriasFaunaDesbloqueadas;
+        setCategoriasFaunaDesbloqueadas(nuevasDesbloqueadas);
+        almacen.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(nuevasDesbloqueadas));
+
         setCategoriasFaunaActivas(prev => {
             const actualizadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
-            localStorage.setItem('triviaCategoriasFaunaActivas', JSON.stringify(actualizadas));
+            almacen.setItem('triviaCategoriasFaunaActivas', JSON.stringify(actualizadas));
             return actualizadas;
         });
-
-        if (costo > 0) {
-            setTotopos(nuevosTotopos);
-            localStorage.setItem('totopos', nuevosTotopos);
-        }
-
-        const currentUser = user || auth.currentUser;
-        if (currentUser) {
-            try {
-                const payload = { categoriasFaunaDesbloqueadas: nuevasDesbloqueadas };
-                if (costo > 0) payload.totopos = nuevosTotopos;
-                await updateDoc(doc(db, 'usuarios', currentUser.uid), payload);
-            } catch (err) {
-                console.error("Error al sincronizar categoría desbloqueada:", err);
-            }
-        }
 
         setFeedbackModal({
             show: true,
@@ -514,7 +559,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             } else {
                 nuevasActivas = [...prev, categoriaId];
             }
-            localStorage.setItem('triviaCategoriasFaunaActivas', JSON.stringify(nuevasActivas));
+            almacen.setItem('triviaCategoriasFaunaActivas', JSON.stringify(nuevasActivas));
             return nuevasActivas;
         });
     };
@@ -522,14 +567,14 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     const confirmarReiniciar = (e) => {
         if (e?.preventDefault) e.preventDefault();
         try { reproducirSonido('click1'); } catch (err) {}
-        setVidas(3);
+        setVidas(VIDAS_POR_JUEGO.trivia.max);
         setErroresParaVida(0);
         setAciertosNivel(0);
+        setErroresNivel(0);
         setIsGameOver(false);
         setGuardadoEnNivel(false);
         setPendingGlobalScore(null);
         setShowConfirmRestartModal(false);
-        localStorage.setItem('triviaVidas', 3);
         generarNuevaPregunta();
     };
 
@@ -729,14 +774,21 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                             {totopos >= COSTO_VIDAS && (
                                 <button 
                                     type="button" 
-                                    onClick={() => {
+                                    onClick={async () => {
                                         try { reproducirSonido('click1'); } catch (e) {}
-                                        const nuevosTotopos = totopos - COSTO_VIDAS;
-                                        setTotopos(nuevosTotopos);
-                                        setVidas(3);
+
+                                        const resultado = await gastar(COSTO_VIDAS);
+                                        if (!resultado.ok) {
+                                            setFeedbackModal({
+                                                show: true,
+                                                title: "Totopos insuficientes",
+                                                message: "No tienes suficientes totopos para revivir."
+                                            });
+                                            return;
+                                        }
+
+                                        await setVidas(VIDAS_POR_JUEGO.trivia.max);
                                         setIsGameOver(false);
-                                        localStorage.setItem('totopos', nuevosTotopos);
-                                        localStorage.setItem('triviaVidas', 3);
                                     }} 
                                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer flex items-center justify-center gap-1.5"
                                 >

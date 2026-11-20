@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from './firebaseConfig';
+import { almacen, configurarScope } from './utils/almacen.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 
@@ -191,6 +192,8 @@ function App() {
   const [listaAvisos, setListaAvisos] = useState([]);
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [indicePista, setIndicePista] = useState(0);
+  const [logroToast, setLogroToast] = useState(null);
+  const logroTimerRef = useRef(null);
 
   const [controlesJuegoActivo, setControlesJuegoActivo] = useState(null);
 
@@ -246,11 +249,26 @@ function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      configurarScope(currentUser);
       setUser(currentUser);
       await cargarPerfil(currentUser);
     });
     cargarAvisos();
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const mostrarLogro = (evento) => {
+      setLogroToast(evento.detail);
+      if (logroTimerRef.current) clearTimeout(logroTimerRef.current);
+      logroTimerRef.current = setTimeout(() => setLogroToast(null), 6000);
+    };
+
+    window.addEventListener('logro-desbloqueado', mostrarLogro);
+    return () => {
+      window.removeEventListener('logro-desbloqueado', mostrarLogro);
+      if (logroTimerRef.current) clearTimeout(logroTimerRef.current);
+    };
   }, []);
 
   const handlePanelSuperiorClick = () => {
@@ -290,13 +308,13 @@ function App() {
     if (controlesJuegoActivo?.level !== undefined && controlesJuegoActivo?.level !== null) {
       const nivelActual = controlesJuegoActivo.level;
       if (vistaActual === 'trivia') {
-        localStorage.setItem('triviaNivel', nivelActual);
+        almacen.setItem('triviaNivel', nivelActual);
       } else if (vistaActual === 'sopa') {
-        localStorage.setItem('sopaLetrasNivel', nivelActual);
+        almacen.setItem('sopaLetrasNivel', nivelActual);
       } else if (vistaActual === 'crucigrama') {
-        localStorage.setItem('crucigramaNivel', nivelActual);
+        almacen.setItem('crucigramaNivel', nivelActual);
       } else if (vistaActual === 'memorama') {
-        localStorage.setItem('memoramaNivel', nivelActual);
+        almacen.setItem('memoramaNivel', nivelActual);
       }
     }
   };
@@ -448,6 +466,7 @@ function App() {
 
         {vistaActual === 'memorama' && (
           <Memorama 
+            key={user?.uid || 'guest'}
             user={user} 
             onSetControles={setControlesJuegoActivo}
             onBack={() => { 
@@ -461,6 +480,7 @@ function App() {
 
         {vistaActual === 'sopa' && (
           <SopaLetras 
+            key={user?.uid || 'guest'}
             user={user} 
             onSetControles={setControlesJuegoActivo}
             onBack={() => { 
@@ -474,6 +494,7 @@ function App() {
 
         {vistaActual === 'crucigrama' && (
           <Crucigrama 
+            key={user?.uid || 'guest'}
             user={user} 
             onSetControles={setControlesJuegoActivo}
             onBack={() => { 
@@ -487,6 +508,7 @@ function App() {
 
         {vistaActual === 'trivia' && (
           <Trivia 
+            key={user?.uid || 'guest'}
             user={user} 
             onSetControles={setControlesJuegoActivo}
             onBack={() => { 
@@ -620,6 +642,25 @@ function App() {
         user={user} 
         onOpenGenerador={() => setVistaActual('generador')} 
       />
+
+      {logroToast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[300] w-[calc(100%-2rem)] max-w-sm bg-amber-950 text-white rounded-2xl shadow-2xl border-2 border-amber-400 p-4 flex items-center gap-3">
+          <span className="text-3xl flex-shrink-0" aria-hidden="true">{logroToast.emoji}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-wider text-amber-300 font-black">¡Logro desbloqueado!</p>
+            <p className="font-black text-sm truncate">{logroToast.nombre}</p>
+            <p className="text-[11px] text-amber-100 leading-snug">{logroToast.desc}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLogroToast(null)}
+            className="text-amber-200 hover:text-white font-black text-lg w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 cursor-pointer"
+            aria-label="Cerrar aviso de logro"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
     </div>
   );

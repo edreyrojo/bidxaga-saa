@@ -9,7 +9,8 @@ export const CATALOGO_AVATARES = [
     { id: 'mezcal', nombre: 'Copa de Mezcal', costo: 250, archivo: 'mezcal' },
     { id: 'sol', nombre: 'Sol del Istmo', costo: 300, archivo: 'sol' },
     { id: 'guiechachi', nombre: 'Guiechachi', costo: 350, archivo: 'guiechachi' },
-    { id: 'palmera', nombre: 'Palmera Real', costo: 400, archivo: 'palmera' },
+    // Ilustración pendiente: no se vende hasta contar con el arte definitivo.
+    { id: 'palmera', nombre: 'Palmera Real', costo: 400, archivo: 'palmera', disponible: false, emoji: '🌴' },
 ];
 
 // 💍 Accesorios (capa SVG que se aplica DENTRO del Creador de Avatar,

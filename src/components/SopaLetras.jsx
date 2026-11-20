@@ -7,11 +7,17 @@ import {
     filtrarContenidoPorCategorias
 } from '../data/Categoriascontenido.js';
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
+import { almacen } from '../utils/almacen.js';
+import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import ConfiguracionModal from './ConfiguracionModal';
 import { useSonido } from '../hooks/useSonido.js';
+import { useVidasJuego } from '../hooks/useVidasJuego.js';
+import { useTotopos } from '../hooks/useTotopos.js';
+import { useProgresoJuego } from '../hooks/useProgresoJuego.js';
+import { useLogros } from '../hooks/useLogros.js';
 import { db, auth } from '../firebaseConfig';
-import { collection, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, doc, getDoc, setDoc } from 'firebase/firestore';
 
 const LETRAS_RELLENO = ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'L', 'M', 'N', 'O', 'R', 'S', 'T', 'U', 'X', 'Y', 'Z'];
 
@@ -98,15 +104,18 @@ export default function SopaLetras({
 
     const [nivel, setNivel] = useState(1);
     const [intentos, setIntentos] = useState(0);
-    const [vidas, setVidas] = useState(3);
+    const { vidas, setVidas } = useVidasJuego('sopa', user);
     const [matriz, setMatriz] = useState([]);
     const [animalesObjetivo, setAnimalesObjetivo] = useState([]);
     const [palabrasEncontradas, setPalabrasEncontradas] = useState([]);
     const [modoDificil, setModoDificil] = useState(false);
     const [tipoContenido, setTipoContenido] = useState(() => {
-        return localStorage.getItem('tipoContenidoJuego') || 'fauna';
+        return almacen.getItem('tipoContenidoJuego') || 'fauna';
     });
-    const [totopos, setTotopos] = useState(0);
+    const { totopos, abonar, gastar, comprar } = useTotopos(user);
+    const { progresoRemoto, listo: progresoListo, guardarProgreso } = useProgresoJuego('sopa', user);
+    const { desbloquear, listo: logrosListos } = useLogros(user);
+    const [progresoAplicado, setProgresoAplicado] = useState(false);
 
     const [nivelCuenta, setNivelCuenta] = useState(1);
     const [categoriasFaunaDesbloqueadas, setCategoriasFaunaDesbloqueadas] = useState(() => categoriaInicialPorDefecto('fauna'));
@@ -114,7 +123,7 @@ export default function SopaLetras({
     
     const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => {
         try {
-            const guardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFaunaActivas') || 'null');
+            const guardadas = JSON.parse(almacen.getItem('sopaLetrasCategoriasFaunaActivas') || 'null');
             return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('fauna');
         } catch (e) {
             return categoriaInicialPorDefecto('fauna');
@@ -123,7 +132,7 @@ export default function SopaLetras({
     
     const [categoriasFloraActivas, setCategoriasFloraActivas] = useState(() => {
         try {
-            const guardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFloraActivas') || 'null');
+            const guardadas = JSON.parse(almacen.getItem('sopaLetrasCategoriasFloraActivas') || 'null');
             return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('flora');
         } catch (e) {
             return categoriaInicialPorDefecto('flora');
@@ -160,6 +169,14 @@ export default function SopaLetras({
     const isConfigOpen = isOpenConfig !== undefined ? isOpenConfig : internalConfigOpen;
     const handleCloseConfig = onCloseConfig || (() => setInternalConfigOpen(false));
 
+    useEffect(() => {
+        if (modoDificil && vidas === 0) {
+            setShowComprarVidasModal(true);
+        } else {
+            setShowComprarVidasModal(false);
+        }
+    }, [vidas, modoDificil]);
+
     const gridRef = useRef(null);
 
     const tamanoActual = Math.min(5 + nivel, 12);
@@ -168,7 +185,16 @@ export default function SopaLetras({
     const costoActualVidas = obtenerCostoVidas(nivel);
 
     const confirmarGuardadoAutomatico = async (nombreLimpio) => {
-        const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
+        if (!pendingGlobalScore || !Number.isFinite(pendingGlobalScore.intentos) || pendingGlobalScore.intentos <= 0) {
+            setFeedbackModal({
+                show: true,
+                title: "Nivel sin completar",
+                message: "Encuentra todas las palabras del tablero antes de guardar tu récord."
+            });
+            return;
+        }
+
+        const scoreToSave = pendingGlobalScore;
         const currentUser = user || auth.currentUser;
         const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
@@ -180,9 +206,12 @@ export default function SopaLetras({
             if (docSnap.exists()) {
                 const dataAntigua = docSnap.data();
                 const nivelAntiguo = dataAntigua.level || 1;
-                const intentosAntiguos = dataAntigua.intentos || 0;
+                const intentosAntiguos = Number(dataAntigua.intentos);
+                const intentosAntiguosValidos = Number.isFinite(intentosAntiguos) && intentosAntiguos > 0;
 
-                if (scoreToSave.level < nivelAntiguo || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos)) {
+                if (intentosAntiguosValidos
+                    && (scoreToSave.level < nivelAntiguo
+                        || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos))) {
                     guardar = false;
                 }
             }
@@ -192,6 +221,7 @@ export default function SopaLetras({
                     name: nombreLimpio,
                     intentos: scoreToSave.intentos,
                     level: scoreToSave.level,
+                    completado: true,
                     fecha: new Date().toISOString()
                 }, { merge: true });
             }
@@ -221,17 +251,25 @@ export default function SopaLetras({
             reproducirSonido('click1');
         } catch (e) {}
         
-        localStorage.setItem('sopaLetrasNivel', nivel);
-        localStorage.setItem('sopaLetrasIntentos', intentos);
-        localStorage.setItem('sopaLetrasVidas', vidas);
-        localStorage.setItem('sopaLetrasModoDificil', modoDificil);
-        localStorage.setItem('totopos', totopos);
+        almacen.setItem('sopaLetrasNivel', nivel);
+        almacen.setItem('sopaLetrasIntentos', intentos);
+        almacen.setItem('sopaLetrasModoDificil', modoDificil);
 
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
                 show: true,
                 title: "Record ya registrado",
                 message: `Ya guardaste tu record en Nivel ${nivel}.`
+            });
+            return;
+        }
+
+        // 🛡️ Solo se guarda un nivel realmente completado.
+        if (!pendingGlobalScore || !Number.isFinite(pendingGlobalScore.intentos) || pendingGlobalScore.intentos <= 0) {
+            setFeedbackModal({
+                show: true,
+                title: "Nivel sin completar",
+                message: "Encuentra todas las palabras del tablero antes de guardar tu récord."
             });
             return;
         }
@@ -250,7 +288,7 @@ export default function SopaLetras({
                         nombreAUsar = nickNube;
                         setPlayerName(nickNube);
                         setInputPlayerName(nickNube);
-                        localStorage.setItem('sopaLetrasPlayerName', nickNube);
+                        almacen.setItem('sopaLetrasPlayerName', nickNube);
                     }
                 }
             } catch (e) {
@@ -272,14 +310,14 @@ export default function SopaLetras({
             registrarControles({
                 level: nivel,
                 onMenuClick: () => { try { reproducirSonido('click1'); } catch(e){} setShowMenuModal(true); },
-                onGuardarClick: handleClickGuardar,
+                onGuardarClick: pendingGlobalScore ? handleClickGuardar : null,
                 onReiniciarClick: () => { try { reproducirSonido('click1'); } catch(e){} setShowConfirmRestartModal(true); },
                 modoDificil: modoDificil,
                 onToggleModoDificil: () => {
                     try { reproducirSonido('click1'); } catch(e){}
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
-                    localStorage.setItem('sopaLetrasModoDificil', nuevoModo);
+                    almacen.setItem('sopaLetrasModoDificil', nuevoModo);
                 }
             });
         }
@@ -292,40 +330,36 @@ export default function SopaLetras({
     }, [nivel, modoDificil, tipoContenido, intentos, vidas, guardadoEnNivel, pendingGlobalScore, onSetControles, setControlesJuegoActivo]);
 
     useEffect(() => {
-        const nivelGuardado = localStorage.getItem('sopaLetrasNivel');
-        const intentosGuardados = localStorage.getItem('sopaLetrasIntentos');
-        const vidasGuardadas = localStorage.getItem('sopaLetrasVidas');
-        const modoDificilGuardado = localStorage.getItem('sopaLetrasModoDificil');
-        const nombreGuardado = localStorage.getItem('sopaLetrasPlayerName');
-        const totoposGuardados = localStorage.getItem('totopos');
+        const nivelGuardado = almacen.getItem('sopaLetrasNivel');
+        const intentosGuardados = almacen.getItem('sopaLetrasIntentos');
+        const modoDificilGuardado = almacen.getItem('sopaLetrasModoDificil');
+        const nombreGuardado = almacen.getItem('sopaLetrasPlayerName');
 
         if (nivelGuardado) setNivel(parseInt(nivelGuardado, 10));
         if (intentosGuardados) setIntentos(parseInt(intentosGuardados, 10));
-        if (vidasGuardadas) setVidas(parseInt(vidasGuardadas, 10));
         if (modoDificilGuardado) setModoDificil(modoDificilGuardado === 'true');
         if (nombreGuardado) {
             setPlayerName(nombreGuardado);
             setInputPlayerName(nombreGuardado);
         }
-        if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
 
         try {
-            const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
+            const faunaGuardadas = JSON.parse(almacen.getItem('categoriasFaunaDesbloqueadas') || 'null');
             if (faunaGuardadas) {
                 setCategoriasFaunaDesbloqueadas(faunaGuardadas);
             }
-            const floraGuardadas = JSON.parse(localStorage.getItem('categoriasFloraDesbloqueadas') || 'null');
+            const floraGuardadas = JSON.parse(almacen.getItem('categoriasFloraDesbloqueadas') || 'null');
             if (floraGuardadas) {
                 setCategoriasFloraDesbloqueadas(floraGuardadas);
             }
 
-            const faunaActivasGuardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFaunaActivas') || 'null');
+            const faunaActivasGuardadas = JSON.parse(almacen.getItem('sopaLetrasCategoriasFaunaActivas') || 'null');
             if (faunaActivasGuardadas) {
                 const validas = faunaActivasGuardadas.filter(id => (faunaGuardadas || categoriaInicialPorDefecto('fauna')).includes(id));
                 if (validas.length > 0) setCategoriasFaunaActivas(validas);
             }
 
-            const floraActivasGuardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFloraActivas') || 'null');
+            const floraActivasGuardadas = JSON.parse(almacen.getItem('sopaLetrasCategoriasFloraActivas') || 'null');
             if (floraActivasGuardadas) {
                 const validas = floraActivasGuardadas.filter(id => (floraGuardadas || categoriaInicialPorDefecto('flora')).includes(id));
                 if (validas.length > 0) setCategoriasFloraActivas(validas);
@@ -342,30 +376,31 @@ export default function SopaLetras({
                     const userSnap = await getDoc(userDocRef);
                     if (userSnap.exists()) {
                         const data = userSnap.data();
-                        if (data.totopos !== undefined) {
-                            setTotopos(data.totopos);
-                            localStorage.setItem('totopos', data.totopos);
-                        }
-
                         const historico = data.totoposHistoricos !== undefined ? data.totoposHistoricos : (data.totopos || 0);
                         const nivelCalc = calcularNivelCuenta(historico);
                         setNivelCuenta(nivelCalc);
 
-                        const faunaNube = sincronizarDesbloqueosPorNivel('fauna', data.categoriasFaunaDesbloqueadas || categoriaInicialPorDefecto('fauna'), nivelCalc);
-                        const floraNube = sincronizarDesbloqueosPorNivel('flora', data.categoriasFloraDesbloqueadas || categoriaInicialPorDefecto('flora'), nivelCalc);
+                        const faunaNube = sincronizarDesbloqueosPorNivel('fauna', [
+                            ...(data.categoriasFaunaDesbloqueadas || categoriaInicialPorDefecto('fauna')),
+                            ...categoriasFaunaDesbloqueadas
+                        ], nivelCalc);
+                        const floraNube = sincronizarDesbloqueosPorNivel('flora', [
+                            ...(data.categoriasFloraDesbloqueadas || categoriaInicialPorDefecto('flora')),
+                            ...categoriasFloraDesbloqueadas
+                        ], nivelCalc);
                         setCategoriasFaunaDesbloqueadas(faunaNube);
                         setCategoriasFloraDesbloqueadas(floraNube);
-                        localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
-                        localStorage.setItem('categoriasFloraDesbloqueadas', JSON.stringify(floraNube));
+                        almacen.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
+                        almacen.setItem('categoriasFloraDesbloqueadas', JSON.stringify(floraNube));
 
-                        const faunaActivasGuardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFaunaActivas') || 'null');
+                        const faunaActivasGuardadas = JSON.parse(almacen.getItem('sopaLetrasCategoriasFaunaActivas') || 'null');
                         setCategoriasFaunaActivas(prev => {
                             const base = faunaActivasGuardadas || prev;
                             const activasValidas = base.filter(id => faunaNube.includes(id));
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('fauna');
                         });
 
-                        const floraActivasGuardadas = JSON.parse(localStorage.getItem('sopaLetrasCategoriasFloraActivas') || 'null');
+                        const floraActivasGuardadas = JSON.parse(almacen.getItem('sopaLetrasCategoriasFloraActivas') || 'null');
                         setCategoriasFloraActivas(prev => {
                             const base = floraActivasGuardadas || prev;
                             const activasValidas = base.filter(id => floraNube.includes(id));
@@ -376,7 +411,7 @@ export default function SopaLetras({
                         if (nickNube) {
                             setPlayerName(nickNube);
                             setInputPlayerName(nickNube);
-                            localStorage.setItem('sopaLetrasPlayerName', nickNube);
+                            almacen.setItem('sopaLetrasPlayerName', nickNube);
                         }
                     }
                 } catch (e) {
@@ -387,6 +422,45 @@ export default function SopaLetras({
         cargarDatosNube();
         cargarRankingGlobal();
     }, [user]);
+
+    useEffect(() => {
+        if (!progresoListo) return;
+
+        if (progresoRemoto) {
+            if (Number.isInteger(progresoRemoto.nivel)) setNivel(progresoRemoto.nivel);
+            if (Number.isInteger(progresoRemoto.intentos)) setIntentos(progresoRemoto.intentos);
+            if (typeof progresoRemoto.modoDificil === 'boolean') setModoDificil(progresoRemoto.modoDificil);
+            if (['fauna', 'flora', 'ambos'].includes(progresoRemoto.tipoContenido)) {
+                setTipoContenido(progresoRemoto.tipoContenido);
+            }
+            if (Array.isArray(progresoRemoto.categoriasFaunaActivas) && progresoRemoto.categoriasFaunaActivas.length > 0) {
+                setCategoriasFaunaActivas(progresoRemoto.categoriasFaunaActivas);
+            }
+            if (Array.isArray(progresoRemoto.categoriasFloraActivas) && progresoRemoto.categoriasFloraActivas.length > 0) {
+                setCategoriasFloraActivas(progresoRemoto.categoriasFloraActivas);
+            }
+        }
+
+        setProgresoAplicado(true);
+    }, [progresoListo, progresoRemoto]);
+
+    useEffect(() => {
+        if (!progresoAplicado) return;
+        guardarProgreso({
+            nivel,
+            intentos,
+            modoDificil,
+            tipoContenido,
+            categoriasFaunaActivas,
+            categoriasFloraActivas
+        });
+    }, [progresoAplicado, nivel, intentos, modoDificil, tipoContenido, categoriasFaunaActivas, categoriasFloraActivas, guardarProgreso]);
+
+    useEffect(() => {
+        if (logrosListos && nivel >= 10) {
+            desbloquear('logro_sopa_10');
+        }
+    }, [nivel, desbloquear, logrosListos]);
 
     useEffect(() => {
         generarNuevoJuego();
@@ -433,7 +507,7 @@ export default function SopaLetras({
 
     useEffect(() => {
         if (palabrasEncontradas.length === animalesObjetivo.length && animalesObjetivo.length > 0) {
-            if (pendingGlobalScore) return;
+            if (pendingGlobalScore || guardadoEnNivel) return;
 
             try { reproducirSonido('click3'); } catch (e) {}
 
@@ -453,41 +527,9 @@ export default function SopaLetras({
                 }
             }
 
-            const nuevosTotopos = totopos + recompensaActual;
-            setTotopos(nuevosTotopos);
-            localStorage.setItem('totopos', nuevosTotopos);
-
-            const currentUser = user || auth.currentUser;
-            if (currentUser) {
-                const abonarTotopos = async () => {
-                    try {
-                        const userRef = doc(db, 'usuarios', currentUser.uid);
-                        const userSnap = await getDoc(userRef);
-
-                        if (userSnap.exists()) {
-                            await updateDoc(userRef, {
-                                totopos: increment(recompensaActual),
-                                totoposHistoricos: increment(recompensaActual)
-                            });
-                        } else {
-                            await setDoc(userRef, {
-                                email: currentUser.email,
-                                totopos: recompensaActual,
-                                totoposHistoricos: recompensaActual,
-                                avatar: 'default',
-                                avataresDesbloqueados: ['default'],
-                                categoriasFaunaDesbloqueadas: categoriaInicialPorDefecto('fauna'),
-                                categoriasFloraDesbloqueadas: categoriaInicialPorDefecto('flora')
-                            }, { merge: true });
-                        }
-                    } catch (err) {
-                        console.error("Error al abonar totopos:", err);
-                    }
-                };
-                abonarTotopos();
-            }
+            abonar(recompensaActual);
         }
-    }, [palabrasEncontradas, animalesObjetivo, nivel, intentos, user, recompensaActual, pendingGlobalScore, totopos, categoriasFaunaActivas, categoriasFloraActivas, tipoContenido]);
+    }, [palabrasEncontradas, animalesObjetivo, nivel, intentos, user, recompensaActual, pendingGlobalScore, guardadoEnNivel, abonar, categoriasFaunaActivas, categoriasFloraActivas, tipoContenido]);
 
     const generarNuevoJuego = () => {
         const baseDatosActiva = obtenerBaseDatosActiva(tipoContenido, categoriasFaunaActivas, categoriasFloraActivas);
@@ -591,6 +633,7 @@ export default function SopaLetras({
         setPalabrasEncontradas([]);
         setCeldasSeleccionadas([]);
         setGuardadoEnNivel(false);
+        setPendingGlobalScore(null);
     };
 
     const isCellMatched = (r, c) => {
@@ -649,9 +692,8 @@ export default function SopaLetras({
             setPalabrasEncontradas(nuevasEncontradas);
         } else {
             if (modoDificil) {
-                const nuevasVidas = vidas - 1;
+                const nuevasVidas = Math.max(0, vidas - 1);
                 setVidas(nuevasVidas);
-                localStorage.setItem('sopaLetrasVidas', nuevasVidas);
 
                 if (nuevasVidas <= 0) {
                     setShowComprarVidasModal(true);
@@ -666,7 +708,8 @@ export default function SopaLetras({
 
     const comprarVidas = async () => {
         try { reproducirSonido('click1'); } catch (e) {}
-        if (totopos < costoActualVidas) {
+        const resultado = await gastar(costoActualVidas);
+        if (!resultado.ok) {
             setFeedbackModal({
                 show: true,
                 title: "Totopos insuficientes",
@@ -675,25 +718,8 @@ export default function SopaLetras({
             return;
         }
 
-        const nuevosTotopos = totopos - costoActualVidas;
-        setTotopos(nuevosTotopos);
-        localStorage.setItem('totopos', nuevosTotopos);
-
-        setVidas(3);
-        localStorage.setItem('sopaLetrasVidas', 3);
+        setVidas(VIDAS_POR_JUEGO.sopa.max);
         setShowComprarVidasModal(false);
-
-        const currentUser = user || auth.currentUser;
-        if (currentUser) {
-            try {
-                const userRef = doc(db, 'usuarios', currentUser.uid);
-                await updateDoc(userRef, {
-                    totopos: increment(-costoActualVidas)
-                });
-            } catch (err) {
-                console.error("Error al descontar totopos:", err);
-            }
-        }
 
         setFeedbackModal({
             show: true,
@@ -715,11 +741,21 @@ export default function SopaLetras({
             return;
         }
 
+        if (!pendingGlobalScore || !Number.isFinite(pendingGlobalScore.intentos) || pendingGlobalScore.intentos <= 0) {
+            setShowGuardarModal(false);
+            setFeedbackModal({
+                show: true,
+                title: "Nivel sin completar",
+                message: "Encuentra todas las palabras del tablero antes de guardar tu récord."
+            });
+            return;
+        }
+
         setPlayerName(nombreLimpio);
-        localStorage.setItem('sopaLetrasPlayerName', nombreLimpio);
+        almacen.setItem('sopaLetrasPlayerName', nombreLimpio);
         setShowGuardarModal(false);
 
-        const scoreToSave = pendingGlobalScore || { level: nivel, intentos: intentos };
+        const scoreToSave = pendingGlobalScore;
         const currentUser = user || auth.currentUser;
         const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
@@ -731,9 +767,12 @@ export default function SopaLetras({
             if (docSnap.exists()) {
                 const dataAntigua = docSnap.data();
                 const nivelAntiguo = dataAntigua.level || 1;
-                const intentosAntiguos = dataAntigua.intentos || 0;
+                const intentosAntiguos = Number(dataAntigua.intentos);
+                const intentosAntiguosValidos = Number.isFinite(intentosAntiguos) && intentosAntiguos > 0;
 
-                if (scoreToSave.level < nivelAntiguo || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos)) {
+                if (intentosAntiguosValidos
+                    && (scoreToSave.level < nivelAntiguo
+                        || (scoreToSave.level === nivelAntiguo && scoreToSave.intentos >= intentosAntiguos))) {
                     guardar = false;
                 }
             }
@@ -743,6 +782,7 @@ export default function SopaLetras({
                     name: nombreLimpio,
                     intentos: scoreToSave.intentos,
                     level: scoreToSave.level,
+                    completado: true,
                     fecha: new Date().toISOString()
                 }, { merge: true });
             }
@@ -769,53 +809,44 @@ export default function SopaLetras({
 
     const handleDesbloquearCategoria = async (tipo, categoriaId, costo) => {
         try { reproducirSonido('click1'); } catch (e) {}
-        if (costo > 0 && totopos < costo) {
-            setFeedbackModal({
-                show: true,
-                title: "Totopos insuficientes",
-                message: `Te faltan ${costo - totopos} totopos.`
-            });
-            return;
-        }
-
-        const nuevosTotopos = totopos - costo;
         const setDesbloqueadas = tipo === 'flora' ? setCategoriasFloraDesbloqueadas : setCategoriasFaunaDesbloqueadas;
         const setActivas = tipo === 'flora' ? setCategoriasFloraActivas : setCategoriasFaunaActivas;
         const claveLocal = tipo === 'flora' ? 'categoriasFloraDesbloqueadas' : 'categoriasFaunaDesbloqueadas';
         const campoNube = tipo === 'flora' ? 'categoriasFloraDesbloqueadas' : 'categoriasFaunaDesbloqueadas';
+        const desbloqueadasActuales = tipo === 'flora'
+            ? categoriasFloraDesbloqueadas
+            : categoriasFaunaDesbloqueadas;
 
-        let nuevasDesbloqueadas = [];
-        setDesbloqueadas(prev => {
-            nuevasDesbloqueadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
-            localStorage.setItem(claveLocal, JSON.stringify(nuevasDesbloqueadas));
-            return nuevasDesbloqueadas;
+        const resultado = await comprar(costo, (data) => {
+            const actuales = Array.isArray(data?.[campoNube])
+                ? data[campoNube]
+                : desbloqueadasActuales;
+            const nuevas = actuales.includes(categoriaId) ? actuales : [...actuales, categoriaId];
+            return { [campoNube]: nuevas };
         });
+
+        if (!resultado.ok) {
+            setFeedbackModal({
+                show: true,
+                title: "Totopos insuficientes",
+                message: `Te faltan ${costo - (resultado.saldo ?? totopos)} totopos.`
+            });
+            return;
+        }
+
+        const nuevasDesbloqueadas = resultado.extra[campoNube] || desbloqueadasActuales;
+        setDesbloqueadas(nuevasDesbloqueadas);
+        almacen.setItem(claveLocal, JSON.stringify(nuevasDesbloqueadas));
 
         setActivas(prev => {
             const actualizadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
             if (tipo === 'flora') {
-                localStorage.setItem('sopaLetrasCategoriasFloraActivas', JSON.stringify(actualizadas));
+                almacen.setItem('sopaLetrasCategoriasFloraActivas', JSON.stringify(actualizadas));
             } else {
-                localStorage.setItem('sopaLetrasCategoriasFaunaActivas', JSON.stringify(actualizadas));
+                almacen.setItem('sopaLetrasCategoriasFaunaActivas', JSON.stringify(actualizadas));
             }
             return actualizadas;
         });
-
-        if (costo > 0) {
-            setTotopos(nuevosTotopos);
-            localStorage.setItem('totopos', nuevosTotopos);
-        }
-
-        const currentUser = user || auth.currentUser;
-        if (currentUser) {
-            try {
-                const payload = { [campoNube]: nuevasDesbloqueadas };
-                if (costo > 0) payload.totopos = nuevosTotopos;
-                await updateDoc(doc(db, 'usuarios', currentUser.uid), payload);
-            } catch (err) {
-                console.error("Error al sincronizar categoria:", err);
-            }
-        }
 
         setFeedbackModal({
             show: true,
@@ -838,7 +869,7 @@ export default function SopaLetras({
             } else {
                 nuevasActivas = [...prev, categoriaId];
             }
-            localStorage.setItem(claveStorage, JSON.stringify(nuevasActivas));
+            almacen.setItem(claveStorage, JSON.stringify(nuevasActivas));
             return nuevasActivas;
         });
     };
@@ -846,19 +877,18 @@ export default function SopaLetras({
     const handleCambiarTipoContenido = (nuevoModo) => {
         try { reproducirSonido('click1'); } catch (e) {}
         setTipoContenido(nuevoModo);
-        localStorage.setItem('tipoContenidoJuego', nuevoModo);
+        almacen.setItem('tipoContenidoJuego', nuevoModo);
     };
 
     const confirmarReiniciar = () => {
         try { reproducirSonido('click1'); } catch (e) {}
-        localStorage.removeItem('sopaLetrasNivel');
-        localStorage.removeItem('sopaLetrasIntentos');
-        localStorage.removeItem('sopaLetrasVidas');
-        localStorage.removeItem('sopaLetrasModoDificil');
-        localStorage.removeItem('sopaLetrasPlayerName');
+        almacen.removeItem('sopaLetrasNivel');
+        almacen.removeItem('sopaLetrasIntentos');
+        almacen.removeItem('sopaLetrasModoDificil');
+        almacen.removeItem('sopaLetrasPlayerName');
         setNivel(1);
         setIntentos(0);
-        setVidas(3);
+        setVidas(VIDAS_POR_JUEGO.sopa.max);
         setModoDificil(false);
         setPlayerName('');
         setInputPlayerName('');
@@ -872,13 +902,14 @@ export default function SopaLetras({
     const cargarRankingGlobal = async () => {
         setCargandoRanking(true);
         try {
-            const q = query(collection(db, "ranking_sopa"), orderBy("level", "desc"), orderBy("intentos", "asc"), limit(10));
+            const q = query(collection(db, "ranking_sopa"), orderBy("level", "desc"), orderBy("intentos", "asc"), limit(50));
             const querySnapshot = await getDocs(q);
             const docs = [];
             querySnapshot.forEach((docSnap) => {
                 docs.push({ id: docSnap.id, ...docSnap.data() });
             });
-            setRanking(docs);
+            // Los récords con 0 intentos son imposibles en un tablero completado.
+            setRanking(docs.filter((r) => Number(r.intentos) > 0).slice(0, 10));
         } catch (error) {
             console.error("Error al cargar ranking:", error);
         }
@@ -889,9 +920,10 @@ export default function SopaLetras({
         try { reproducirSonido('click1'); } catch (e) {}
         const proximoNivel = nivel + 1;
         setNivel(proximoNivel);
-        setVidas(3);
-        localStorage.setItem('sopaLetrasNivel', proximoNivel);
-        localStorage.setItem('sopaLetrasVidas', 3);
+        setVidas(VIDAS_POR_JUEGO.sopa.max);
+        setPalabrasEncontradas([]);
+        setAnimalesObjetivo([]);
+        almacen.setItem('sopaLetrasNivel', proximoNivel);
         setGuardadoEnNivel(false);
         setPendingGlobalScore(null);
     };
@@ -941,14 +973,14 @@ export default function SopaLetras({
                 onClose={() => { try { reproducirSonido('click1'); } catch(e){} handleCloseConfig(); }}
                 level={nivel}
                 onMenuClick={onBack ? () => { try { reproducirSonido('click1'); } catch(e){} setShowMenuModal(true); } : null}
-                onGuardarClick={handleClickGuardar}
+                onGuardarClick={pendingGlobalScore ? handleClickGuardar : null}
                 onReiniciarClick={() => { try { reproducirSonido('click1'); } catch(e){} setShowConfirmRestartModal(true); }}
                 modoDificil={modoDificil}
                 onToggleModoDificil={() => {
                     try { reproducirSonido('click1'); } catch (e) {}
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
-                    localStorage.setItem('sopaLetrasModoDificil', nuevoModo);
+                    almacen.setItem('sopaLetrasModoDificil', nuevoModo);
                 }}
             />
 

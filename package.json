@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "prebuild": "npm run check:assets",
+    "check:assets": "node scripts/verificar-assets.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

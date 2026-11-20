@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { db } from '../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
 import { CATALOGO_AVATARES, CATALOGO_ACCESORIOS } from '../data/catalogoActivos.js';
+import { VIDAS_POR_JUEGO, agregarVidasATodos, normalizarVidas, totalVidas } from '../utils/vidas.js';
 import SeccionColapsable from './SeccionColapsable.jsx';
 
 const CATALOGO_VIDAS = [
@@ -10,10 +11,9 @@ const CATALOGO_VIDAS = [
     { id: 'vida_5', costo: 60, cantidad: 5 },
 ];
 
-export default function SeccionTienda({ 
+export default function SeccionTienda({
     user,
-    totopos,
-    setTotopos,
+    comprar,
     vidas,
     setVidas,
     avatarActual,
@@ -23,12 +23,21 @@ export default function SeccionTienda({
     accesoriosDesbloqueados = [],
     setAccesoriosDesbloqueados = () => {},
     setMensaje,
-    tiendaAbierta, 
+    tiendaAbierta,
     setTiendaAbierta
 }) {
     const [pestanaActiva, setPestanaActiva] = useState('avatares');
+    const vidasNormalizadas = normalizarVidas(vidas);
+    const todasAlMaximo = Object.entries(VIDAS_POR_JUEGO)
+        .every(([juego, config]) => vidasNormalizadas[juego] >= config.max);
 
     const handleComprarOEquiparAvatar = async (avatar) => {
+        if (avatar.disponible === false) {
+            setMensaje(`${avatar.nombre} estará disponible próximamente.`);
+            setTimeout(() => setMensaje(''), 3000);
+            return;
+        }
+
         const desbloqueado = avataresDesbloqueados.includes(avatar.id);
 
         if (desbloqueado) {
@@ -44,32 +53,24 @@ export default function SeccionTienda({
             setMensaje(`Has equipado a ${avatar.nombre}.`);
             setTimeout(() => setMensaje(''), 3000);
         } else {
-            if (totopos < avatar.costo) {
-                setMensaje('No tienes suficientes totopos para este avatar.');
+            const resultado = await comprar(avatar.costo, (data) => {
+                const actuales = Array.isArray(data?.avataresDesbloqueados)
+                    ? data.avataresDesbloqueados
+                    : avataresDesbloqueados;
+                const nuevos = actuales.includes(avatar.id) ? actuales : [...actuales, avatar.id];
+                return { avataresDesbloqueados: nuevos, avatar: avatar.id };
+            });
+
+            if (!resultado.ok) {
+                setMensaje(resultado.motivo === 'SALDO_INSUFICIENTE'
+                    ? 'No tienes suficientes totopos para este avatar.'
+                    : 'No se pudo completar la compra. Intenta de nuevo.');
                 setTimeout(() => setMensaje(''), 3000);
                 return;
             }
 
-            const nuevosTotopos = totopos - avatar.costo;
-            const nuevosDesbloqueados = [...avataresDesbloqueados, avatar.id];
-
-            setTotopos(nuevosTotopos);
-            setAvataresDesbloqueados(nuevosDesbloqueados);
+            setAvataresDesbloqueados(resultado.extra.avataresDesbloqueados);
             setAvatarActual(avatar.id);
-
-            if (user) {
-                try {
-                    const userRef = doc(db, 'usuarios', user.uid);
-                    await updateDoc(userRef, {
-                        totopos: nuevosTotopos,
-                        avataresDesbloqueados: nuevosDesbloqueados,
-                        avatar: avatar.id
-                    });
-                } catch (error) {
-                    console.error("Error al guardar compra de avatar en Firestore:", error);
-                }
-            }
-
             setMensaje(`Has comprado y equipado a ${avatar.nombre}.`);
             setTimeout(() => setMensaje(''), 3000);
         }
@@ -84,61 +85,63 @@ export default function SeccionTienda({
             return;
         }
 
-        if (totopos < accesorio.costo) {
-            setMensaje('No tienes suficientes totopos para este accesorio.');
+        const resultado = await comprar(accesorio.costo, (data) => {
+            const actuales = Array.isArray(data?.accesoriosDesbloqueados)
+                ? data.accesoriosDesbloqueados
+                : accesoriosDesbloqueados;
+            const nuevos = actuales.includes(accesorio.id) ? actuales : [...actuales, accesorio.id];
+            return { accesoriosDesbloqueados: nuevos };
+        });
+
+        if (!resultado.ok) {
+            setMensaje(resultado.motivo === 'SALDO_INSUFICIENTE'
+                ? 'No tienes suficientes totopos para este accesorio.'
+                : 'No se pudo completar la compra. Intenta de nuevo.');
             setTimeout(() => setMensaje(''), 3000);
             return;
         }
 
-        const nuevosTotopos = totopos - accesorio.costo;
-        const nuevosAccesorios = [...accesoriosDesbloqueados, accesorio.id];
-
-        setTotopos(nuevosTotopos);
-        setAccesoriosDesbloqueados(nuevosAccesorios);
-
-        if (user) {
-            try {
-                const userRef = doc(db, 'usuarios', user.uid);
-                await updateDoc(userRef, {
-                    totopos: nuevosTotopos,
-                    accesoriosDesbloqueados: nuevosAccesorios
-                });
-            } catch (error) {
-                console.error("Error al guardar compra de accesorio en Firestore:", error);
-            }
-        }
-
+        setAccesoriosDesbloqueados(resultado.extra.accesoriosDesbloqueados);
         setMensaje(`Has comprado ${accesorio.nombre}.`);
         setTimeout(() => setMensaje(''), 3000);
     };
 
     const handleComprarVidas = async (paquete) => {
-        if (totopos < paquete.costo) {
-            setMensaje('No tienes suficientes totopos para comprar vidas.');
+        if (todasAlMaximo) {
+            setMensaje('Todas tus vidas ya están al máximo. ¡Sigue jugando!');
             setTimeout(() => setMensaje(''), 3000);
             return;
         }
 
-        const nuevosTotopos = totopos - paquete.costo;
-        const nuevasVidas = vidas + paquete.cantidad;
+        const resultado = await comprar(paquete.costo, (data) => {
+            const actuales = normalizarVidas(data?.vidas ?? vidas);
+            const nuevas = agregarVidasATodos(actuales, paquete.cantidad);
+            const algunJuegoGano = Object.keys(VIDAS_POR_JUEGO)
+                .some((juego) => nuevas[juego] > actuales[juego]);
 
-        setTotopos(nuevosTotopos);
-        setVidas(nuevasVidas);
-
-        if (user) {
-            try {
-                const userRef = doc(db, 'usuarios', user.uid);
-                await updateDoc(userRef, {
-                    totopos: nuevosTotopos,
-                    vidas: nuevasVidas
-                });
-            } catch (error) {
-                console.error("Error al actualizar vidas en Firestore:", error);
+            if (!algunJuegoGano) {
+                const error = new Error('VIDAS_AL_MAXIMO');
+                error.codigo = 'VIDAS_AL_MAXIMO';
+                throw error;
             }
+
+            return { vidas: nuevas };
+        });
+
+        if (!resultado.ok) {
+            const mensajeError = resultado.motivo === 'SALDO_INSUFICIENTE'
+                ? 'No tienes suficientes totopos para comprar vidas.'
+                : resultado.motivo === 'VIDAS_AL_MAXIMO'
+                    ? 'Todas tus vidas ya están al máximo. ¡Sigue jugando!'
+                    : 'No se pudo completar la compra. Intenta de nuevo.';
+            setMensaje(mensajeError);
+            setTimeout(() => setMensaje(''), 3000);
+            return;
         }
 
-        setMensaje(`Has adquirido ${paquete.cantidad} vida(s) extra.`);
-        setTimeout(() => setMensaje(''), 3000);
+        setVidas(resultado.extra.vidas);
+        setMensaje(`Recargaste hasta ${paquete.cantidad} vida(s) en cada juego. Total: ${totalVidas(resultado.extra.vidas)} vidas.`);
+        setTimeout(() => setMensaje(''), 4000);
     };
 
     return (
@@ -187,28 +190,33 @@ export default function SeccionTienda({
                             {CATALOGO_AVATARES.map((avatar) => {
                                 const desbloqueado = avataresDesbloqueados.includes(avatar.id);
                                 const equipado = avatarActual === avatar.id;
+                                const disponible = avatar.disponible !== false;
 
                                 return (
-                                    <div 
-                                        key={avatar.id} 
+                                    <div
+                                        key={avatar.id}
                                         className={`p-3 rounded-3xl border-2 flex flex-col items-center justify-between transition-all duration-200 ${
-                                            equipado 
-                                                ? 'border-amber-600 bg-amber-100 ring-2 ring-amber-400 shadow-lg' 
+                                            equipado
+                                                ? 'border-amber-600 bg-amber-100 ring-2 ring-amber-400 shadow-lg'
                                                 : 'border-amber-300 bg-white hover:border-amber-400'
                                         }`}
                                     >
                                         <div className={`w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-2 rounded-full flex items-center justify-center border-4 shadow-inner overflow-hidden ${
                                             equipado ? 'border-amber-500 bg-white' : 'border-amber-200 bg-amber-50'
                                         }`}>
-                                            <img 
-                                                src={`/avatares/${avatar.id}.png`} 
-                                                alt={avatar.nombre} 
-                                                className="w-full h-full object-contain p-1" 
-                                                onError={(e) => { 
-                                                    e.target.onerror = null; 
-                                                    e.target.style.display = 'none'; 
-                                                }} 
-                                            />
+                                            {disponible ? (
+                                                <img
+                                                    src={`/avatares/${avatar.id}.png`}
+                                                    alt={avatar.nombre}
+                                                    className="w-full h-full object-contain p-1"
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.style.display = 'none';
+                                                    }}
+                                                />
+                                            ) : (
+                                                <span className="text-4xl" aria-hidden="true">{avatar.emoji || '🌴'}</span>
+                                            )}
                                         </div>
 
                                         <div className="font-black text-xs text-center text-amber-950 mb-1 leading-tight h-8 flex items-center justify-center">
@@ -216,11 +224,15 @@ export default function SeccionTienda({
                                         </div>
 
                                         <div className={`text-[11px] font-black mb-2 px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
-                                            desbloqueado 
-                                                ? 'text-green-900 bg-green-100 border border-green-300' 
-                                                : 'text-amber-800 bg-amber-100 border border-amber-300'
+                                            !disponible
+                                                ? 'text-gray-700 bg-gray-100 border border-gray-300'
+                                                : desbloqueado
+                                                    ? 'text-green-900 bg-green-100 border border-green-300'
+                                                    : 'text-amber-800 bg-amber-100 border border-amber-300'
                                         }`}>
-                                            {desbloqueado ? (
+                                            {!disponible ? (
+                                                'Próximamente'
+                                            ) : desbloqueado ? (
                                                 'Adquirido'
                                             ) : (
                                                 <>
@@ -232,16 +244,18 @@ export default function SeccionTienda({
 
                                         <button
                                             onClick={() => handleComprarOEquiparAvatar(avatar)}
-                                            disabled={equipado}
+                                            disabled={equipado || !disponible}
                                             className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all active:scale-95 shadow ${
-                                                equipado 
-                                                    ? 'bg-amber-500 text-white opacity-90 cursor-default' 
-                                                    : desbloqueado 
-                                                        ? 'bg-amber-700 hover:bg-amber-800 text-white cursor-pointer' 
-                                                        : 'bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
+                                                !disponible
+                                                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                                    : equipado
+                                                        ? 'bg-amber-500 text-white opacity-90 cursor-default'
+                                                        : desbloqueado
+                                                            ? 'bg-amber-700 hover:bg-amber-800 text-white cursor-pointer'
+                                                            : 'bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
                                             }`}
                                         >
-                                            {equipado ? 'Equipado' : desbloqueado ? 'Equipar' : 'Comprar'}
+                                            {!disponible ? 'Próximamente' : equipado ? 'Equipado' : desbloqueado ? 'Equipar' : 'Comprar'}
                                         </button>
                                     </div>
                                 );
@@ -255,19 +269,19 @@ export default function SeccionTienda({
                                 const desbloqueado = accesoriosDesbloqueados.includes(accesorio.id);
 
                                 return (
-                                    <div 
-                                        key={accesorio.id} 
+                                    <div
+                                        key={accesorio.id}
                                         className="p-3 rounded-3xl border-2 border-amber-300 bg-white hover:border-amber-400 flex flex-col items-center justify-between transition-all duration-200"
                                     >
                                         <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-2 rounded-full flex items-center justify-center border-4 border-amber-200 bg-amber-50 shadow-inner overflow-hidden">
-                                            <img 
-                                                src={`/avatares/mercado/${accesorio.id}.svg`} 
-                                                alt={accesorio.nombre} 
-                                                className="w-full h-full object-contain p-1" 
-                                                onError={(e) => { 
-                                                    e.target.onerror = null; 
-                                                    e.target.style.display = 'none'; 
-                                                }} 
+                                            <img
+                                                src={`/avatares/mercado/${accesorio.id}.svg`}
+                                                alt={accesorio.nombre}
+                                                className="w-full h-full object-contain p-1"
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.style.display = 'none';
+                                                }}
                                             />
                                         </div>
 
@@ -276,8 +290,8 @@ export default function SeccionTienda({
                                         </div>
 
                                         <div className={`text-[11px] font-black mb-2 px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
-                                            desbloqueado 
-                                                ? 'text-green-900 bg-green-100 border border-green-300' 
+                                            desbloqueado
+                                                ? 'text-green-900 bg-green-100 border border-green-300'
                                                 : 'text-amber-800 bg-amber-100 border border-amber-300'
                                         }`}>
                                             {desbloqueado ? (
@@ -294,8 +308,8 @@ export default function SeccionTienda({
                                             onClick={() => handleComprarAccesorio(accesorio)}
                                             disabled={desbloqueado}
                                             className={`w-full py-2 px-3 rounded-xl text-xs font-black transition-all active:scale-95 shadow ${
-                                                desbloqueado 
-                                                    ? 'bg-green-700 text-white opacity-90 cursor-default' 
+                                                desbloqueado
+                                                    ? 'bg-green-700 text-white opacity-90 cursor-default'
                                                     : 'bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
                                             }`}
                                         >
@@ -310,10 +324,20 @@ export default function SeccionTienda({
                     {pestanaActiva === 'vidas' && (
                         <div className="p-4 flex flex-col gap-2.5 max-h-72 overflow-y-auto custom-scrollbar">
                             <p className="text-xs text-amber-800 font-medium text-center mb-1">
-                                Intercambia tus totopos por vidas adicionales para continuar tus partidas.
+                                Las vidas se recargan en todos los juegos, hasta el máximo de cada uno.
                             </p>
+
+                            <div className="grid grid-cols-2 gap-1.5 mb-1">
+                                {Object.entries(VIDAS_POR_JUEGO).map(([juego, config]) => (
+                                    <div key={juego} className="bg-white/80 border border-red-200 rounded-xl px-2.5 py-1.5 flex items-center justify-between text-[10px] font-bold text-red-800">
+                                        <span>{config.etiqueta}</span>
+                                        <span>{vidasNormalizadas[juego]}/{config.max}</span>
+                                    </div>
+                                ))}
+                            </div>
+
                             {CATALOGO_VIDAS.map((paquete) => (
-                                <div 
+                                <div
                                     key={paquete.id}
                                     className="bg-white p-3 rounded-2xl border border-amber-200 flex items-center justify-between shadow-sm hover:border-amber-400 transition-all"
                                 >
@@ -323,10 +347,10 @@ export default function SeccionTienda({
                                         </div>
                                         <div>
                                             <div className="font-black text-amber-950 text-sm">
-                                                {paquete.cantidad} {paquete.cantidad === 1 ? 'Vida Extra' : 'Vidas Extras'}
+                                                +{paquete.cantidad} {paquete.cantidad === 1 ? 'vida' : 'vidas'} para cada juego
                                             </div>
                                             <div className="text-xs font-bold text-amber-700 flex items-center gap-1">
-                                                Costo: {paquete.costo} 
+                                                Costo: {paquete.costo}
                                                 <img src="/totopo.png" alt="Totopo" className="w-3.5 h-3.5 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
                                             </div>
                                         </div>
@@ -334,9 +358,14 @@ export default function SeccionTienda({
 
                                     <button
                                         onClick={() => handleComprarVidas(paquete)}
-                                        className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition-transform active:scale-95 cursor-pointer"
+                                        disabled={todasAlMaximo}
+                                        className={`font-bold px-4 py-2 rounded-xl text-xs shadow transition-transform active:scale-95 ${
+                                            todasAlMaximo
+                                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                : 'bg-red-600 hover:bg-red-700 text-white cursor-pointer'
+                                        }`}
                                     >
-                                        Adquirir
+                                        {todasAlMaximo ? 'Máximo' : 'Adquirir'}
                                     </button>
                                 </div>
                             ))}

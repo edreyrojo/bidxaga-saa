@@ -7,13 +7,19 @@ import {
     filtrarContenidoPorCategorias
 } from '../data/Categoriascontenido.js';
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
+import { almacen } from '../utils/almacen.js';
+import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { useSonido } from '../hooks/useSonido';
+import { useVidasJuego } from '../hooks/useVidasJuego.js';
+import { useTotopos } from '../hooks/useTotopos.js';
+import { useProgresoJuego } from '../hooks/useProgresoJuego.js';
+import { useLogros } from '../hooks/useLogros.js';
 
 import { auth, db } from '../firebaseConfig.js';
-import { collection, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 
-const MAX_VIDAS = 10; 
+const MAX_VIDAS = VIDAS_POR_JUEGO.memorama.max;
 
 const CONFIG_NIVELES = {
     1: { parejas: 4, columnas: 'grid-cols-4', recompensa: 10 },
@@ -117,11 +123,14 @@ export default function Tablero({
     const [playerName, setPlayerName] = useState('');
     const [modoDificil, setModoDificil] = useState(false);
     const [tipoContenido, setTipoContenido] = useState(() => {
-        return localStorage.getItem('tipoContenidoJuego') || 'fauna';
+        return almacen.getItem('tipoContenidoJuego') || 'fauna';
     });
     const [guardadoEnNivel, setGuardadoEnNivel] = useState(false);
-    const [totopos, setTotopos] = useState(0); 
-    const [vidas, setVidas] = useState(MAX_VIDAS); 
+    const { totopos, abonar, gastar, comprar } = useTotopos(user);
+    const { vidas, setVidas } = useVidasJuego('memorama', user);
+    const { progresoRemoto, listo: progresoListo, guardarProgreso } = useProgresoJuego('memorama', user);
+    const { desbloquear, listo: logrosListos } = useLogros(user);
+    const [progresoAplicado, setProgresoAplicado] = useState(false);
     const [fichasVistas, setFichasVistas] = useState([]); 
     const [avisoVistasMostrado, setAvisoVistasMostrado] = useState(false); 
     const [combosFallidos, setCombosFallidos] = useState({}); 
@@ -132,7 +141,7 @@ export default function Tablero({
     
     const [categoriasFaunaActivas, setCategoriasFaunaActivas] = useState(() => {
         try {
-            const guardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFaunaActivas') || 'null');
+            const guardadas = JSON.parse(almacen.getItem('memoramaCategoriasFaunaActivas') || 'null');
             return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('fauna');
         } catch (e) {
             return categoriaInicialPorDefecto('fauna');
@@ -141,7 +150,7 @@ export default function Tablero({
 
     const [categoriasFloraActivas, setCategoriasFloraActivas] = useState(() => {
         try {
-            const guardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFloraActivas') || 'null');
+            const guardadas = JSON.parse(almacen.getItem('memoramaCategoriasFloraActivas') || 'null');
             return guardadas && guardadas.length > 0 ? guardadas : categoriaInicialPorDefecto('flora');
         } catch (e) {
             return categoriaInicialPorDefecto('flora');
@@ -163,12 +172,16 @@ export default function Tablero({
 
     const configActual = getConfigForLevel(level);
 
+    useEffect(() => {
+        if (vidas === 0) {
+            setShowSinVidasModal(true);
+        } else {
+            setShowSinVidasModal(false);
+        }
+    }, [vidas]);
+
     const handleClickGuardar = async () => {
         reproducirSonido('click1');
-        localStorage.setItem('memoramaNivel', level);
-        localStorage.setItem('memoramaModoDificil', modoDificil);
-        localStorage.setItem('totopos', totopos);
-        localStorage.setItem('memoramaVidas', vidas);
 
         if (guardadoEnNivel && !pendingGlobalScore) {
             setFeedbackModal({
@@ -178,6 +191,29 @@ export default function Tablero({
             });
             return;
         }
+
+        // 🛡️ Solo se guarda un nivel realmente completado.
+        if (!pendingGlobalScore) {
+            setFeedbackModal({
+                show: true,
+                title: "Nivel sin completar",
+                message: "Encuentra todas las parejas del nivel antes de guardar tu récord."
+            });
+            return;
+        }
+
+        const scoreToSave = pendingGlobalScore;
+        if (!Number.isFinite(scoreToSave.turns) || scoreToSave.turns <= 0) {
+            setFeedbackModal({
+                show: true,
+                title: "Récord inválido",
+                message: "El nivel no tiene un puntaje válido. Vuelve a completarlo para guardarlo."
+            });
+            return;
+        }
+
+        almacen.setItem('memoramaNivel', level);
+        almacen.setItem('memoramaModoDificil', modoDificil);
 
         const currentUser = user || auth.currentUser;
         let nombreAUsar = playerName;
@@ -193,7 +229,7 @@ export default function Tablero({
                         nombreAUsar = nickNube;
                         setPlayerName(nickNube);
                         setInputPlayerName(nickNube);
-                        localStorage.setItem('memoramaPlayerName', nickNube);
+                        almacen.setItem('memoramaPlayerName', nickNube);
                     }
                 }
             } catch (e) {
@@ -202,13 +238,37 @@ export default function Tablero({
         }
 
         if (currentUser && nombreAUsar.trim()) {
-            const scoreToSave = pendingGlobalScore || { level: level, turns: turns };
             try {
                 const rankingRef = doc(db, "ranking", currentUser.uid);
+                const rankingSnap = await getDoc(rankingRef);
+
+                if (rankingSnap.exists()) {
+                    const anterior = rankingSnap.data();
+                    const nivelAnterior = Number(anterior.level) || 0;
+                    const scoreAnterior = Number(anterior.score);
+                    const scoreAnteriorValido = Number.isFinite(scoreAnterior) && scoreAnterior > 0;
+
+                    const esPeor = scoreToSave.level < nivelAnterior
+                        || (scoreToSave.level === nivelAnterior && scoreToSave.turns >= scoreAnterior);
+
+                    if (scoreAnteriorValido && esPeor) {
+                        setGuardadoEnNivel(true);
+                        setPendingGlobalScore(null);
+                        await cargarRankingGlobal();
+                        setFeedbackModal({
+                            show: true,
+                            title: "Récord no mejorado",
+                            message: `Tu mejor récord es Nivel ${nivelAnterior} con ${scoreAnterior} turnos. Este intento no lo superó.`
+                        });
+                        return;
+                    }
+                }
+
                 await setDoc(rankingRef, {
                     name: nombreAUsar.trim(),
                     score: scoreToSave.turns,
                     level: scoreToSave.level,
+                    completado: true,
                     fecha: new Date().toISOString()
                 }, { merge: true });
 
@@ -243,7 +303,7 @@ export default function Tablero({
                     reproducirSonido('click1');
                     setShowMenuModal(true); 
                 },
-                onGuardarClick: handleClickGuardar,
+                onGuardarClick: pendingGlobalScore ? handleClickGuardar : null,
                 onReiniciarClick: () => {
                     reproducirSonido('click1');
                     setShowConfirmRestartModal(true);
@@ -253,7 +313,7 @@ export default function Tablero({
                     reproducirSonido('click1');
                     const nuevoModo = !modoDificil;
                     setModoDificil(nuevoModo);
-                    localStorage.setItem('memoramaModoDificil', nuevoModo);
+                    almacen.setItem('memoramaModoDificil', nuevoModo);
                 }
             });
         }
@@ -272,7 +332,7 @@ export default function Tablero({
                 collection(db, "ranking"),
                 orderBy("level", "desc"),
                 orderBy("score", "asc"),
-                limit(10)
+                limit(50)
             );
             const querySnapshot = await getDocs(q);
 
@@ -281,7 +341,8 @@ export default function Tablero({
                 datosRanking.push({ id: docSnap.id, ...docSnap.data() });
             });
 
-            setRanking(datosRanking);
+            // Un nivel completado no puede tener 0 turnos.
+            setRanking(datosRanking.filter((r) => Number(r.score) > 0).slice(0, 10));
         } catch (error) {
             console.error("Error al cargar el ranking desde Firebase:", error);
         } finally {
@@ -291,10 +352,9 @@ export default function Tablero({
 
     useEffect(() => {
         cargarRankingGlobal();
-        const nivelGuardado = localStorage.getItem('memoramaNivel');
-        const modoDificilGuardado = localStorage.getItem('memoramaModoDificil');
-        const nombreGuardado = localStorage.getItem('memoramaPlayerName');
-        const totoposGuardados = localStorage.getItem('totopos');
+        const nivelGuardado = almacen.getItem('memoramaNivel');
+        const modoDificilGuardado = almacen.getItem('memoramaModoDificil');
+        const nombreGuardado = almacen.getItem('memoramaPlayerName');
         const nivelInicial = nivelGuardado ? parseInt(nivelGuardado, 10) : 1;
 
         if (modoDificilGuardado) setModoDificil(modoDificilGuardado === 'true');
@@ -302,25 +362,23 @@ export default function Tablero({
             setPlayerName(nombreGuardado);
             setInputPlayerName(nombreGuardado);
         }
-        if (totoposGuardados) setTotopos(parseInt(totoposGuardados, 10));
-
         try {
-            const faunaGuardadas = JSON.parse(localStorage.getItem('categoriasFaunaDesbloqueadas') || 'null');
+            const faunaGuardadas = JSON.parse(almacen.getItem('categoriasFaunaDesbloqueadas') || 'null');
             if (faunaGuardadas) {
                 setCategoriasFaunaDesbloqueadas(faunaGuardadas);
             }
-            const floraGuardadas = JSON.parse(localStorage.getItem('categoriasFloraDesbloqueadas') || 'null');
+            const floraGuardadas = JSON.parse(almacen.getItem('categoriasFloraDesbloqueadas') || 'null');
             if (floraGuardadas) {
                 setCategoriasFloraDesbloqueadas(floraGuardadas);
             }
 
-            const faunaActivasGuardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFaunaActivas') || 'null');
+            const faunaActivasGuardadas = JSON.parse(almacen.getItem('memoramaCategoriasFaunaActivas') || 'null');
             if (faunaActivasGuardadas) {
                 const validas = faunaActivasGuardadas.filter(id => (faunaGuardadas || categoriaInicialPorDefecto('fauna')).includes(id));
                 if (validas.length > 0) setCategoriasFaunaActivas(validas);
             }
 
-            const floraActivasGuardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFloraActivas') || 'null');
+            const floraActivasGuardadas = JSON.parse(almacen.getItem('memoramaCategoriasFloraActivas') || 'null');
             if (floraActivasGuardadas) {
                 const validas = floraActivasGuardadas.filter(id => (floraGuardadas || categoriaInicialPorDefecto('flora')).includes(id));
                 if (validas.length > 0) setCategoriasFloraActivas(validas);
@@ -329,8 +387,6 @@ export default function Tablero({
             console.error("Error al leer categorías guardadas localmente:", e);
         }
 
-        setVidas(MAX_VIDAS);
-        localStorage.setItem('memoramaVidas', MAX_VIDAS);
         setLevel(nivelInicial);
 
         const cargarDatosNube = async () => {
@@ -341,30 +397,31 @@ export default function Tablero({
                     const userSnap = await getDoc(userDocRef);
                     if (userSnap.exists()) {
                         const data = userSnap.data();
-                        if (data.totopos !== undefined) {
-                            setTotopos(data.totopos);
-                            localStorage.setItem('totopos', data.totopos);
-                        }
-
                         const historico = data.totoposHistoricos !== undefined ? data.totoposHistoricos : (data.totopos || 0);
                         const nivelCalc = calcularNivelCuenta(historico);
                         setNivelCuenta(nivelCalc);
 
-                        const faunaNube = sincronizarDesbloqueosPorNivel('fauna', data.categoriasFaunaDesbloqueadas || categoriaInicialPorDefecto('fauna'), nivelCalc);
-                        const floraNube = sincronizarDesbloqueosPorNivel('flora', data.categoriasFloraDesbloqueadas || categoriaInicialPorDefecto('flora'), nivelCalc);
+                        const faunaNube = sincronizarDesbloqueosPorNivel('fauna', [
+                            ...(data.categoriasFaunaDesbloqueadas || categoriaInicialPorDefecto('fauna')),
+                            ...categoriasFaunaDesbloqueadas
+                        ], nivelCalc);
+                        const floraNube = sincronizarDesbloqueosPorNivel('flora', [
+                            ...(data.categoriasFloraDesbloqueadas || categoriaInicialPorDefecto('flora')),
+                            ...categoriasFloraDesbloqueadas
+                        ], nivelCalc);
                         setCategoriasFaunaDesbloqueadas(faunaNube);
                         setCategoriasFloraDesbloqueadas(floraNube);
-                        localStorage.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
-                        localStorage.setItem('categoriasFloraDesbloqueadas', JSON.stringify(floraNube));
+                        almacen.setItem('categoriasFaunaDesbloqueadas', JSON.stringify(faunaNube));
+                        almacen.setItem('categoriasFloraDesbloqueadas', JSON.stringify(floraNube));
 
-                        const faunaActivasGuardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFaunaActivas') || 'null');
+                        const faunaActivasGuardadas = JSON.parse(almacen.getItem('memoramaCategoriasFaunaActivas') || 'null');
                         setCategoriasFaunaActivas(prev => {
                             const base = faunaActivasGuardadas || prev;
                             const activasValidas = base.filter(id => faunaNube.includes(id));
                             return activasValidas.length ? activasValidas : categoriaInicialPorDefecto('fauna');
                         });
 
-                        const floraActivasGuardadas = JSON.parse(localStorage.getItem('memoramaCategoriasFloraActivas') || 'null');
+                        const floraActivasGuardadas = JSON.parse(almacen.getItem('memoramaCategoriasFloraActivas') || 'null');
                         setCategoriasFloraActivas(prev => {
                             const base = floraActivasGuardadas || prev;
                             const activasValidas = base.filter(id => floraNube.includes(id));
@@ -383,7 +440,7 @@ export default function Tablero({
                         if (nickNube) {
                             setPlayerName(nickNube);
                             setInputPlayerName(nickNube);
-                            localStorage.setItem('memoramaPlayerName', nickNube);
+                            almacen.setItem('memoramaPlayerName', nickNube);
                         }
                     }
                 } catch (e) {
@@ -395,11 +452,42 @@ export default function Tablero({
     }, [user]);
 
     useEffect(() => {
+        if (!progresoListo) return;
+
+        if (progresoRemoto) {
+            if (Number.isInteger(progresoRemoto.nivel)) setLevel(progresoRemoto.nivel);
+            if (typeof progresoRemoto.modoDificil === 'boolean') setModoDificil(progresoRemoto.modoDificil);
+            if (['fauna', 'flora', 'ambos'].includes(progresoRemoto.tipoContenido)) {
+                setTipoContenido(progresoRemoto.tipoContenido);
+            }
+            if (Array.isArray(progresoRemoto.categoriasFaunaActivas) && progresoRemoto.categoriasFaunaActivas.length > 0) {
+                setCategoriasFaunaActivas(progresoRemoto.categoriasFaunaActivas);
+            }
+            if (Array.isArray(progresoRemoto.categoriasFloraActivas) && progresoRemoto.categoriasFloraActivas.length > 0) {
+                setCategoriasFloraActivas(progresoRemoto.categoriasFloraActivas);
+            }
+        }
+
+        setProgresoAplicado(true);
+    }, [progresoListo, progresoRemoto]);
+
+    useEffect(() => {
+        if (!progresoAplicado) return;
+        guardarProgreso({
+            nivel: level,
+            modoDificil,
+            tipoContenido,
+            categoriasFaunaActivas,
+            categoriasFloraActivas
+        });
+    }, [progresoAplicado, level, modoDificil, tipoContenido, categoriasFaunaActivas, categoriasFloraActivas, guardarProgreso]);
+
+    useEffect(() => {
         iniciarJuego(level);
     }, [level, modoDificil, tipoContenido, categoriasFaunaActivas, categoriasFloraActivas]);
 
     useEffect(() => {
-        if (matches === parejasEnJuego && parejasEnJuego > 0 && !pendingGlobalScore) {
+        if (matches === parejasEnJuego && parejasEnJuego > 0 && !pendingGlobalScore && !guardadoEnNivel) {
             reproducirSonido('click3');
             setPendingGlobalScore({ level: level, turns: turns });
 
@@ -423,44 +511,14 @@ export default function Tablero({
                 }
             }
 
-            setTotopos(prevTotopos => {
-                const nuevosTotopos = prevTotopos + configActual.recompensa;
-                localStorage.setItem('totopos', nuevosTotopos);
+            abonar(configActual.recompensa);
 
-                const currentUser = user || auth.currentUser;
-                if (currentUser) {
-                    const abonarTotopos = async () => {
-                        try {
-                            const userRef = doc(db, 'usuarios', currentUser.uid);
-                            const userSnap = await getDoc(userRef);
-
-                            if (userSnap.exists()) {
-                                await updateDoc(userRef, {
-                                    totopos: increment(configActual.recompensa),
-                                    totoposHistoricos: increment(configActual.recompensa)
-                                });
-                            } else {
-                                await setDoc(userRef, {
-                                    email: currentUser.email,
-                                    totopos: nuevosTotopos,
-                                    totoposHistoricos: nuevosTotopos,
-                                    avatar: 'default',
-                                    avataresDesbloqueados: ['default'],
-                                    categoriasFaunaDesbloqueadas: categoriaInicialPorDefecto('fauna'),
-                                    categoriasFloraDesbloqueadas: categoriaInicialPorDefecto('flora')
-                                }, { merge: true });
-                            }
-                        } catch (err) {
-                            console.error("Error al abonar totopos:", err);
-                        }
-                    };
-                    abonarTotopos();
-                }
-
-                return nuevosTotopos;
-            });
+            // "Sin fallar" = se necesitaron exactamente los turnos de las parejas.
+            if (logrosListos && turns === parejasEnJuego) {
+                desbloquear('logro_memoria_1');
+            }
         }
-    }, [matches, parejasEnJuego, level, turns, user, configActual.recompensa, pendingGlobalScore, tipoContenido, categoriasFaunaActivas, categoriasFloraActivas]);
+    }, [matches, parejasEnJuego, level, turns, user, configActual.recompensa, pendingGlobalScore, guardadoEnNivel, abonar, desbloquear, logrosListos, tipoContenido, categoriasFaunaActivas, categoriasFloraActivas]);
 
     useEffect(() => {
         if (!avisoVistasMostrado && cards.length > 0 && fichasVistas.length >= cards.length) {
@@ -485,19 +543,55 @@ export default function Tablero({
             return;
         }
 
+        if (!pendingGlobalScore || !Number.isFinite(pendingGlobalScore.turns) || pendingGlobalScore.turns <= 0) {
+            setShowGuardarModal(false);
+            setFeedbackModal({
+                show: true,
+                title: "Nivel sin completar",
+                message: "Encuentra todas las parejas del nivel antes de guardar tu récord."
+            });
+            return;
+        }
+
         setPlayerName(nombreLimpio);
-        localStorage.setItem('memoramaPlayerName', nombreLimpio);
+        almacen.setItem('memoramaPlayerName', nombreLimpio);
         setShowGuardarModal(false);
 
         const currentUser = user || auth.currentUser;
-        const scoreToSave = pendingGlobalScore || { level: level, turns: turns };
+        const scoreToSave = pendingGlobalScore;
+        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
 
         try {
-            const rankingRef = currentUser ? doc(db, "ranking", currentUser.uid) : doc(collection(db, "ranking"));
+            const rankingRef = doc(db, "ranking", docId);
+            const rankingSnap = await getDoc(rankingRef);
+
+            if (rankingSnap.exists()) {
+                const anterior = rankingSnap.data();
+                const nivelAnterior = Number(anterior.level) || 0;
+                const scoreAnterior = Number(anterior.score);
+                const scoreAnteriorValido = Number.isFinite(scoreAnterior) && scoreAnterior > 0;
+
+                const esPeor = scoreToSave.level < nivelAnterior
+                    || (scoreToSave.level === nivelAnterior && scoreToSave.turns >= scoreAnterior);
+
+                if (scoreAnteriorValido && esPeor) {
+                    setGuardadoEnNivel(true);
+                    setPendingGlobalScore(null);
+                    await cargarRankingGlobal();
+                    setFeedbackModal({
+                        show: true,
+                        title: "Récord no mejorado",
+                        message: `Tu mejor récord es Nivel ${nivelAnterior} con ${scoreAnterior} turnos. Este intento no lo superó.`
+                    });
+                    return;
+                }
+            }
+
             await setDoc(rankingRef, {
                 name: nombreLimpio,
                 score: scoreToSave.turns,
                 level: scoreToSave.level,
+                completado: true,
                 fecha: new Date().toISOString()
             }, { merge: true });
 
@@ -521,10 +615,9 @@ export default function Tablero({
 
     const confirmarReiniciar = () => {
         reproducirSonido('click1');
-        localStorage.removeItem('memoramaNivel');
-        localStorage.removeItem('memoramaModoDificil');
-        localStorage.removeItem('memoramaPlayerName');
-        localStorage.removeItem('memoramaVidas');
+        almacen.removeItem('memoramaNivel');
+        almacen.removeItem('memoramaModoDificil');
+        almacen.removeItem('memoramaPlayerName');
         setLevel(1);
         setModoDificil(false);
         setPlayerName('');
@@ -537,14 +630,12 @@ export default function Tablero({
         setFichasVistas([]);
         setAvisoVistasMostrado(false);
         setCombosFallidos({});
-        localStorage.setItem('memoramaVidas', MAX_VIDAS);
         iniciarJuego(1);
     };
 
     const reiniciarNivelActual = () => {
         reproducirSonido('click1');
         setVidas(MAX_VIDAS);
-        localStorage.setItem('memoramaVidas', MAX_VIDAS);
         setFichasVistas([]);
         setAvisoVistasMostrado(false);
         setCombosFallidos({});
@@ -552,13 +643,6 @@ export default function Tablero({
         setShowSinVidasModal(false);
         setShowConfirmRestartModal(false);
         iniciarJuego(level);
-
-        const currentUser = user || auth.currentUser;
-        if (currentUser) {
-            updateDoc(doc(db, 'usuarios', currentUser.uid), { vidas: MAX_VIDAS }).catch(err => {
-                console.error("Error al sincronizar vidas al reiniciar nivel:", err);
-            });
-        }
     };
 
     const iniciarJuego = (nivelActual) => {
@@ -602,13 +686,15 @@ export default function Tablero({
         setAvisoVistasMostrado(false);
         setCombosFallidos({});
         setGuardadoEnNivel(false);
+        setPendingGlobalScore(null);
     };
 
     const siguienteNivel = () => {
         reproducirSonido('click1');
         const proximoNivel = level + 1;
         setLevel(proximoNivel);
-        localStorage.setItem('memoramaNivel', proximoNivel);
+        setMatches(0);
+        almacen.setItem('memoramaNivel', proximoNivel);
         setGuardadoEnNivel(false);
         setPendingGlobalScore(null);
     };
@@ -628,17 +714,7 @@ export default function Tablero({
 
     const descontarVida = async (cantidad) => {
         const nuevasVidas = Math.max(0, vidas - cantidad);
-        setVidas(nuevasVidas);
-        localStorage.setItem('memoramaVidas', nuevasVidas);
-
-        const currentUser = user || auth.currentUser;
-        if (currentUser) {
-            try {
-                await updateDoc(doc(db, 'usuarios', currentUser.uid), { vidas: nuevasVidas });
-            } catch (err) {
-                console.error("Error al actualizar vidas en la nube:", err);
-            }
-        }
+        await setVidas(nuevasVidas);
 
         if (nuevasVidas === 0) {
             setShowSinVidasModal(true);
@@ -650,92 +726,80 @@ export default function Tablero({
         const costoPaquete = 40;
         const vidasGanadas = 3;
 
-        if (totopos < costoPaquete) {
+        if (vidas >= MAX_VIDAS) {
             setFeedbackModal({
                 show: true,
-                title: "Totopos insuficientes",
-                message: `Te faltan ${costoPaquete - totopos} totopos para comprar el paquete de 3 vidas. Sigue jugando o completa niveles.`
+                title: "Vidas al máximo",
+                message: `Ya tienes tus ${MAX_VIDAS} vidas. No es necesario comprar más.`
             });
             return;
         }
 
-        const nuevosTotopos = totopos - costoPaquete;
-        const nuevasVidas = vidas + vidasGanadas;
-
-        setTotopos(nuevosTotopos);
-        setVidas(nuevasVidas);
-        localStorage.setItem('totopos', nuevosTotopos);
-        localStorage.setItem('memoramaVidas', nuevasVidas);
-        setShowSinVidasModal(false);
-
-        const currentUser = user || auth.currentUser;
-        if (currentUser) {
-            try {
-                await updateDoc(doc(db, 'usuarios', currentUser.uid), {
-                    totopos: nuevosTotopos,
-                    vidas: nuevasVidas
-                });
-            } catch (err) {
-                console.error("Error al gastar totopos por vidas:", err);
-            }
+        const resultado = await gastar(costoPaquete);
+        if (!resultado.ok) {
+            setFeedbackModal({
+                show: true,
+                title: "Totopos insuficientes",
+                message: `Te faltan ${costoPaquete - (resultado.saldo ?? totopos)} totopos para comprar el paquete de 3 vidas. Sigue jugando o completa niveles.`
+            });
+            return;
         }
+
+        const nuevasVidas = Math.min(MAX_VIDAS, vidas + vidasGanadas);
+        const vidasRecuperadas = nuevasVidas - vidas;
+
+        await setVidas(nuevasVidas);
+        setShowSinVidasModal(false);
 
         setFeedbackModal({
             show: true,
             title: "Vidas Recargadas",
-            message: `Has comprado ${vidasGanadas} vidas extra por ${costoPaquete} totopos. Puedes continuar jugando.`
+            message: vidasRecuperadas > 0
+                ? `Has recuperado ${vidasRecuperadas} ${vidasRecuperadas === 1 ? 'vida' : 'vidas'} por ${costoPaquete} totopos. Puedes continuar jugando.`
+                : `Ya tenías el máximo de ${MAX_VIDAS} vidas. No se descontaron totopos.`
         });
     };
 
     const handleDesbloquearCategoria = async (tipo, categoriaId, costo) => {
         reproducirSonido('click1');
-        if (costo > 0 && totopos < costo) {
-            setFeedbackModal({
-                show: true,
-                title: "Totopos insuficientes",
-                message: `Te faltan ${costo - totopos} totopos para desbloquear esta categoría.`
-            });
-            return;
-        }
-
-        const nuevosTotopos = totopos - costo;
         const setDesbloqueadas = tipo === 'flora' ? setCategoriasFloraDesbloqueadas : setCategoriasFaunaDesbloqueadas;
         const setActivas = tipo === 'flora' ? setCategoriasFloraActivas : setCategoriasFaunaActivas;
         const claveLocal = tipo === 'flora' ? 'categoriasFloraDesbloqueadas' : 'categoriasFaunaDesbloqueadas';
         const campoNube = tipo === 'flora' ? 'categoriasFloraDesbloqueadas' : 'categoriasFaunaDesbloqueadas';
+        const desbloqueadasActuales = tipo === 'flora'
+            ? categoriasFloraDesbloqueadas
+            : categoriasFaunaDesbloqueadas;
 
-        let nuevasDesbloqueadas = [];
-        setDesbloqueadas(prev => {
-            nuevasDesbloqueadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
-            localStorage.setItem(claveLocal, JSON.stringify(nuevasDesbloqueadas));
-            return nuevasDesbloqueadas;
+        const resultado = await comprar(costo, (data) => {
+            const actuales = Array.isArray(data?.[campoNube])
+                ? data[campoNube]
+                : desbloqueadasActuales;
+            const nuevas = actuales.includes(categoriaId) ? actuales : [...actuales, categoriaId];
+            return { [campoNube]: nuevas };
         });
+
+        if (!resultado.ok) {
+            setFeedbackModal({
+                show: true,
+                title: "Totopos insuficientes",
+                message: `Te faltan ${costo - (resultado.saldo ?? totopos)} totopos para desbloquear esta categoría.`
+            });
+            return;
+        }
+
+        const nuevasDesbloqueadas = resultado.extra[campoNube] || desbloqueadasActuales;
+        setDesbloqueadas(nuevasDesbloqueadas);
+        almacen.setItem(claveLocal, JSON.stringify(nuevasDesbloqueadas));
 
         setActivas(prev => {
             const actualizadas = prev.includes(categoriaId) ? prev : [...prev, categoriaId];
             if (tipo === 'flora') {
-                localStorage.setItem('memoramaCategoriasFloraActivas', JSON.stringify(actualizadas));
+                almacen.setItem('memoramaCategoriasFloraActivas', JSON.stringify(actualizadas));
             } else {
-                localStorage.setItem('memoramaCategoriasFaunaActivas', JSON.stringify(actualizadas));
+                almacen.setItem('memoramaCategoriasFaunaActivas', JSON.stringify(actualizadas));
             }
             return actualizadas;
         });
-
-        if (costo > 0) {
-            setTotopos(nuevosTotopos);
-            localStorage.setItem('totopos', nuevosTotopos);
-        }
-
-        const currentUser = user || auth.currentUser;
-        if (currentUser) {
-            try {
-                const payload = { [campoNube]: nuevasDesbloqueadas };
-                if (costo > 0) payload.totopos = nuevosTotopos;
-                await updateDoc(doc(db, 'usuarios', currentUser.uid), payload);
-            } catch (err) {
-                console.error("Error al sincronizar categoría desbloqueada:", err);
-            }
-        }
 
         setFeedbackModal({
             show: true,
@@ -760,7 +824,7 @@ export default function Tablero({
             } else {
                 nuevasActivas = [...prev, categoriaId];
             }
-            localStorage.setItem(claveStorage, JSON.stringify(nuevasActivas));
+            almacen.setItem(claveStorage, JSON.stringify(nuevasActivas));
             return nuevasActivas;
         });
     };
@@ -768,7 +832,7 @@ export default function Tablero({
     const handleCambiarTipoContenido = (nuevoModo) => {
         reproducirSonido('click1');
         setTipoContenido(nuevoModo);
-        localStorage.setItem('tipoContenidoJuego', nuevoModo);
+        almacen.setItem('tipoContenidoJuego', nuevoModo);
     };
 
     useEffect(() => {
@@ -822,7 +886,7 @@ export default function Tablero({
                     <span>Turnos: {turns}</span> •
                     <span className="text-orange-600 font-bold inline-flex items-center gap-1">
                         <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none' }} />
-                        <span style={{ display: 'none' }}>🌽</span>
+                        <span style={{ display: 'none' }}>🏆</span>
                         {totopos} Totopos
                     </span> •
                     <span className="text-red-600 font-bold inline-flex items-center gap-1">

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
+import { VIDAS_POR_JUEGO, crearVidasIniciales, normalizarVidas, totalVidas } from '../utils/vidas.js';
+import { useTotopos } from '../hooks/useTotopos.js';
+import { useLogros } from '../hooks/useLogros.js';
 import CreadorAvatar from './CreadorAvatar';
 import SeccionTienda from './SeccionTienda';
 import SeccionLogros from './SeccionLogros';
@@ -201,13 +204,12 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     const [nombreTemporal, setNombreTemporal] = useState('');
     const [editandoNombre, setEditandoNombre] = useState(false);
 
-    const [totopos, setTotopos] = useState(0);
-    const [totoposHistoricos, setTotoposHistoricos] = useState(0);
-    const [vidas, setVidas] = useState(3);
+    const { totopos, totoposHistoricos, comprar } = useTotopos(user);
+    const { logrosDesbloqueados } = useLogros(user);
+    const [vidas, setVidas] = useState(() => crearVidasIniciales());
     const [avatarActual, setAvatarActual] = useState('default');
     const [avataresDesbloqueados, setAvataresDesbloqueados] = useState(['default']);
     const [accesoriosDesbloqueados, setAccesoriosDesbloqueados] = useState([]);
-    const [logrosDesbloqueados, setLogrosDesbloqueados] = useState([]);
 
     const [loading, setLoading] = useState(true);
     const [mensaje, setMensaje] = useState('');
@@ -235,19 +237,21 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     const nombreUsuario = data.nombre || '';
                     setNombre(nombreUsuario);
                     setNombreTemporal(nombreUsuario);
-                    setTotopos(data.totopos || 0);
-                    setVidas(data.vidas !== undefined ? data.vidas : 3);
+
+                    const vidasNormalizadas = normalizarVidas(data.vidas);
+                    setVidas(vidasNormalizadas);
+                    if (!data.vidas || typeof data.vidas !== 'object' || Array.isArray(data.vidas)) {
+                        await updateDoc(docRef, { vidas: vidasNormalizadas });
+                    }
+
                     setAvatarActual(avatarId);
                     setAvataresDesbloqueados(data.avataresDesbloqueados || ['default']);
                     setAccesoriosDesbloqueados(data.accesoriosDesbloqueados || []);
-                    setLogrosDesbloqueados(data.logrosDesbloqueados || []);
 
-                    let historico = data.totoposHistoricos;
-                    if (historico === undefined || historico < (data.totopos || 0)) {
-                        historico = data.totopos || 0;
-                        await updateDoc(docRef, { totoposHistoricos: historico });
-                    }
-                    setTotoposHistoricos(historico);
+                    const historico = Math.max(
+                        Number(data.totoposHistoricos) || 0,
+                        Number(data.totopos) || 0
+                    );
 
                     if (onProfileUpdate) {
                         const calc = calcularNivelYTitulo(historico);
@@ -434,8 +438,17 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             </div>
                             <div className="flex items-center gap-1.5 bg-red-100/80 px-3 py-1.5 rounded-xl border border-red-300 shadow-sm">
                                 <img src="/tuna-vida.png" alt="Vida" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none'; }} />
-                                <span className="font-black text-red-700 text-sm">{vidas} Vidas</span>
+                                <span className="font-black text-red-700 text-sm">{totalVidas(vidas)} Vidas</span>
                             </div>
+                        </div>
+
+                        <div className="mt-2 max-w-xs mx-auto grid grid-cols-2 gap-1">
+                            {Object.entries(VIDAS_POR_JUEGO).map(([juego, config]) => (
+                                <div key={juego} className="bg-white/70 border border-red-200 rounded-lg px-2 py-1 flex items-center justify-between text-[10px] font-bold text-red-800">
+                                    <span>{config.etiqueta}</span>
+                                    <span>{vidas[juego] ?? config.inicial}/{config.max}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -449,8 +462,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     <div className="space-y-3 mb-4">
                         <SeccionTienda 
                             user={user}
-                            totopos={totopos}
-                            setTotopos={setTotopos}
+                            comprar={comprar}
                             vidas={vidas}
                             setVidas={setVidas}
                             avatarActual={avatarActual}

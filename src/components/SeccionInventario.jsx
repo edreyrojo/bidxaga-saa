@@ -8,8 +8,21 @@ import SeccionColapsable from './SeccionColapsable.jsx';
 // 🔧 Se construye a partir del catálogo único compartido, así nunca vuelve a desincronizarse
 // con lo que se vende en la Tienda (antes 'guiechachi' y 'palmera' faltaban aquí).
 const CATALOGO_COMPLETO = [
-    ...CATALOGO_AVATARES.map(a => ({ id: a.id, nombre: a.nombre, tipo: 'avatar', archivo: a.archivo })),
-    ...CATALOGO_ACCESORIOS.map(a => ({ id: a.id, nombre: a.nombre, tipo: 'accesorio', archivo: a.archivo })),
+    ...CATALOGO_AVATARES.map(a => ({
+        id: a.id,
+        nombre: a.nombre,
+        tipo: 'avatar',
+        archivo: a.archivo,
+        disponible: a.disponible !== false,
+        emoji: a.emoji
+    })),
+    ...CATALOGO_ACCESORIOS.map(a => ({
+        id: a.id,
+        nombre: a.nombre,
+        tipo: 'accesorio',
+        archivo: a.archivo,
+        disponible: true
+    })),
 ];
 
 export default function SeccionInventario({
@@ -47,6 +60,11 @@ export default function SeccionInventario({
     // de un avatar personalizado, por eso aquí no se "equipan" directamente).
     const handleEquiparItem = async (item) => {
         try {
+            if (item.disponible === false) {
+                if (setMensaje) setMensaje(`${item.nombre} estará disponible próximamente.`);
+                return;
+            }
+
             if (item.tipo === 'avatar') {
                 setAvatarActual(item.id);
 
@@ -69,7 +87,7 @@ export default function SeccionInventario({
 
     return (
         <SeccionColapsable
-            icono="/palmera.png"
+            icono="/images/zina.png"
             titulo="Inventario de Objetos"
             abierto={inventarioAbierto}
             setAbierto={setInventarioAbierto}
@@ -117,13 +135,17 @@ export default function SeccionInventario({
                                 <div
                                     key={item.id}
                                     className={`flex flex-col items-center justify-between p-3 rounded-2xl border-2 transition-all ${
-                                        esEquipado
-                                            ? 'border-emerald-500 bg-emerald-50/50 shadow-md'
-                                            : 'border-amber-200 bg-amber-50/30 hover:border-amber-400'
+                                        item.disponible === false
+                                            ? 'border-gray-200 bg-gray-50/60'
+                                            : esEquipado
+                                                ? 'border-emerald-500 bg-emerald-50/50 shadow-md'
+                                                : 'border-amber-200 bg-amber-50/30 hover:border-amber-400'
                                     }`}
                                 >
                                     <div className="w-16 h-16 flex items-center justify-center mb-2 bg-white rounded-xl shadow-inner border border-amber-100 overflow-hidden">
-                                        {item.tipo === 'avatar' ? (
+                                        {item.disponible === false ? (
+                                            <span className="text-3xl" aria-hidden="true">{item.emoji || '🌴'}</span>
+                                        ) : item.tipo === 'avatar' ? (
                                             <img
                                                 src={`/avatares/${item.archivo}.png`}
                                                 alt={item.nombre}
@@ -146,16 +168,20 @@ export default function SeccionInventario({
 
                                     <button
                                         onClick={() => handleEquiparItem(item)}
-                                        disabled={esEquipado}
-                                        className={`w-full py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                            esEquipado
-                                                ? 'bg-emerald-600 text-white cursor-default shadow-none'
-                                                : 'bg-amber-600 hover:bg-amber-700 text-white shadow'
+                                        disabled={esEquipado || item.disponible === false}
+                                        className={`w-full py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                            item.disponible === false
+                                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                                : esEquipado
+                                                    ? 'bg-emerald-600 text-white cursor-default shadow-none'
+                                                    : 'bg-amber-600 hover:bg-amber-700 text-white shadow cursor-pointer'
                                         }`}
                                     >
-                                        {item.tipo === 'accesorio'
-                                            ? 'Usar en Creador'
-                                            : (esEquipado ? 'Equipado' : 'Equipar')}
+                                        {item.disponible === false
+                                            ? 'Próximamente'
+                                            : item.tipo === 'accesorio'
+                                                ? 'Usar en Creador'
+                                                : (esEquipado ? 'Equipado' : 'Equipar')}
                                     </button>
                                 </div>
                             );

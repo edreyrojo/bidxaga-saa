@@ -10,6 +10,7 @@ import {
     signInWithRedirect
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { crearVidasIniciales } from '../utils/vidas.js';
 
 export default function LoginModal({ user, onClose }) {
     const [isRegistering, setIsRegistering] = useState(false);
@@ -40,6 +41,7 @@ export default function LoginModal({ user, onClose }) {
                     email: newUser.email,
                     totopos: 0,
                     avatar: 'default',
+                    vidas: crearVidasIniciales(),
                     createdAt: new Date()
                 });
             } else {
@@ -113,6 +115,7 @@ export default function LoginModal({ user, onClose }) {
                 email: googleUser.email,
                 totopos: 0,
                 avatar: 'default',
+                vidas: crearVidasIniciales(),
                 createdAt: new Date()
             });
         }

@@ -70,7 +70,8 @@ export const listaAnimales = [
     { id: 60, categoria: 'aves', diidxaza: 'Bereguidxa', spanish: 'correcaminos', image: '/images/bereguidxa.png' },
     { id: 61, categoria: 'aves', diidxaza: 'Da’ma’', spanish: 'tecolote', image: '/images/dama.png' },
     { id: 62, categoria: 'aves', diidxaza: 'Cha’ca’', spanish: 'carpintero', image: '/images/chaca.png' },
-    { id: 63, categoria: 'aves', diidxaza: 'Tou’', spanish: 'guajolote', image: '/images/tou.png' },
+    // TODO: reemplazar el placeholder por la ilustración definitiva del guajolote.
+    { id: 63, categoria: 'aves', diidxaza: 'Tou’', spanish: 'guajolote', image: '/images/tou.svg', imagenPendiente: true },
     { id: 64, categoria: 'aves', diidxaza: 'Nguengue', spanish: 'loro', image: '/images/nguengue.png' },
     { id: 65, categoria: 'aves', diidxaza: 'Ndxuru’', spanish: 'perico', image: '/images/ndxuru.png' },
     { id: 66, categoria: 'aves', diidxaza: 'Nguxi', spanish: 'zopilote', image: '/images/nguxi.png' },
