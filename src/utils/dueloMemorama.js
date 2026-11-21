@@ -2,6 +2,19 @@ import { listaAnimales } from '../data/animales.js';
 import { listaFlora } from '../data/flora.js';
 
 export const PAREJAS_DUELO = 8;
+export const DURACION_TURNO_MS = 30000;
+export const DURACION_SALA_MS = 2 * 60 * 60 * 1000;
+
+export const MODOS_DUELO = {
+    RAPIDA: 'rapida',
+    RELAJADA: 'relajada',
+};
+
+export const esModoValido = (modo) => Object.values(MODOS_DUELO).includes(modo);
+
+export const siguienteJugador = (orden = [], turno) => (
+    orden.find((uid) => uid !== turno) || orden[0] || null
+);
 
 const ALFABETO_CODIGO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 

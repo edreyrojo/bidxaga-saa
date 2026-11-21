@@ -4,15 +4,20 @@ import { useSonido } from '../hooks/useSonido.js';
 import { almacen } from '../utils/almacen.js';
 import { compartirTexto } from '../utils/compartir.js';
 import {
+    MODOS_DUELO,
     PAREJAS_DUELO,
     normalizarCodigo,
 } from '../utils/dueloMemorama.js';
 import {
     cerrarTurno,
     crearSala,
+    eliminarPresencia,
     iniciarDuelo,
+    latirPresencia,
+    reclamarTurno,
     reiniciarDuelo,
     salirSala,
+    suscribirPresencia,
     suscribirSala,
     unirseSala,
     voltearCarta,
@@ -101,7 +106,7 @@ function CartaDuelo({ card, flipped, disabled, onClick, esTurno }) {
     );
 }
 
-function TarjetaJugador({ nombre, puntos, activo, esYo }) {
+function TarjetaJugador({ nombre, puntos, activo, esYo, conectado = true }) {
     return (
         <div className={`rounded-2xl border-2 p-3 flex items-center gap-2.5 transition-colors ${
             activo
@@ -114,8 +119,12 @@ function TarjetaJugador({ nombre, puntos, activo, esYo }) {
                 {nombre?.charAt(0)?.toUpperCase() || 'J'}
             </span>
             <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-wide text-amber-700 truncate">
+                <p className="text-[10px] font-black uppercase tracking-wide text-amber-700 truncate flex items-center gap-1.5">
                     {esYo ? 'Tú' : 'Rival'}
+                    <span
+                        className={`w-2 h-2 rounded-full ${conectado ? 'bg-emerald-500' : 'bg-red-500'}`}
+                        title={conectado ? 'En línea' : 'Desconectado'}
+                    />
                 </p>
                 <p className="text-xs font-black text-amber-950 truncate">{nombre}</p>
             </div>
@@ -138,17 +147,49 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
     const [uniendose, setUniendose] = useState(false);
     const [iniciando, setIniciando] = useState(false);
     const [saliendo, setSaliendo] = useState(false);
+    const [modo, setModo] = useState(MODOS_DUELO.RAPIDA);
+    const [presencia, setPresencia] = useState({});
+    const [ahora, setAhora] = useState(() => Date.now());
+    const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+    const [showConfirmSalir, setShowConfirmSalir] = useState(false);
+    const [reclamando, setReclamando] = useState(false);
     const ultimoResultadoRef = useRef(null);
+    const ultimoReclamoRef = useRef(0);
 
     useEffect(() => {
         if (nombreJugador && !nombre) setNombre(nombreJugador);
-    }, [nombreJugador]);
+    }, [nombreJugador, nombre]);
 
     useEffect(() => {
         if (!aviso) return undefined;
         const timer = setTimeout(() => setAviso(''), 3500);
         return () => clearTimeout(timer);
     }, [aviso]);
+
+    useEffect(() => {
+        const actualizar = () => setOnline(navigator.onLine);
+        window.addEventListener('online', actualizar);
+        window.addEventListener('offline', actualizar);
+        return () => {
+            window.removeEventListener('online', actualizar);
+            window.removeEventListener('offline', actualizar);
+        };
+    }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const salaParam = normalizarCodigo(params.get('sala') || '');
+        if (salaParam.length === 6) {
+            setCodigoInput(salaParam);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!sala || sala.estado === 'terminado') return undefined;
+        setAhora(Date.now());
+        const intervalo = setInterval(() => setAhora(Date.now()), 1000);
+        return () => clearInterval(intervalo);
+    }, [sala?.estado, sala?.codigo]);
 
     useEffect(() => {
         if (!user?.uid || !codigo) {
@@ -194,6 +235,62 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
     const terminado = sala?.estado === 'terminado';
     const empate = terminado && (sala?.ganador === 'empate' || !sala?.ganador);
     const gane = terminado && sala?.ganador === miUid;
+    const modoSala = sala?.modo === MODOS_DUELO.RELAJADA ? MODOS_DUELO.RELAJADA : MODOS_DUELO.RAPIDA;
+    const expiraTurnoMs = sala?.turnoExpiraEn?.toMillis?.() || Number(sala?.turnoExpiraEn) || 0;
+    const segundosTurno = modoSala === MODOS_DUELO.RAPIDA && expiraTurnoMs > 0
+        ? Math.max(0, Math.ceil((expiraTurnoMs - ahora) / 1000))
+        : null;
+    const tiempoAgotado = modoSala === MODOS_DUELO.RAPIDA && expiraTurnoMs > 0 && ahora >= expiraTurnoMs;
+    const rivalPresencia = rivalUid ? presencia[rivalUid] : null;
+    const rivalConectado = rivalPresencia
+        ? (ahora - (Number(rivalPresencia.ultimaVez) || 0) < 60000)
+        : true;
+
+    useEffect(() => {
+        if (!user?.uid || !codigo) {
+            setPresencia({});
+            return undefined;
+        }
+
+        return suscribirPresencia(
+            codigo,
+            setPresencia,
+            (fallo) => console.warn('No se pudo escuchar la presencia:', fallo)
+        );
+    }, [codigo, user?.uid]);
+
+    useEffect(() => {
+        if (!user?.uid || !codigo || !sala) return undefined;
+
+        let activo = true;
+        const enviar = () => {
+            if (!activo) return;
+            latirPresencia({ codigo, user, nombre: miNombre }).catch(() => {});
+        };
+
+        enviar();
+        const intervalo = setInterval(enviar, 20000);
+
+        return () => {
+            activo = false;
+            clearInterval(intervalo);
+            eliminarPresencia({ codigo, user }).catch(() => {});
+        };
+    }, [codigo, user?.uid, sala?.codigo, miNombre]);
+
+    useEffect(() => {
+        if (!sala || sala.estado !== 'jugando' || modoSala !== MODOS_DUELO.RAPIDA) return;
+        if (!tiempoAgotado || reclamando) return;
+
+        const ahoraMs = Date.now();
+        if (ahoraMs - ultimoReclamoRef.current < 5000) return;
+
+        ultimoReclamoRef.current = ahoraMs;
+        setReclamando(true);
+        reclamarTurno({ codigo: sala.codigo || codigo, user })
+            .catch(() => {})
+            .finally(() => setReclamando(false));
+    }, [sala?.estado, sala?.turnoExpiraEn, sala?.codigo, modoSala, tiempoAgotado, reclamando, codigo, user]);
 
     useEffect(() => {
         if (!sala || sala.estado !== 'jugando' || !sala.bloqueado || sala.resuelto !== 'fallo') {
@@ -228,11 +325,15 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
             onLogin?.();
             return;
         }
+        if (!online) {
+            setError('No tienes conexión. Vuelve a intentarlo cuando estés en línea.');
+            return;
+        }
 
         setCreando(true);
         setError('');
         try {
-            const nuevoCodigo = await crearSala({ user, nombre });
+            const nuevoCodigo = await crearSala({ user, nombre, modo });
             guardarCodigo(nuevoCodigo);
             setAviso('Sala creada. Comparte el código con tu rival.');
         } catch (fallo) {
@@ -245,6 +346,10 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
     const unirse = async () => {
         if (!user) {
             onLogin?.();
+            return;
+        }
+        if (!online) {
+            setError('No tienes conexión. Vuelve a intentarlo cuando estés en línea.');
             return;
         }
 
@@ -291,25 +396,35 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
 
     const salir = async () => {
         setSaliendo(true);
+        setShowConfirmSalir(false);
+        const codigoActivo = sala?.codigo || codigo;
+
         try {
-            if (sala?.codigo || codigo) {
-                await salirSala({ codigo: sala?.codigo || codigo, user });
+            if (codigoActivo) {
+                await salirSala({ codigo: codigoActivo, user });
             }
         } catch (fallo) {
             console.warn('No se pudo salir de la sala:', fallo);
         } finally {
+            if (codigoActivo && user?.uid) {
+                await eliminarPresencia({ codigo: codigoActivo, user }).catch(() => {});
+            }
             guardarCodigo('');
             setSaliendo(false);
             onBack?.();
         }
     };
 
-    const volver = () => {
+    const pedirSalir = () => {
         if (sala || codigo) {
-            salir();
+            setShowConfirmSalir(true);
             return;
         }
         onBack?.();
+    };
+
+    const volver = () => {
+        pedirSalir();
     };
 
     const copiarCodigo = async () => {
@@ -329,7 +444,7 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
         const resultado = await compartirTexto({
             titulo: 'Duelo de Memorama · Bidxaga Saa',
             texto: `Te reto a un duelo de Memorama en diidxazá. Entra a la app y usa el código ${valor}.`,
-            url: window.location.origin,
+            url: `${window.location.origin}/?sala=${valor}`,
         });
         if (resultado === 'copiado') setAviso('Invitación copiada.');
         if (resultado === 'no-disponible') setAviso(`Código: ${valor}`);
@@ -346,21 +461,54 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
     };
 
     const encabezado = (
-        <div className="flex items-center justify-between gap-2 mb-4">
-            <button
-                type="button"
-                onClick={volver}
-                disabled={saliendo}
-                className="bg-amber-800 hover:bg-amber-900 disabled:opacity-60 text-white font-bold px-3 py-2 rounded-xl text-xs cursor-pointer inline-flex items-center gap-1.5"
-            >
-                <Icono nombre="arrowLeft" className="w-4 h-4" /> Salir
-            </button>
-            <div className="text-center min-w-0">
-                <h1 className="text-lg sm:text-xl font-black text-amber-950 truncate">Duelo de Memoria</h1>
-                <p className="text-[10px] font-bold text-amber-700">1 vs 1 · por turnos</p>
+        <>
+            <div className="flex items-center justify-between gap-2 mb-4">
+                <button
+                    type="button"
+                    onClick={volver}
+                    disabled={saliendo}
+                    className="bg-amber-800 hover:bg-amber-900 disabled:opacity-60 text-white font-bold px-3 py-2 rounded-xl text-xs cursor-pointer inline-flex items-center gap-1.5"
+                >
+                    <Icono nombre="arrowLeft" className="w-4 h-4" /> Salir
+                </button>
+                <div className="text-center min-w-0">
+                    <h1 className="text-lg sm:text-xl font-black text-amber-950 truncate">Duelo de Memoria</h1>
+                    <p className="text-[10px] font-bold text-amber-700">1 vs 1 · por turnos</p>
+                </div>
+                <span className="w-10" aria-hidden="true" />
             </div>
-            <span className="w-10" aria-hidden="true" />
-        </div>
+
+            {showConfirmSalir && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[500] flex items-center justify-center p-4">
+                    <div role="dialog" aria-modal="true" aria-labelledby="salir-duelo-titulo" className="bg-white rounded-3xl border-2 border-amber-300 p-5 shadow-2xl w-full max-w-sm text-center">
+                        <Icono nombre="alert" className="w-9 h-9 text-amber-600 mx-auto mb-2" />
+                        <h2 id="salir-duelo-titulo" className="text-lg font-black text-amber-950">¿Salir del duelo?</h2>
+                        <p className="text-xs text-amber-800 font-medium mt-1 mb-4 leading-relaxed">
+                            {esAnfitrion
+                                ? 'Se cerrará la sala para los dos jugadores.'
+                                : 'Tu rival seguirá en la sala y podrá cerrarla.'}
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowConfirmSalir(false)}
+                                className="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl px-3 py-2.5 text-[11px] font-bold cursor-pointer"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={salir}
+                                disabled={saliendo}
+                                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white rounded-xl px-3 py-2.5 text-[11px] font-bold cursor-pointer"
+                            >
+                                {saliendo ? 'Saliendo…' : 'Salir'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 
     if (!user) {
@@ -393,6 +541,12 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
                 {error && (
                     <div className="bg-red-50 border-2 border-red-200 text-red-800 rounded-2xl px-4 py-3 text-xs font-bold mb-3">
                         {error}
+                    </div>
+                )}
+
+                {!online && (
+                    <div className="bg-orange-50 border-2 border-orange-200 text-orange-900 rounded-2xl px-4 py-3 text-xs font-bold mb-3">
+                        Sin conexión. Puedes seguir viendo la pantalla, pero crear o unirte requiere internet.
                     </div>
                 )}
 
@@ -430,10 +584,41 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
                             placeholder="Tu nombre"
                             className="w-full bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-xs font-medium text-amber-950 outline-none focus:border-amber-500 mb-3"
                         />
+
+                        <label className="block text-[10px] font-black uppercase text-amber-800 mb-1">
+                            Modo de partida
+                        </label>
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                            <button
+                                type="button"
+                                onClick={() => setModo(MODOS_DUELO.RAPIDA)}
+                                className={`rounded-xl border-2 p-2 text-left cursor-pointer ${
+                                    modo === MODOS_DUELO.RAPIDA
+                                        ? 'bg-amber-100 border-amber-500 ring-1 ring-amber-300'
+                                        : 'bg-amber-50 border-amber-200'
+                                }`}
+                            >
+                                <span className="block text-[11px] font-black text-amber-950">Rápida</span>
+                                <span className="block text-[9px] font-bold text-amber-700">30 s por turno</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setModo(MODOS_DUELO.RELAJADA)}
+                                className={`rounded-xl border-2 p-2 text-left cursor-pointer ${
+                                    modo === MODOS_DUELO.RELAJADA
+                                        ? 'bg-emerald-100 border-emerald-500 ring-1 ring-emerald-300'
+                                        : 'bg-amber-50 border-amber-200'
+                                }`}
+                            >
+                                <span className="block text-[11px] font-black text-amber-950">Sin prisa</span>
+                                <span className="block text-[9px] font-bold text-amber-700">Sin límite de tiempo</span>
+                            </button>
+                        </div>
+
                         <button
                             type="button"
                             onClick={crear}
-                            disabled={creando}
+                            disabled={creando || !online}
                             className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-60 text-white font-black py-3 rounded-2xl text-sm cursor-pointer"
                         >
                             {creando ? 'Creando…' : 'Crear sala'}
@@ -464,7 +649,7 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
                         <button
                             type="button"
                             onClick={unirse}
-                            disabled={uniendose || codigoInput.length !== 6}
+                            disabled={uniendose || codigoInput.length !== 6 || !online}
                             className="w-full bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-black py-3 rounded-2xl text-sm cursor-pointer"
                         >
                             {uniendose ? 'Entrando…' : 'Unirme a la sala'}
@@ -494,6 +679,13 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
                 <div className="bg-white border-2 border-amber-200 rounded-3xl p-5 shadow-sm text-center">
                     <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Sala de espera</p>
                     <p className="text-4xl font-black tracking-[0.25em] text-amber-950 mt-1">{sala.codigo || codigo}</p>
+                    <p className={`inline-block mt-2 text-[10px] font-black uppercase rounded-full px-2.5 py-1 border ${
+                        modoSala === MODOS_DUELO.RAPIDA
+                            ? 'bg-orange-100 text-orange-800 border-orange-200'
+                            : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    }`}>
+                        {modoSala === MODOS_DUELO.RAPIDA ? 'Rápida · 30 s por turno' : 'Sin prisa · sin límite'}
+                    </p>
                     <div className="flex justify-center gap-2 mt-3">
                         <button type="button" onClick={copiarCodigo} className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl px-3 py-2 text-[11px] font-bold inline-flex items-center gap-1.5 cursor-pointer">
                             <Icono nombre="copy" className="w-3.5 h-3.5" /> Copiar código
@@ -510,14 +702,22 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
                             puntos={0}
                             activo={esAnfitrion}
                             esYo
+                            conectado
                         />
                         <TarjetaJugador
                             nombre={rivalNombre}
                             puntos={0}
                             activo={!esAnfitrion && Boolean(rivalUid)}
                             esYo={false}
+                            conectado={!rivalUid || rivalConectado}
                         />
                     </div>
+
+                    {rivalUid && !rivalConectado && (
+                        <p className="text-[11px] font-bold text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mt-3">
+                            Tu rival parece desconectado.
+                        </p>
+                    )}
 
                     <p className="text-[11px] font-bold text-amber-800 mt-4">
                         {jugadoresListos < 2
@@ -573,20 +773,37 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
                                 puntos={miPuntaje}
                                 activo={esMiTurno}
                                 esYo
+                                conectado
                             />
                             <TarjetaJugador
                                 nombre={rivalNombre}
                                 puntos={rivalPuntaje}
                                 activo={!esMiTurno && Boolean(rivalUid)}
                                 esYo={false}
+                                conectado={!rivalUid || rivalConectado}
                             />
                         </div>
 
-                        <div className={`rounded-2xl px-3 py-2 mb-3 text-center border-2 ${
-                            esMiTurno
-                                ? 'bg-emerald-50 border-emerald-300'
-                                : 'bg-amber-50 border-amber-200'
-                        }`}>
+                        {!online && (
+                            <div className="bg-orange-50 border-2 border-orange-200 text-orange-900 rounded-2xl px-4 py-2 text-xs font-bold mb-3">
+                                Sin conexión. La partida se sincronizará cuando vuelvas.
+                            </div>
+                        )}
+
+                        {rivalUid && !rivalConectado && (
+                            <div className="bg-red-50 border-2 border-red-200 text-red-800 rounded-2xl px-4 py-2 text-xs font-bold mb-3">
+                                Tu rival parece desconectado. Puedes esperar o salir de la sala.
+                            </div>
+                        )}
+
+                        <div
+                            aria-live="polite"
+                            className={`rounded-2xl px-3 py-2 mb-3 text-center border-2 ${
+                                esMiTurno
+                                    ? 'bg-emerald-50 border-emerald-300'
+                                    : 'bg-amber-50 border-amber-200'
+                            }`}
+                        >
                             <p className={`text-xs font-black ${esMiTurno ? 'text-emerald-900' : 'text-amber-900'}`}>
                                 {sala.bloqueado
                                     ? 'Buscando pareja…'
@@ -597,8 +814,44 @@ export default function DueloMemorama({ user, nombreJugador = '', onLogin, onBac
                                             : `Turno de ${rivalNombre}`}
                             </p>
                             <p className="text-[10px] font-bold text-amber-700 mt-0.5">
-                                {parejasEncontradas} de {PAREJAS_DUELO} parejas encontradas
+                                {parejasEncontradas} de {PAREJAS_DUELO} parejas encontradas ·
+                                {' '}
+                                {modoSala === MODOS_DUELO.RAPIDA ? 'Modo rápido' : 'Modo sin prisa'}
                             </p>
+
+                            {modoSala === MODOS_DUELO.RAPIDA && segundosTurno !== null && (
+                                <div className="mt-2">
+                                    <div className="flex items-center justify-between text-[10px] font-black text-amber-800 mb-1">
+                                        <span>{tiempoAgotado ? 'Tiempo agotado' : `Quedan ${segundosTurno} s`}</span>
+                                        <span>30 s por turno</span>
+                                    </div>
+                                    <div className="w-full bg-amber-100 rounded-full h-2 overflow-hidden border border-amber-200">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-1000 ${
+                                                segundosTurno <= 5 ? 'bg-red-500' : 'bg-amber-500'
+                                            }`}
+                                            style={{ width: `${Math.min(100, (segundosTurno / 30) * 100)}%` }}
+                                        />
+                                    </div>
+                                    {tiempoAgotado && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                reclamarTurno({ codigo: sala.codigo || codigo, user }).catch(() => {});
+                                            }}
+                                            className="mt-2 text-[10px] font-black bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-lg cursor-pointer"
+                                        >
+                                            Reclamar turno
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {modoSala === MODOS_DUELO.RELAJADA && (
+                                <p className="text-[10px] font-bold text-emerald-700 mt-1">
+                                    Sin límite de tiempo · juega con calma
+                                </p>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-4 gap-2 sm:gap-2.5 w-full max-w-xl mx-auto">

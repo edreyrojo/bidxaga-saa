@@ -14,16 +14,23 @@ La pantalla de inicio se organiza en cuatro bloques para que la navegación sea 
 ## Duelo 1v1 de Memorama
 
 - Se entra desde el menú principal, en la tarjeta **Duelo de Memoria**.
-- El anfitrión crea una sala y comparte un **código de 6 caracteres**.
+- El anfitrión crea una sala y comparte un **código de 6 caracteres** o un enlace con `?sala=CODIGO`.
 - El rival se une con el código y el anfitrión inicia la partida.
 - Se juegan **8 parejas** (16 cartas) con imagen y palabra en diidxazá.
 - Si un jugador encuentra una pareja, **conserva el turno**. Si falla, el turno pasa al rival.
+- Hay dos modos:
+  - **Rápida:** 30 segundos por turno. Si el tiempo se agota, cualquiera puede reclamar el turno.
+  - **Sin prisa:** sin límite de tiempo, para jugar con calma.
 - Gana quien encuentre más parejas; si empatan, la partida termina en empate.
 - El anfitrión puede iniciar una **revancha** con el mismo grupo.
-- La sala se sincroniza en tiempo real con Firestore (`salas/{codigo}`).
-- Requiere iniciar sesión. El estado se guarda en el documento de la sala y se puede retomar al volver a entrar con el mismo código.
+- Hay presencia en tiempo real: si el rival deja de responder, se muestra como desconectado.
+- Las salas incluyen `expiraEn`; se recomienda configurar una política TTL en Firestore para limpiar salas antiguas.
+- La sala se sincroniza en tiempo real con Firestore (`salas/{codigo}`) y `salas/{codigo}/presencia/{uid}`.
+- Requiere iniciar sesión.
 
-El modo está pensado para **competencia amistosa**. Al no haber backend, el cliente que tiene el turno resuelve la jugada; un jugador con conocimientos técnicos podría inspeccionar la sala. Para una competencia con anti-trampas real haría falta mover la lógica a Cloud Functions.
+El modo está pensado para **competencia amistosa**. Las reglas limitan al anfitrión a iniciar/reiniciar y validan que el turno solo pueda mover una carta a la vez, que un fallo no cambie el marcador y que un acierto sume exactamente +1. Aun así, sin backend un jugador con conocimientos técnicos podría inspeccionar la sala o simular una pareja. Para anti-trampas real haría falta Cloud Functions o un backend propio.
+
+Para limpiar salas antiguas, crea una política TTL en Firebase Console → Firestore → TTL con la colección `salas` y el campo `expiraEn`.
 
 ## Panel de administración
 

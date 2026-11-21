@@ -85,10 +85,13 @@ Puedes editar manualmente `usuarios/{uid}.role = "admin"` desde la consola de Fi
 ## Duelo de Memorama
 
 - Las salas viven en `salas/{codigo}` y solo pueden leerlas usuarios autenticados: las salas en espera son legibles para permitir unirse; las partidas activas solo para sus jugadores.
-- Solo el anfitrión crea, inicia, reinicia o elimina la sala.
-- Solo el jugador en turno puede voltear cartas y resolver parejas. Cualquiera de los dos puede cerrar un turno fallido, lo que evita que un fallo deje la mesa bloqueada.
-- El mazo completo se guarda en Firestore para sincronizar ambos clientes. Esto permite competencia amistosa, pero no anti-trampas fuerte: un jugador con conocimientos técnicos podría inspeccionar el documento.
-- No hay presencia server-side ni expulsión automática. Si un jugador cierra la pestaña sin salir, el otro puede salir y crear otra sala.
+- Solo el anfitrión crea, inicia, reinicia o elimina la sala. En partida no puede modificar el mazo ni los puntajes.
+- Solo el jugador en turno puede mover la mesa. Las reglas distinguen primer volteo, fallo y acierto: un fallo no puede cambiar el marcador y un acierto debe sumar exactamente +1 al jugador en turno.
+- Cualquiera de los dos puede cerrar un turno fallido o reclamar el turno cuando expira el temporizador del modo rápido.
+- La presencia se guarda en `salas/{codigo}/presencia/{uid}`. Cada jugador solo puede escribir su propio documento.
+- Las salas tienen `expiraEn` para una política TTL. Sin TTL, una sala abandonada puede quedar en Firestore.
+- El mazo completo se guarda en Firestore para sincronizar ambos clientes. Esto permite competencia amistosa, pero no anti-trampas fuerte: un jugador con conocimientos técnicos podría inspeccionar el documento o simular una pareja.
+- No hay forfait automático server-side. Si un jugador cierra la pestaña sin salir, el otro ve “desconectado”, puede reclamar el turno en modo rápido o salir y crear otra sala.
 - Para una competencia con validación totalmente server-side haría falta Cloud Functions o un backend propio.
 
 ## Limitaciones actuales

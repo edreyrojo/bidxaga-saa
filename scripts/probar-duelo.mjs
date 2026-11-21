@@ -5,7 +5,9 @@ const {
     PAREJAS_DUELO,
     calcularGanador,
     crearMazoDuelo,
+    esModoValido,
     normalizarCodigo,
+    siguienteJugador,
 } = await import('../src/utils/dueloMemorama.js');
 
 let fallos = 0;
@@ -48,6 +50,13 @@ comprobar('gana quien tiene más parejas', calcularGanador({ a: 5, b: 3 }, ['a',
 comprobar('gana el segundo si tiene más', calcularGanador({ a: 2, b: 4 }, ['a', 'b']) === 'b');
 comprobar('empate cuando hay los mismos puntos', calcularGanador({ a: 4, b: 4 }, ['a', 'b']) === 'empate');
 comprobar('empate sin jugadores suficientes', calcularGanador({ a: 9 }, ['a']) === 'empate');
+
+comprobar('el siguiente turno alterna al rival', siguienteJugador(['a', 'b'], 'a') === 'b');
+comprobar('el siguiente turno alterna al primero', siguienteJugador(['a', 'b'], 'b') === 'a');
+comprobar('sin turno actual toma el primero', siguienteJugador(['a', 'b'], null) === 'a');
+comprobar('valida el modo rápido', esModoValido('rapida') === true);
+comprobar('valida el modo sin prisa', esModoValido('relajada') === true);
+comprobar('rechaza un modo inventado', esModoValido('turbo') === false);
 
 if (fallos > 0) {
     console.error(`\n${fallos} prueba(s) fallaron.`);

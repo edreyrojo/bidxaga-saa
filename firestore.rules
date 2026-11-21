@@ -26,6 +26,10 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function rivalDuelo(uid, orden) {
+      return orden[0] == uid ? orden[1] : orden[0];
+    }
+
     function esRegistroRepasoValido(data) {
       return data.tipo in ['fauna', 'flora']
         && data.id is int
@@ -368,6 +372,8 @@ service cloud.firestore {
         && request.resource.data.codigo == codigo
         && request.resource.data.anfitrion == request.auth.uid
         && request.resource.data.estado == 'esperando'
+        && request.resource.data.modo in ['rapida', 'relajada']
+        && request.resource.data.expiraEn is timestamp
         && request.resource.data.jugadores is map
         && request.resource.data.jugadores.keys().size() == 1
         && request.auth.uid in request.resource.data.jugadores
@@ -387,30 +393,115 @@ service cloud.firestore {
           && request.resource.data.jugadores[request.auth.uid].nombre is string
           && request.resource.data.jugadores[request.auth.uid].nombre.size() <= 40
         )
-        // El anfitrión inicia, reinicia o cierra la partida.
+        // El anfitrión inicia o reinicia. No puede tocar la mesa en partida.
         || (
           request.auth.uid == resource.data.anfitrion
+          && resource.data.estado in ['esperando', 'terminado']
+          && request.resource.data.estado == 'jugando'
           && request.resource.data.jugadores.keys().size() == 2
+          && request.resource.data.mazo.size() == 16
+          && request.resource.data.puntajes.keys().size() == 2
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'estado', 'mazo', 'volteadas', 'bloqueado', 'resuelto',
-            'puntajes', 'turno', 'orden', 'ganador', 'iniciadoEn', 'actualizadoEn'
+            'puntajes', 'turno', 'turnoExpiraEn', 'orden',
+            'ganador', 'iniciadoEn', 'actualizadoEn', 'expiraEn'
           ])
         )
-        // Acciones del jugador en turno: voltear, resolver pareja o terminar.
+        // Acciones del jugador en turno: primer volteo, fallo o acierto.
         || (
           request.auth.uid in resource.data.jugadores
           && request.auth.uid == resource.data.turno
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'mazo', 'volteadas', 'bloqueado', 'resuelto',
-            'puntajes', 'turno', 'estado', 'ganador', 'actualizadoEn'
-          ])
+          && resource.data.estado == 'jugando'
+          && (
+            // Primer volteo: una carta, sin tocar mazo ni puntajes.
+            (
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'volteadas', 'resuelto', 'actualizadoEn'
+              ])
+              && request.resource.data.volteadas.size() == 1
+              && request.resource.data.bloqueado == false
+              && request.resource.data.resuelto == null
+              && request.resource.data.turno == request.auth.uid
+              && request.resource.data.estado == 'jugando'
+            )
+            // Fallo: dos cartas, mesa bloqueada, sin tocar mazo ni puntajes.
+            || (
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'volteadas', 'bloqueado', 'resuelto', 'actualizadoEn'
+              ])
+              && request.resource.data.volteadas.size() == 2
+              && request.resource.data.bloqueado == true
+              && request.resource.data.resuelto == 'fallo'
+              && request.resource.data.turno == request.auth.uid
+              && request.resource.data.estado == 'jugando'
+            )
+            // Acierto: exactamente +1 al jugador en turno, sin tocar al rival.
+            || (
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'mazo', 'puntajes', 'volteadas', 'bloqueado', 'resuelto',
+                'turno', 'turnoExpiraEn', 'estado', 'ganador', 'actualizadoEn'
+              ])
+              && request.resource.data.volteadas.size() == 0
+              && request.resource.data.bloqueado == false
+              && request.resource.data.resuelto == 'acierto'
+              && request.resource.data.mazo.size() == resource.data.mazo.size()
+              && request.resource.data.puntajes[request.auth.uid]
+                == resource.data.puntajes[request.auth.uid] + 1
+              && (
+                (
+                  resource.data.orden[0] == request.auth.uid
+                  && request.resource.data.puntajes[resource.data.orden[1]]
+                    == resource.data.puntajes[resource.data.orden[1]]
+                )
+                || (
+                  resource.data.orden[1] == request.auth.uid
+                  && request.resource.data.puntajes[resource.data.orden[0]]
+                    == resource.data.puntajes[resource.data.orden[0]]
+                )
+              )
+              && (
+                (
+                  request.resource.data.estado == 'jugando'
+                  && request.resource.data.turno == request.auth.uid
+                )
+                || (
+                  request.resource.data.estado == 'terminado'
+                  && request.resource.data.turno == null
+                )
+              )
+            )
+          )
         )
         // Cerrar el turno tras un fallo: cualquiera de los dos participantes.
         || (
           request.auth.uid in resource.data.jugadores
+          && resource.data.estado == 'jugando'
           && resource.data.bloqueado == true
+          && resource.data.resuelto == 'fallo'
+          && request.resource.data.volteadas.size() == 0
+          && request.resource.data.bloqueado == false
+          && request.resource.data.resuelto == null
+          && request.resource.data.estado == 'jugando'
+          && request.resource.data.turno == rivalDuelo(resource.data.turno, resource.data.orden)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'volteadas', 'bloqueado', 'resuelto', 'turno', 'actualizadoEn'
+            'volteadas', 'bloqueado', 'resuelto', 'turno', 'turnoExpiraEn', 'actualizadoEn'
+          ])
+        )
+        // Reclamar el turno cuando expiró el temporizador del modo rápido.
+        || (
+          request.auth.uid in resource.data.jugadores
+          && resource.data.estado == 'jugando'
+          && resource.data.modo == 'rapida'
+          && resource.data.turnoExpiraEn is timestamp
+          && resource.data.turnoExpiraEn < request.time
+          && request.resource.data.estado == 'jugando'
+          && request.resource.data.volteadas.size() == 0
+          && request.resource.data.bloqueado == false
+          && request.resource.data.resuelto == null
+          && request.resource.data.turno == rivalDuelo(resource.data.turno, resource.data.orden)
+          && request.resource.data.turnoExpiraEn is timestamp
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'volteadas', 'bloqueado', 'resuelto', 'turno', 'turnoExpiraEn', 'actualizadoEn'
           ])
         )
         // Un participante puede salir y quitarse de la sala.
@@ -425,6 +516,15 @@ service cloud.firestore {
       );
 
       allow delete: if signedIn() && request.auth.uid == resource.data.anfitrion;
+
+      match /presencia/{uid} {
+        allow read: if signedIn();
+        allow create, update: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.uid == uid
+          && request.resource.data.ultimaVez is int;
+        allow delete: if signedIn() && request.auth.uid == uid;
+      }
     }
 
     match /{document=**} {

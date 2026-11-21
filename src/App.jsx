@@ -178,7 +178,11 @@ function RenderAvatarSuperior({ avatar }) {
 }
 
 function App() {
-  const [vistaActual, setVistaActual] = useState('menu');
+  const [vistaActual, setVistaActual] = useState(() => {
+    if (typeof window === 'undefined') return 'menu';
+    const params = new URLSearchParams(window.location.search);
+    return params.get('sala') ? 'duelo' : 'menu';
+  });
   const [user, setUser] = useState(null);
   const [mostrarSplash, setMostrarSplash] = useState(true);
   const [animandoSalida, setAnimandoSalida] = useState(false);

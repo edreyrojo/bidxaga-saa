@@ -1,16 +1,24 @@
 import {
     collection,
+    deleteDoc,
     doc,
     onSnapshot,
     runTransaction,
+    setDoc,
+    Timestamp,
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import {
+    DURACION_SALA_MS,
+    DURACION_TURNO_MS,
+    MODOS_DUELO,
     PAREJAS_DUELO,
     calcularGanador,
     crearMazoDuelo,
+    esModoValido,
     generarCodigoSala,
     normalizarCodigo,
+    siguienteJugador,
 } from '../utils/dueloMemorama.js';
 
 const MAX_JUGADORES = 2;
@@ -22,10 +30,30 @@ const nombreSeguro = (nombre, user) => {
     return texto.slice(0, 40) || 'Jugador';
 };
 
+const modoSeguro = (modo) => (esModoValido(modo) ? modo : MODOS_DUELO.RAPIDA);
+
+const expiracionTurno = (modo) => (
+    modo === MODOS_DUELO.RAPIDA
+        ? Timestamp.fromMillis(Date.now() + DURACION_TURNO_MS)
+        : null
+);
+
+const expiracionSala = () => Timestamp.fromMillis(Date.now() + DURACION_SALA_MS);
+
+const referenciaPresencia = (codigo, uid) => doc(
+    db,
+    'salas',
+    normalizarCodigo(codigo),
+    'presencia',
+    uid
+);
+
 const referenciaSala = (codigo) => doc(db, 'salas', normalizarCodigo(codigo));
 
-export const crearSala = async ({ user, nombre }) => {
+export const crearSala = async ({ user, nombre, modo = MODOS_DUELO.RAPIDA }) => {
     if (!user?.uid) throw new Error('SIN_SESION');
+
+    const modoFinal = modoSeguro(modo);
 
     for (let intento = 0; intento < 6; intento += 1) {
         const codigo = generarCodigoSala();
@@ -41,6 +69,7 @@ export const crearSala = async ({ user, nombre }) => {
                     codigo,
                     version: 1,
                     estado: 'esperando',
+                    modo: modoFinal,
                     anfitrion: user.uid,
                     jugadores: {
                         [user.uid]: {
@@ -50,6 +79,7 @@ export const crearSala = async ({ user, nombre }) => {
                     },
                     orden: [user.uid],
                     turno: null,
+                    turnoExpiraEn: null,
                     puntajes: { [user.uid]: 0 },
                     mazo: [],
                     volteadas: [],
@@ -58,6 +88,7 @@ export const crearSala = async ({ user, nombre }) => {
                     ganador: null,
                     creadoEn: ahora,
                     actualizadoEn: ahora,
+                    expiraEn: expiracionSala(),
                 });
             });
 
@@ -122,11 +153,13 @@ export const iniciarDuelo = async ({ codigo, user }) => {
 
         const rival = jugadores.find((uid) => uid !== user.uid);
         const orden = [user.uid, rival];
+        const modo = modoSeguro(datos.modo);
 
         transaccion.update(referencia, {
             estado: 'jugando',
             orden,
             turno: orden[0],
+            turnoExpiraEn: expiracionTurno(modo),
             puntajes: { [orden[0]]: 0, [orden[1]]: 0 },
             mazo,
             volteadas: [],
@@ -135,6 +168,7 @@ export const iniciarDuelo = async ({ codigo, user }) => {
             ganador: null,
             iniciadoEn: Date.now(),
             actualizadoEn: Date.now(),
+            expiraEn: expiracionSala(),
         });
     });
 };
@@ -211,6 +245,7 @@ export const voltearCarta = async ({ codigo, user, cartaId }) => {
             resuelto: 'acierto',
             estado: quedan ? 'jugando' : 'terminado',
             turno: quedan ? user.uid : null,
+            turnoExpiraEn: quedan ? expiracionTurno(modoSeguro(datos.modo)) : null,
             ganador: quedan ? null : calcularGanador(puntajes, datos.orden || []),
             actualizadoEn: Date.now(),
         });
@@ -236,13 +271,50 @@ export const cerrarTurno = async ({ codigo }) => {
         const orden = datos.orden?.length === 2
             ? datos.orden
             : Object.keys(datos.jugadores || {});
-        const siguiente = orden.find((uid) => uid !== datos.turno) || orden[0];
+        const siguiente = siguienteJugador(orden, datos.turno);
 
         transaccion.update(referencia, {
             volteadas: [],
             bloqueado: false,
             resuelto: null,
             turno: siguiente,
+            turnoExpiraEn: expiracionTurno(modoSeguro(datos.modo)),
+            actualizadoEn: Date.now(),
+        });
+    });
+};
+
+/**
+ * Reclama el turno cuando el temporizador del modo rápido ya expiró.
+ * Puede llamarlo cualquiera de los dos jugadores.
+ */
+export const reclamarTurno = async ({ codigo, user }) => {
+    if (!user?.uid) throw new Error('SIN_SESION');
+
+    const referencia = referenciaSala(codigo);
+
+    await runTransaction(db, async (transaccion) => {
+        const actual = await transaccion.get(referencia);
+        if (!actual.exists()) throw new Error('SALA_NO_EXISTE');
+
+        const datos = actual.data();
+        if (datos.estado !== 'jugando') return;
+        if (modoSeguro(datos.modo) !== MODOS_DUELO.RAPIDA) throw new Error('MODO_SIN_TIEMPO');
+
+        const expira = datos.turnoExpiraEn?.toMillis?.() || 0;
+        if (!expira || expira > Date.now()) throw new Error('TURNO_NO_EXPIRADO');
+
+        const orden = datos.orden?.length === 2
+            ? datos.orden
+            : Object.keys(datos.jugadores || {});
+        const siguiente = siguienteJugador(orden, datos.turno);
+
+        transaccion.update(referencia, {
+            volteadas: [],
+            bloqueado: false,
+            resuelto: null,
+            turno: siguiente,
+            turnoExpiraEn: expiracionTurno(MODOS_DUELO.RAPIDA),
             actualizadoEn: Date.now(),
         });
     });
@@ -266,11 +338,13 @@ export const reiniciarDuelo = async ({ codigo, user }) => {
 
         const rival = jugadores.find((uid) => uid !== user.uid);
         const orden = [user.uid, rival];
+        const modo = modoSeguro(datos.modo);
 
         transaccion.update(referencia, {
             estado: 'jugando',
             orden,
             turno: orden[0],
+            turnoExpiraEn: expiracionTurno(modo),
             puntajes: { [orden[0]]: 0, [orden[1]]: 0 },
             mazo,
             volteadas: [],
@@ -279,6 +353,7 @@ export const reiniciarDuelo = async ({ codigo, user }) => {
             ganador: null,
             iniciadoEn: Date.now(),
             actualizadoEn: Date.now(),
+            expiraEn: expiracionSala(),
         });
     });
 };
@@ -309,6 +384,55 @@ export const salirSala = async ({ codigo, user }) => {
             actualizadoEn: Date.now(),
         });
     });
+
+    await eliminarPresencia({ codigo, user });
+};
+
+export const latirPresencia = async ({ codigo, user, nombre }) => {
+    if (!user?.uid) return;
+
+    await setDoc(
+        referenciaPresencia(codigo, user.uid),
+        {
+            uid: user.uid,
+            nombre: nombreSeguro(nombre, user),
+            ultimaVez: Date.now(),
+            conectado: true,
+        },
+        { merge: true }
+    );
+};
+
+export const eliminarPresencia = async ({ codigo, user }) => {
+    if (!user?.uid) return;
+
+    try {
+        await deleteDoc(referenciaPresencia(codigo, user.uid));
+    } catch {
+        // La presencia es best-effort.
+    }
+};
+
+export const suscribirPresencia = (codigo, alCambiar, alFallar) => {
+    const limpio = normalizarCodigo(codigo);
+    if (limpio.length !== 6) {
+        alCambiar?.({});
+        return () => {};
+    }
+
+    return onSnapshot(
+        collection(db, 'salas', limpio, 'presencia'),
+        (instantanea) => {
+            const mapa = {};
+            instantanea.forEach((documento) => {
+                mapa[documento.id] = documento.data();
+            });
+            alCambiar?.(mapa);
+        },
+        (error) => {
+            alFallar?.(error);
+        }
+    );
 };
 
 export const suscribirSala = (codigo, alCambiar, alFallar) => {
