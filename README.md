@@ -11,6 +11,20 @@ La pantalla de inicio se organiza en cuatro bloques para que la navegación sea 
 - **Tu avance**: acceso al panel de progreso, que reúne estadísticas, Repaso Inteligente, actividad, niveles y logros.
 - **Más**: instalar la app, **sugerir palabras o correcciones**, apoyar el proyecto y créditos.
 
+## Duelo 1v1 de Memorama
+
+- Se entra desde el menú principal, en la tarjeta **Duelo de Memoria**.
+- El anfitrión crea una sala y comparte un **código de 6 caracteres**.
+- El rival se une con el código y el anfitrión inicia la partida.
+- Se juegan **8 parejas** (16 cartas) con imagen y palabra en diidxazá.
+- Si un jugador encuentra una pareja, **conserva el turno**. Si falla, el turno pasa al rival.
+- Gana quien encuentre más parejas; si empatan, la partida termina en empate.
+- El anfitrión puede iniciar una **revancha** con el mismo grupo.
+- La sala se sincroniza en tiempo real con Firestore (`salas/{codigo}`).
+- Requiere iniciar sesión. El estado se guarda en el documento de la sala y se puede retomar al volver a entrar con el mismo código.
+
+El modo está pensado para **competencia amistosa**. Al no haber backend, el cliente que tiene el turno resuelve la jugada; un jugador con conocimientos técnicos podría inspeccionar la sala. Para una competencia con anti-trampas real haría falta mover la lógica a Cloud Functions.
+
 ## Panel de administración
 
 - Acceso desde el icono de escudo de la barra superior (escritorio) o del menú móvil. Solo aparece para administradores.

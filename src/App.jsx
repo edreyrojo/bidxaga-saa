@@ -19,6 +19,7 @@ const RetoDiario = lazy(() => import('./components/RetoDiario'));
 const PanelProgreso = lazy(() => import('./components/PanelProgreso'));
 const AdminPanel = lazy(() => import('./components/admin/AdminPanel'));
 const GeneradorDev = lazy(() => import('./components/GeneradorDev'));
+const DueloMemorama = lazy(() => import('./components/DueloMemorama'));
 import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
 import ConfiguracionModal from './components/ConfiguracionModal';
@@ -665,6 +666,18 @@ function App() {
               setShowConfigModal(false); 
               setVistaActual('menu'); 
             }} 
+          />
+        )}
+
+        {vistaActual === 'duelo' && (
+          <DueloMemorama
+            user={user}
+            nombreJugador={perfilInfo.nombre || user?.displayName || (user?.email ? user.email.split('@')[0] : '')}
+            onLogin={() => setShowLoginModal(true)}
+            onBack={() => {
+              setControlesJuegoActivo(null);
+              setVistaActual('menu');
+            }}
           />
         )}
 

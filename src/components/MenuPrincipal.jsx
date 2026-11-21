@@ -288,6 +288,29 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                         </span>
                     </button>
                 ))}
+
+                <button
+                    type="button"
+                    onClick={() => {
+                        reproducirSonido('click1');
+                        setVistaActual('duelo');
+                    }}
+                    className="col-span-2 group bg-gradient-to-br from-emerald-700 to-teal-800 hover:from-emerald-800 hover:to-teal-900 text-white rounded-3xl p-4 shadow-lg border-2 border-emerald-500 transition-transform active:scale-[0.99] text-left flex items-center gap-3 cursor-pointer"
+                >
+                    <span className="w-12 h-12 bg-white/15 rounded-2xl flex items-center justify-center shrink-0">
+                        <Icono nombre="users" className="w-7 h-7" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                        <p className="font-black text-lg leading-tight flex items-center gap-2">
+                            Duelo de Memoria
+                            <span className="text-[9px] font-black uppercase bg-white/20 px-1.5 py-0.5 rounded-full">1v1</span>
+                        </p>
+                        <p className="text-[11px] text-emerald-100 font-medium mt-0.5">
+                            Reta a un amigo por turnos. Gana quien encuentre más parejas.
+                        </p>
+                    </div>
+                    <Icono nombre="arrowRight" className="w-5 h-5 shrink-0" />
+                </button>
             </div>
 
             {/* TU AVANCE */}

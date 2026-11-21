@@ -82,6 +82,15 @@ Puedes editar manualmente `usuarios/{uid}.role = "admin"` desde la consola de Fi
 - El script `npm run admin:claim` permite asignar o retirar el claim usando una cuenta de servicio local. La cuenta no se sube al repositorio.
 - Las sugerencias tienen un límite local de 5 minutos entre envíos; App Check es la protección principal contra abuso automatizado.
 
+## Duelo de Memorama
+
+- Las salas viven en `salas/{codigo}` y solo pueden leerlas usuarios autenticados: las salas en espera son legibles para permitir unirse; las partidas activas solo para sus jugadores.
+- Solo el anfitrión crea, inicia, reinicia o elimina la sala.
+- Solo el jugador en turno puede voltear cartas y resolver parejas. Cualquiera de los dos puede cerrar un turno fallido, lo que evita que un fallo deje la mesa bloqueada.
+- El mazo completo se guarda en Firestore para sincronizar ambos clientes. Esto permite competencia amistosa, pero no anti-trampas fuerte: un jugador con conocimientos técnicos podría inspeccionar el documento.
+- No hay presencia server-side ni expulsión automática. Si un jugador cierra la pestaña sin salir, el otro puede salir y crear otra sala.
+- Para una competencia con validación totalmente server-side haría falta Cloud Functions o un backend propio.
+
 ## Limitaciones actuales
 
 Las reglas protegen el rol de administrador, los avisos y los rankings, pero **totopos, vidas, progreso, categorías, avatares, logros, repaso y reto diario todavía se escriben desde el cliente**. Un usuario con conocimientos técnicos podría modificar su propio saldo o progreso.
