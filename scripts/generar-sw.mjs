@@ -72,6 +72,7 @@ const reemplazar = (marcador, valor) => {
 
 reemplazar('/* __PRECACHE__ */ []', buildAssets);
 reemplazar('/* __IMAGENES__ */ []', imageAssets);
+reemplazar('/* __BUILD_TS__ */', Date.now());
 
 if (!sw.includes('/* __VERSION__ */')) {
     console.error('❌ Falta el marcador /* __VERSION__ */ en public/sw.js.');

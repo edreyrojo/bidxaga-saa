@@ -1,6 +1,27 @@
 import React from 'react';
 import Icono from './Icono.jsx';
 
+/**
+ * Limpia solo cachés y service workers. No toca localStorage ni los datos
+ * de Firestore, así que el progreso local y el de la nube se conservan.
+ */
+const repararYRecargar = async () => {
+    try {
+        if ('serviceWorker' in navigator) {
+            const registros = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registros.map((registro) => registro.unregister()));
+        }
+        if ('caches' in window) {
+            const claves = await caches.keys();
+            await Promise.all(claves.map((clave) => caches.delete(clave)));
+        }
+    } catch (error) {
+        console.warn('No se pudo limpiar la caché de la app:', error);
+    } finally {
+        window.location.reload();
+    }
+};
+
 export default class ErrorBoundary extends React.Component {
     constructor(props) {
         super(props);
@@ -32,10 +53,10 @@ export default class ErrorBoundary extends React.Component {
                     <div className="flex flex-col gap-2">
                         <button
                             type="button"
-                            onClick={() => window.location.reload()}
+                            onClick={repararYRecargar}
                             className="w-full bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 rounded-2xl text-sm shadow-md cursor-pointer"
                         >
-                            Recargar la app
+                            Reparar y recargar
                         </button>
                         <button
                             type="button"

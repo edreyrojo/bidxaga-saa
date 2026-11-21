@@ -1,6 +1,10 @@
 /* Service worker de Bidxaga Saa.
    Versión: cambia este número cuando quieras invalidar la caché. */
-const CACHE = 'bidxaga-saa-/* __VERSION__ */';
+const CACHE = 'bidxaga-saa-/* __BUILD_TS__ */-/* __VERSION__ */';
+
+// Se conservan las últimas versiones para que una pestaña o PWA abierta
+// durante un despliegue pueda seguir cargando sus chunks antiguos.
+const MAX_CACHES = 3;
 
 // Assets base que siempre deben estar disponibles.
 const CORE = [
@@ -39,10 +43,13 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    const keys = await caches.keys();
+    const keys = (await caches.keys()).filter((key) => key.startsWith('bidxaga-saa-'));
+    // Conservar la versión actual y las dos anteriores. Las pestañas abiertas
+    // pueden seguir pidiendo chunks de una versión vieja sin romperse.
+    const conservar = new Set([CACHE, ...keys.sort().reverse().slice(0, MAX_CACHES)]);
     await Promise.all(
       keys
-        .filter((key) => key.startsWith('bidxaga-saa-') && key !== CACHE)
+        .filter((key) => !conservar.has(key))
         .map((key) => caches.delete(key))
     );
     await self.clients.claim();
