@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSonido } from '../hooks/useSonido';
 import { useRepaso } from '../hooks/useRepaso';
 import { useRetoDiario } from '../hooks/useRetoDiario';
+import { useInstalacionPWA } from '../hooks/useInstalacionPWA';
 import Icono from './Icono';
+import SugerenciaModal from './SugerenciaModal';
 import { generarPalabraDelDia } from '../utils/retoDiario';
 import { compartirTexto } from '../utils/compartir';
 import { almacen } from '../utils/almacen.js';
@@ -11,6 +13,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
     const { reproducirSonido } = useSonido();
     const { pendientes, total: palabrasTotal, dominadas } = useRepaso(user);
     const { completadoHoy, reto, rachaActual, hoy } = useRetoDiario(user);
+    const { disponible: instalacionNativa, instalar } = useInstalacionPWA();
     const palabraDelDia = useMemo(() => generarPalabraDelDia(hoy), [hoy]);
     const [estadoCompartir, setEstadoCompartir] = useState(null);
     const [recordatorioOculto, setRecordatorioOculto] = useState(() => almacen.getItem('recordatorioRachaOculto') === hoy);
@@ -76,6 +79,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
     const [mostrarModalApoyo, setMostrarModalApoyo] = useState(false);
     const [mostrarModalCreditos, setMostrarModalCreditos] = useState(false);
     const [mostrarModalInstalar, setMostrarModalInstalar] = useState(false);
+    const [mostrarModalSugerencia, setMostrarModalSugerencia] = useState(false);
 
     // Estado para alternar entre plataformas en la ventana de instalacion ('android' o 'iphone')
     const [plataformaInstalacion, setPlataformaInstalacion] = useState('android');
@@ -111,6 +115,17 @@ export default function MenuPrincipal({ setVistaActual, user }) {
         if (resultado === 'cancelado') return;
         setEstadoCompartir(resultado);
         setTimeout(() => setEstadoCompartir(null), 2500);
+    };
+
+    const abrirInstalacion = async () => {
+        try { reproducirSonido('click1'); } catch (e) {}
+
+        if (instalacionNativa) {
+            const resultado = await instalar();
+            if (resultado === 'accepted') return;
+        }
+
+        setMostrarModalInstalar(true);
     };
 
     return (
@@ -322,19 +337,30 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                 <div className="flex-1 h-px bg-amber-200/70" />
             </div>
 
-            <div className="grid grid-cols-3 gap-2 w-full mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full mb-6">
                 <button
                     type="button"
-                    onClick={() => {
-                        reproducirSonido('click1');
-                        setMostrarModalInstalar(true);
-                    }}
+                    onClick={abrirInstalacion}
                     className="bg-white hover:bg-emerald-50 border-2 border-emerald-200 hover:border-emerald-400 rounded-2xl p-3 flex flex-col items-center gap-1.5 text-center shadow-sm transition-colors cursor-pointer"
                 >
                     <span className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center border border-emerald-200">
                         <Icono nombre="smartphone" className="w-5 h-5" />
                     </span>
                     <span className="text-[10px] font-black text-emerald-900 leading-tight">Instalar app</span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => {
+                        reproducirSonido('click1');
+                        setMostrarModalSugerencia(true);
+                    }}
+                    className="bg-white hover:bg-teal-50 border-2 border-teal-200 hover:border-teal-400 rounded-2xl p-3 flex flex-col items-center gap-1.5 text-center shadow-sm transition-colors cursor-pointer"
+                >
+                    <span className="w-9 h-9 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center border border-teal-200">
+                        <Icono nombre="megaphone" className="w-5 h-5" />
+                    </span>
+                    <span className="text-[10px] font-black text-teal-900 leading-tight">Sugerir</span>
                 </button>
 
                 <button
@@ -633,6 +659,13 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                         </button>
                     </div>
                 </div>
+            )}
+
+            {mostrarModalSugerencia && (
+                <SugerenciaModal
+                    user={user}
+                    onClose={() => setMostrarModalSugerencia(false)}
+                />
             )}
         </div>
     );

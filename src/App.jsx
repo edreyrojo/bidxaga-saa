@@ -19,6 +19,7 @@ import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
 import ConfiguracionModal from './components/ConfiguracionModal';
 import Icono from './components/Icono';
+import AvisoActualizacion from './components/AvisoActualizacion';
 
 const RUTA_MERCADO_ACCESORIOS = '/avatares/mercado/';
 
@@ -752,8 +753,7 @@ function App() {
       />
 
       {logroToast && (
-        <div className="fixed bottom-[calc(1rem_+_env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[300] w-[calc(100%-2rem)] max-w-sm bg-amber-950 text-white rounded-2xl shadow-2xl border-2 border-amber-400 p-4 flex items-center gap-3">
-          <span className="flex-shrink-0 flex items-center justify-center" aria-hidden="true">
+        <div className="fixed bottom-[calc(1rem_+_env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[300] w-[calc(100%-2rem)] max-w-sm bg-amber-950 text-white rounded-2xl shadow-2xl border-2 border-amber-400 p-4 flex items-center gap-3">          <span className="flex-shrink-0 flex items-center justify-center" aria-hidden="true">
             <Icono nombre={logroToast.icono || 'trophy'} className="w-8 h-8 text-amber-300" />
           </span>
           <div className="min-w-0 flex-1">
@@ -771,6 +771,8 @@ function App() {
           </button>
         </div>
       )}
+
+      <AvisoActualizacion />
 
     </div>
   );

@@ -11,6 +11,7 @@ Este proyecto ya incluye reglas de Firestore en `firestore.rules` y configuraci�
 - Solo un administrador puede listar todos los usuarios y crear/editar/eliminar avisos.
 - Los rankings son públicos para lectura, pero solo se pueden escribir con una sesión autenticada y únicamente en el documento del propio usuario.
 - El ranking diario del reto vive en `ranking_reto/{fecha}/jugadores/{uid}`: lectura pública y escritura limitada al propio usuario, con validación de fecha, nombre, aciertos y racha.
+- Las sugerencias de hablantes viven en `sugerencias`: cualquiera puede crear una con campos validados y estado `pendiente`; solo un administrador puede leerlas, aprobarlas o rechazarlas.
 - Los récords deben incluir `completado: true` y puntajes válidos:
   - Memorama: `score > 0`.
   - Sopa y Crucigrama: `intentos > 0`.
@@ -85,6 +86,8 @@ Para una integridad total habría que mover esas operaciones a Cloud Functions o
 - `desbloquearLogro`
 
 Mientras eso no exista, las reglas validan tipos y evitan valores negativos, pero no pueden demostrar que un premio, una compra o un puntaje de ranking sean legítimos. El ranking diario del reto, en particular, recibe los aciertos reportados por el cliente.
+
+Las sugerencias aceptan escrituras públicas con validación de longitud y tipo, pero no tienen limitación de frecuencia ni verificación de identidad. Si el volumen crece, conviene añadir App Check o un Cloud Function con límite por IP/usuario.
 
 ## Recomendaciones adicionales
 

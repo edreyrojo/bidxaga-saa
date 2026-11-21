@@ -9,7 +9,32 @@ La pantalla de inicio se organiza en cuatro bloques para que la navegación sea 
 - **Hoy**: recordatorio de racha, Reto Diario y Palabra del día.
 - **Juega**: los cuatro juegos en una cuadrícula de 2×2 con su nivel actual.
 - **Tu avance**: acceso al panel de progreso, que reúne estadísticas, Repaso Inteligente, actividad, niveles y logros.
-- **Más**: instalar la app, apoyar el proyecto y créditos.
+- **Más**: instalar la app, **sugerir palabras o correcciones**, apoyar el proyecto y créditos.
+
+## Calidad y CI
+
+- `.github/workflows/calidad.yml` ejecuta en cada push y pull request:
+  - `npm run lint`
+  - `npm test`
+  - `npm run build`
+- `npm run ci` reproduce la misma secuencia en local.
+- `npm test` ejecuta las pruebas de repaso, reto diario y calidad/economía.
+- `ErrorBoundary` evita pantallas en blanco y ofrece recargar.
+- La PWA avisa cuando hay una nueva versión y permite recargar.
+- En Android/Chrome se usa la instalación nativa si el navegador la ofrece; si no, se muestran las instrucciones.
+
+## Sugerencias de hablantes
+
+- Desde **Más → Sugerir** cualquier persona puede enviar:
+  - Palabra nueva.
+  - Corrección.
+  - Disponibilidad para aportar audio.
+  - Otra observación.
+- No requiere cuenta; si hay sesión, se guarda el `uid`.
+- Las sugerencias se guardan en Firestore (`sugerencias`) con estado `pendiente`.
+- Solo un administrador puede leerlas y aprobarlas o rechazarlas desde el Panel de Administración.
+- Aprobar no publica automáticamente la palabra: el administrador copia los datos al catálogo para revisarlos antes de incorporarlos.
+- Hay un campo trampa para reducir bots; no se implementó limitación de frecuencia.
 
 ## Requisitos
 
@@ -39,7 +64,9 @@ Vite abre la app en `http://localhost:5173`.
 | `npm run optimizar` | Ejecuta ambas optimizaciones |
 | `npm run test:repaso` | Prueba el motor de repaso espaciado |
 | `npm run test:reto` | Prueba el reto diario, rachas, palabra del día y compartir |
+| `npm run test:calidad` | Prueba vidas, niveles y almacenamiento por usuario |
 | `npm test` | Ejecuta todas las pruebas |
+| `npm run ci` | Lint + pruebas + build, igual que GitHub Actions |
 | `npm run check:rules` | Valida las reglas de Firestore sin desplegarlas |
 | `npm run deploy:rules` | Despliega las reglas de Firestore |
 

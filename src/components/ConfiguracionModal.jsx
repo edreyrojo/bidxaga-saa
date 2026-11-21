@@ -34,6 +34,10 @@ export default function ConfiguracionModal({
     const [tituloAviso, setTituloAviso] = useState('');
     const [mensajeAviso, setMensajeAviso] = useState('');
 
+    // Estados para Sugerencias de hablantes
+    const [sugerenciasLista, setSugerenciasLista] = useState([]);
+    const [cargandoSugerencias, setCargandoSugerencias] = useState(false);
+
     const [showOpcionesReiniciar, setShowOpcionesReiniciar] = useState(false);
 
     useEffect(() => {
@@ -70,6 +74,7 @@ export default function ConfiguracionModal({
                 cargarUsuarios();
                 cargarRecords(coleccionSeleccionada);
                 cargarAvisosAdmin();
+                cargarSugerenciasAdmin();
             }
         };
 
@@ -140,6 +145,37 @@ export default function ConfiguracionModal({
             setAvisosLista([]);
         } finally {
             setCargandoAvisos(false);
+        }
+    };
+
+    const cargarSugerenciasAdmin = async () => {
+        setCargandoSugerencias(true);
+        try {
+            const q = query(collection(db, 'sugerencias'), orderBy('creadoEn', 'desc'));
+            const querySnapshot = await getDocs(q);
+            const lista = querySnapshot.docs.map(docSnap => ({
+                id: docSnap.id,
+                ...docSnap.data()
+            }));
+            setSugerenciasLista(lista);
+        } catch (error) {
+            console.error("Error al cargar sugerencias:", error);
+            setSugerenciasLista([]);
+        } finally {
+            setCargandoSugerencias(false);
+        }
+    };
+
+    const handleRevisarSugerencia = async (id, estado) => {
+        try {
+            await updateDoc(doc(db, 'sugerencias', id), {
+                estado,
+                revisadoEn: Date.now(),
+                revisadoPor: user?.uid || ''
+            });
+            await cargarSugerenciasAdmin();
+        } catch (error) {
+            console.error("Error al revisar la sugerencia:", error);
         }
     };
 
@@ -301,7 +337,7 @@ export default function ConfiguracionModal({
 
                         <div className="mt-3 pt-2 border-t border-amber-300 flex flex-col gap-2.5">
                             
-                            <div className="grid grid-cols-3 gap-1 bg-amber-200/60 p-1 rounded-xl max-w-md mx-auto w-full">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-amber-200/60 p-1 rounded-xl max-w-md mx-auto w-full">
                                 <button
                                     type="button"
                                     onClick={() => setSeccionAdmin('usuarios')}
@@ -328,6 +364,15 @@ export default function ConfiguracionModal({
                                     }`}
                                 >
                                     Avisos ({avisosLista.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSeccionAdmin('sugerencias')}
+                                    className={`py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                                        seccionAdmin === 'sugerencias' ? 'bg-amber-600 text-white shadow-xs' : 'text-amber-900 hover:bg-amber-300/50'
+                                    }`}
+                                >
+                                    Sugerencias ({sugerenciasLista.filter((s) => s.estado === 'pendiente').length})
                                 </button>
                             </div>
 
@@ -513,6 +558,79 @@ export default function ConfiguracionModal({
                                                     >
                                                         Eliminar
                                                     </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {seccionAdmin === 'sugerencias' && (
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex justify-between items-center">
+                                        <p className="text-[10px] text-amber-800 font-medium">
+                                            Pendientes: {sugerenciasLista.filter((s) => s.estado === 'pendiente').length} · Total: {sugerenciasLista.length}
+                                        </p>
+                                        <button
+                                            onClick={cargarSugerenciasAdmin}
+                                            className="text-[10px] bg-amber-600 hover:bg-amber-700 text-white px-2 py-0.5 rounded-md font-bold cursor-pointer"
+                                        >
+                                            Actualizar
+                                        </button>
+                                    </div>
+
+                                    <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
+                                        Al aprobar, copia los datos al catálogo de palabras para incorporarlos a los juegos.
+                                    </p>
+
+                                    {cargandoSugerencias ? (
+                                        <p className="text-center text-xs text-amber-900 py-2 font-bold">Cargando sugerencias...</p>
+                                    ) : sugerenciasLista.length === 0 ? (
+                                        <p className="text-center text-xs text-gray-500 py-2">No hay sugerencias todavía.</p>
+                                    ) : (
+                                        <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+                                            {sugerenciasLista.map((s) => (
+                                                <div key={s.id} className="bg-white p-3 rounded-xl border border-amber-200 shadow-xs">
+                                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                                        <span className="text-[9px] font-black uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 rounded-full px-2 py-0.5">
+                                                            {s.tipo || 'otro'}
+                                                        </span>
+                                                        <span className={`text-[9px] font-black uppercase rounded-full px-2 py-0.5 ${
+                                                            s.estado === 'pendiente'
+                                                                ? 'bg-orange-100 text-orange-800'
+                                                                : s.estado === 'aprobada'
+                                                                    ? 'bg-emerald-100 text-emerald-800'
+                                                                    : 'bg-red-100 text-red-800'
+                                                        }`}>
+                                                            {s.estado || 'pendiente'}
+                                                        </span>
+                                                    </div>
+
+                                                    <p className="text-xs font-black text-amber-950">{s.palabra}</p>
+                                                    <p className="text-[11px] text-amber-900">{s.significado}</p>
+                                                    {s.categoria && <p className="text-[10px] text-amber-700">Categoría: {s.categoria}</p>}
+                                                    {s.notas && <p className="text-[10px] text-amber-700 mt-1">{s.notas}</p>}
+                                                    {s.contacto && <p className="text-[10px] text-amber-700 mt-1">Contacto: {s.contacto}</p>}
+                                                    {s.creadoEn && <p className="text-[9px] text-amber-500 mt-1">{new Date(s.creadoEn).toLocaleDateString('es-MX')}</p>}
+
+                                                    {s.estado === 'pendiente' && (
+                                                        <div className="flex gap-2 mt-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRevisarSugerencia(s.id, 'aprobada')}
+                                                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                                                            >
+                                                                Aprobar
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRevisarSugerencia(s.id, 'rechazada')}
+                                                                className="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                                                            >
+                                                                Rechazar
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>

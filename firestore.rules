@@ -181,6 +181,34 @@ service cloud.firestore {
       allow delete: if isAdmin() || (signedIn() && uid == request.auth.uid);
     }
 
+    // Sugerencias de hablantes: cualquiera puede enviar, solo el admin las revisa.
+    match /sugerencias/{sugerenciaId} {
+      allow create: if
+        request.resource.data.tipo in ['palabra', 'correccion', 'audio', 'otro']
+        && request.resource.data.palabra is string
+        && request.resource.data.palabra.size() >= 2
+        && request.resource.data.palabra.size() <= 120
+        && request.resource.data.significado is string
+        && request.resource.data.significado.size() >= 1
+        && request.resource.data.significado.size() <= 240
+        && request.resource.data.categoria is string
+        && request.resource.data.categoria.size() <= 80
+        && request.resource.data.notas is string
+        && request.resource.data.notas.size() <= 500
+        && request.resource.data.contacto is string
+        && request.resource.data.contacto.size() <= 120
+        && request.resource.data.estado == 'pendiente'
+        && request.resource.data.origen == 'app'
+        && request.resource.data.creadoEn is int
+        && (
+          request.auth == null
+            ? request.resource.data.uid == null
+            : request.resource.data.uid == request.auth.uid
+        );
+
+      allow read, update, delete: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
