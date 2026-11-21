@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebaseConfig';
 import { collection, getDocs, doc, updateDoc, getDoc, deleteDoc, addDoc, query, orderBy, increment } from 'firebase/firestore';
 import { totalVidas } from '../utils/vidas.js';
+import Icono from './Icono.jsx';
 
 export default function ConfiguracionModal({ 
     isOpen, 
@@ -13,7 +14,8 @@ export default function ConfiguracionModal({
     listaPistas,
     controlesJuegoActivo,
     user,
-    onOpenGenerador 
+    onOpenGenerador,
+    onOpenAdmin
 }) {
     const [esAdmin, setEsAdmin] = useState(false);
     const [seccionAdmin, setSeccionAdmin] = useState('usuarios'); 
@@ -336,6 +338,17 @@ export default function ConfiguracionModal({
                         </summary>
 
                         <div className="mt-3 pt-2 border-t border-amber-300 flex flex-col gap-2.5">
+
+                            {onOpenAdmin && (
+                                <button
+                                    type="button"
+                                    onClick={onOpenAdmin}
+                                    className="w-full max-w-md mx-auto bg-amber-800 hover:bg-amber-900 text-white py-2 px-3 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                                >
+                                    <Icono nombre="shield" className="w-4 h-4" />
+                                    Abrir panel completo
+                                </button>
+                            )}
                             
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-amber-200/60 p-1 rounded-xl max-w-md mx-auto w-full">
                                 <button

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { auth, db } from './firebaseConfig';
 import { almacen, configurarScope } from './utils/almacen.js';
 import { useSyncRepaso } from './hooks/useSyncRepaso.js';
+import { useAdmin } from './hooks/useAdmin.js';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy, limit } from 'firebase/firestore';
 
 import MenuPrincipal from './components/MenuPrincipal';
 import AudioFondo, { LISTA_PISTAS } from './components/AudioFondo';
@@ -14,6 +15,7 @@ const Crucigrama = lazy(() => import('./components/Crucigrama'));
 const Trivia = lazy(() => import('./components/Trivia'));
 const RetoDiario = lazy(() => import('./components/RetoDiario'));
 const PanelProgreso = lazy(() => import('./components/PanelProgreso'));
+const AdminPanel = lazy(() => import('./components/admin/AdminPanel'));
 const GeneradorDev = lazy(() => import('./components/GeneradorDev'));
 import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
@@ -186,7 +188,7 @@ function App() {
   const [mostrarSplash, setMostrarSplash] = useState(true);
   const [animandoSalida, setAnimandoSalida] = useState(false);
   
-  const [perfilInfo, setPerfilInfo] = useState({ nombre: '', avatar: 'default', nivel: 1 });
+  const [perfilInfo, setPerfilInfo] = useState({ nombre: '', avatar: 'default', nivel: 1, role: '' });
   
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showPerfilModal, setShowPerfilModal] = useState(false);
@@ -197,6 +199,14 @@ function App() {
   const [juegoAyudaSeleccionado, setJuegoAyudaSeleccionado] = useState(null);
 
   const [listaAvisos, setListaAvisos] = useState([]);
+  const [avisosLeidos, setAvisosLeidos] = useState(() => {
+    try {
+      const guardados = JSON.parse(almacen.getItem('avisosLeidos') || '[]');
+      return Array.isArray(guardados) ? guardados : [];
+    } catch {
+      return [];
+    }
+  });
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [indicePista, setIndicePista] = useState(0);
   const [logroToast, setLogroToast] = useState(null);
@@ -205,6 +215,7 @@ function App() {
   const [controlesJuegoActivo, setControlesJuegoActivo] = useState(null);
 
   useSyncRepaso(user);
+  const { esAdmin } = useAdmin(user, perfilInfo.role);
 
   useEffect(() => {
     // Temporizador para controlar la animación inicial del banner
@@ -234,22 +245,32 @@ function App() {
           setPerfilInfo({
             nombre: data.nombre || '',
             avatar: avatarId,
-            nivel: nivelCalc
+            nivel: nivelCalc,
+            role: data.role || ''
           });
         }
       } catch (error) {
         console.error("Error cargando perfil superior:", error);
       }
     } else {
-      setPerfilInfo({ nombre: '', avatar: 'default', nivel: 1 });
+      setPerfilInfo({ nombre: '', avatar: 'default', nivel: 1, role: '' });
     }
   };
 
   const cargarAvisos = async () => {
     try {
-      const q = query(collection(db, 'avisos'), orderBy('fecha', 'desc'));
+      const q = query(collection(db, 'avisos'), orderBy('fecha', 'desc'), limit(50));
       const querySnapshot = await getDocs(q);
-      const avisos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const avisos = querySnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(aviso => aviso.activo !== false && (!aviso.expiraEn || Number(aviso.expiraEn) > Date.now()))
+        .sort((a, b) => {
+          const prioridadA = a.prioridad === 'alta' ? 1 : 0;
+          const prioridadB = b.prioridad === 'alta' ? 1 : 0;
+          if (prioridadA !== prioridadB) return prioridadB - prioridadA;
+          return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
+        });
+
       setListaAvisos(avisos);
     } catch (error) {
       console.error("Error cargando avisos:", error);
@@ -269,6 +290,22 @@ function App() {
   useEffect(() => {
     setShowHerramientasMovil(false);
   }, [vistaActual, user]);
+
+  useEffect(() => {
+    try {
+      const guardados = JSON.parse(almacen.getItem('avisosLeidos') || '[]');
+      setAvisosLeidos(Array.isArray(guardados) ? guardados : []);
+    } catch {
+      setAvisosLeidos([]);
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!showAvisosModal || listaAvisos.length === 0) return;
+    const ids = listaAvisos.map((aviso) => aviso.id);
+    almacen.setItem('avisosLeidos', JSON.stringify(ids));
+    setAvisosLeidos(ids);
+  }, [showAvisosModal, listaAvisos]);
 
   useEffect(() => {
     const mostrarLogro = (evento) => {
@@ -337,6 +374,7 @@ function App() {
     : 'Iniciar Sesion';
 
   const onGuardarClick = controlesJuegoActivo?.onGuardarClick;
+  const avisosNoLeidos = listaAvisos.filter((aviso) => !avisosLeidos.includes(aviso.id)).length;
 
   return (
     <div className="min-h-screen bg-orange-50/50 font-sans text-amber-950 pb-10 relative">
@@ -429,13 +467,13 @@ function App() {
             onClick={() => setShowHerramientasMovil((visible) => !visible)}
             className="w-10 h-10 rounded-2xl flex items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2 relative"
             title="Más opciones"
-            aria-label={listaAvisos.length > 0 ? `⋯ Más opciones (${listaAvisos.length} avisos)` : '⋯ Más opciones'}
+            aria-label={avisosNoLeidos > 0 ? `⋯ Más opciones (${avisosNoLeidos} avisos sin leer)` : '⋯ Más opciones'}
             aria-expanded={showHerramientasMovil}
           >
             <span className="text-xl font-black leading-none">⋯</span>
-            {listaAvisos.length > 0 && (
+            {avisosNoLeidos > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                {listaAvisos.length}
+                {avisosNoLeidos}
               </span>
             )}
           </button>
@@ -457,9 +495,9 @@ function App() {
                   className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-100 text-sm font-bold text-amber-950 flex items-center justify-between gap-2 cursor-pointer"
                 >
                   <span className="inline-flex items-center gap-2"><Icono nombre="megaphone" className="w-4 h-4" /> Avisos</span>
-                  {listaAvisos.length > 0 && (
+                  {avisosNoLeidos > 0 && (
                     <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                      {listaAvisos.length}
+                      {avisosNoLeidos}
                     </span>
                   )}
                 </button>
@@ -473,6 +511,18 @@ function App() {
                 >
                   <span className="inline-flex items-center gap-2"><Icono nombre="help" className="w-4 h-4" /> Ayuda</span>
                 </button>
+                {esAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVistaActual('admin');
+                      setShowHerramientasMovil(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-100 text-sm font-bold text-amber-950 flex items-center gap-2 cursor-pointer"
+                  >
+                    <span className="inline-flex items-center gap-2"><Icono nombre="shield" className="w-4 h-4" /> Administración</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -492,12 +542,12 @@ function App() {
           onClick={() => setShowAvisosModal(true)}
           className="hidden sm:flex w-10 h-10 sm:w-11 sm:h-11 rounded-2xl items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2 relative"
           title="Avisos"
-          aria-label={listaAvisos.length > 0 ? `Avisos (${listaAvisos.length})` : 'Avisos'}
+          aria-label={avisosNoLeidos > 0 ? `Avisos (${avisosNoLeidos} sin leer)` : 'Avisos'}
         >
           <Icono nombre="megaphone" className="w-5 h-5" />
-          {listaAvisos.length > 0 && (
+          {avisosNoLeidos > 0 && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-              {listaAvisos.length}
+              {avisosNoLeidos}
             </span>
           )}
         </button>
@@ -510,6 +560,17 @@ function App() {
         >
           <Icono nombre="help" className="w-5 h-5" />
         </button>
+
+        {esAdmin && (
+          <button
+            onClick={() => setVistaActual('admin')}
+            className="hidden sm:flex w-10 h-10 sm:w-11 sm:h-11 rounded-2xl items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2"
+            title="Administración"
+            aria-label="Administración"
+          >
+            <Icono nombre="shield" className="w-5 h-5" />
+          </button>
+        )}
 
         <button
           onClick={() => setShowConfigModal(true)}
@@ -568,6 +629,24 @@ function App() {
             onBack={() => {
               setControlesJuegoActivo(null);
               setVistaActual('menu');
+            }}
+          />
+        )}
+
+        {vistaActual === 'admin' && (
+          <AdminPanel
+            user={user}
+            rolDocumento={perfilInfo.role}
+            onBack={() => {
+              setControlesJuegoActivo(null);
+              setVistaActual('menu');
+            }}
+            onAbrirPanelAnterior={() => {
+              setVistaActual('menu');
+              setShowConfigModal(true);
+            }}
+            onOpenGenerador={() => {
+              setVistaActual('generador');
             }}
           />
         )}
@@ -750,6 +829,10 @@ function App() {
         controlesJuegoActivo={controlesJuegoActivo}
         user={user} 
         onOpenGenerador={() => setVistaActual('generador')} 
+        onOpenAdmin={() => {
+          setShowConfigModal(false);
+          setVistaActual('admin');
+        }}
       />
 
       {logroToast && (

@@ -11,6 +11,22 @@ La pantalla de inicio se organiza en cuatro bloques para que la navegación sea 
 - **Tu avance**: acceso al panel de progreso, que reúne estadísticas, Repaso Inteligente, actividad, niveles y logros.
 - **Más**: instalar la app, **sugerir palabras o correcciones**, apoyar el proyecto y créditos.
 
+## Panel de administración
+
+- Acceso desde el icono de escudo de la barra superior (escritorio) o del menú móvil. Solo aparece para administradores.
+- Nuevo panel a pantalla completa, cargado solo cuando se abre (no viaja en el bundle principal).
+- Secciones actuales:
+  - **Resumen**: usuarios totales, nuevos en 7 días, sugerencias pendientes, avisos, últimas sugerencias y actividad administrativa.
+  - **Usuarios**: búsqueda por correo, nombre o UID; paginación; detalle; vidas, progreso, logros, reto y racha; regalo de totopos con motivo y opción de contar para históricos; cambio de rol con protección del último administrador por rol; exportación CSV.
+  - **Avisos**: crear, editar, activar/desactivar, prioridad, expiración, borrado con confirmación y auditoría. Los avisos inactivos o expirados no se muestran en la app.
+  - **Rankings**: Memorama, Trivia, Sopa, Crucigrama y Reto Diario (por fecha); búsqueda, exportación CSV y borrado con auditoría.
+  - **Sugerencias**: filtros por estado y tipo, búsqueda, paginación, detalle, copiar datos y aprobar/rechazar con nota interna.
+  - **Herramientas**: acceso al panel anterior y al generador de avatares.
+- Cada acción administrativa relevante se registra en `admin_logs` dentro del mismo lote que la escritura.
+- El panel anterior sigue disponible como respaldo mientras se valida la migración completa.
+- La verificación usa el custom claim `admin` o el campo `usuarios/{uid}.role`.
+- El badge de avisos de la app ahora cuenta **avisos no leídos** y se marca como leído al abrir el panel de avisos.
+
 ## Calidad y CI
 
 - `.github/workflows/calidad.yml` ejecuta en cada push y pull request:
@@ -65,6 +81,7 @@ Vite abre la app en `http://localhost:5173`.
 | `npm run test:repaso` | Prueba el motor de repaso espaciado |
 | `npm run test:reto` | Prueba el reto diario, rachas, palabra del día y compartir |
 | `npm run test:calidad` | Prueba vidas, niveles y almacenamiento por usuario |
+| `npm run test:admin` | Prueba CSV, orden de rankings y helpers administrativos |
 | `npm test` | Ejecuta todas las pruebas |
 | `npm run ci` | Lint + pruebas + build, igual que GitHub Actions |
 | `npm run check:rules` | Valida las reglas de Firestore sin desplegarlas |

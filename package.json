@@ -17,7 +17,8 @@
     "test:repaso": "node scripts/probar-repaso.mjs",
     "test:reto": "node scripts/probar-reto.mjs",
     "test:calidad": "node scripts/probar-calidad.mjs",
-    "test": "npm run test:repaso && npm run test:reto && npm run test:calidad",
+    "test:admin": "node scripts/probar-admin.mjs",
+    "test": "npm run test:repaso && npm run test:reto && npm run test:calidad && npm run test:admin",
     "ci": "npm run lint && npm test && npm run build",
     "lint": "oxlint",
     "preview": "vite preview"

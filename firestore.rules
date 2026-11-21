@@ -1,5 +1,6 @@
 rules_version = '2';
 
+// Incluye administración: usuarios, avisos, rankings, sugerencias, repaso y auditoría.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -66,6 +67,10 @@ service cloud.firestore {
           (request.resource.data.vidas is number && request.resource.data.vidas >= 0)
         ))
         && (!('progreso' in request.resource.data) || request.resource.data.progreso is map)
+        && (!('role' in request.resource.data) || (
+          request.resource.data.role is string
+          && request.resource.data.role.lower() in ['', 'admin']
+        ))
         && (!('logrosDesbloqueados' in request.resource.data) || request.resource.data.logrosDesbloqueados is list)
         && (!('retoDiario' in request.resource.data) || (
           request.resource.data.retoDiario is map
@@ -101,7 +106,20 @@ service cloud.firestore {
 
     match /avisos/{avisoId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.titulo is string
+        && request.resource.data.titulo.size() >= 1
+        && request.resource.data.titulo.size() <= 120
+        && request.resource.data.mensaje is string
+        && request.resource.data.mensaje.size() >= 1
+        && request.resource.data.mensaje.size() <= 2000
+        && request.resource.data.fecha is string
+        && request.resource.data.fecha.size() <= 40
+        && (!('activo' in request.resource.data) || request.resource.data.activo is bool)
+        && (!('prioridad' in request.resource.data) || request.resource.data.prioridad in ['normal', 'alta'])
+        && (!('expiraEn' in request.resource.data) || request.resource.data.expiraEn == null || request.resource.data.expiraEn is int)
+        && (!('actualizadoEn' in request.resource.data) || request.resource.data.actualizadoEn is int);
+      allow delete: if isAdmin();
     }
 
     match /ranking/{docId} {
@@ -206,7 +224,29 @@ service cloud.firestore {
             : request.resource.data.uid == request.auth.uid
         );
 
-      allow read, update, delete: if isAdmin();
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.estado in ['aprobada', 'rechazada']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'estado', 'revisadoEn', 'revisadoPor', 'revisorNombre', 'notaAdmin'
+        ]);
+      allow delete: if isAdmin();
+    }
+
+    // Auditoría administrativa: solo se agrega, nunca se edita ni se borra.
+    match /admin_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorNombre is string
+        && request.resource.data.actorNombre.size() <= 80
+        && request.resource.data.accion is string
+        && request.resource.data.accion.size() <= 60
+        && request.resource.data.objetivo is string
+        && request.resource.data.objetivo.size() <= 200
+        && request.resource.data.detalle is map
+        && request.resource.data.creadoEn is int;
+      allow update, delete: if false;
     }
 
     match /{document=**} {

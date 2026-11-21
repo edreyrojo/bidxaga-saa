@@ -11,7 +11,10 @@ Este proyecto ya incluye reglas de Firestore en `firestore.rules` y configuraci�
 - Solo un administrador puede listar todos los usuarios y crear/editar/eliminar avisos.
 - Los rankings son públicos para lectura, pero solo se pueden escribir con una sesión autenticada y únicamente en el documento del propio usuario.
 - El ranking diario del reto vive en `ranking_reto/{fecha}/jugadores/{uid}`: lectura pública y escritura limitada al propio usuario, con validación de fecha, nombre, aciertos y racha.
-- Las sugerencias de hablantes viven en `sugerencias`: cualquiera puede crear una con campos validados y estado `pendiente`; solo un administrador puede leerlas, aprobarlas o rechazarlas.
+- Las sugerencias de hablantes viven en `sugerencias`: cualquiera puede crear una con campos validados y estado `pendiente`; solo un administrador puede leerlas, aprobarlas o rechazarlas. Al revisar, solo se pueden modificar estado, fecha, revisor y nota interna.
+- Los avisos validan título, mensaje, prioridad, estado activo y fecha de expiración desde las reglas.
+- El campo `role` solo acepta `""` o `"admin"`; el dueño no puede cambiarlo y un administrador solo puede alternar entre esos dos valores.
+- `admin_logs` es una colección de auditoría: solo los administradores pueden leerla y agregar registros; nadie puede editarla ni borrarla desde la app.
 - Los récords deben incluir `completado: true` y puntajes válidos:
   - Memorama: `score > 0`.
   - Sopa y Crucigrama: `intentos > 0`.
@@ -88,6 +91,16 @@ Para una integridad total habría que mover esas operaciones a Cloud Functions o
 Mientras eso no exista, las reglas validan tipos y evitan valores negativos, pero no pueden demostrar que un premio, una compra o un puntaje de ranking sean legítimos. El ranking diario del reto, en particular, recibe los aciertos reportados por el cliente.
 
 Las sugerencias aceptan escrituras públicas con validación de longitud y tipo, pero no tienen limitación de frecuencia ni verificación de identidad. Si el volumen crece, conviene añadir App Check o un Cloud Function con límite por IP/usuario.
+
+La auditoría de `admin_logs` también se escribe desde el cliente. Un administrador comprometido podría omitir el registro; para no repudio real habría que mover las acciones administrativas a Cloud Functions.
+
+Además:
+
+- La protección del “último administrador” es del cliente; las reglas permiten a un administrador cambiar roles. Para una garantía total haría falta una Cloud Function con validación server-side.
+- El límite de 10 000 totopos por regalo también es del cliente; las reglas solo validan que el saldo no sea negativo.
+- No hay borrado/desactivación de cuentas desde el panel. Eliminar un usuario de Firestore no elimina su cuenta de Firebase Auth ni sus subcolecciones.
+- La lista de usuarios se pagina por correo; la búsqueda por nombre es por prefijo y distingue mayúsculas.
+- Los rankings del panel se limitan a 100 registros por consulta.
 
 ## Recomendaciones adicionales
 
