@@ -19,7 +19,7 @@ export default function SeccionColapsable({ icono, titulo, abierto, setAbierto, 
                     )}
                     <span className="truncate">{titulo}</span>
                     {badge !== undefined && badge !== null && (
-                        <span className="text-[10px] sm:text-[11px] bg-amber-600 text-white px-2 py-0.5 rounded-full font-bold flex-shrink-0">
+                        <span className="text-[10px] sm:text-[11px] bg-amber-700 text-white px-2 py-0.5 rounded-full font-bold flex-shrink-0">
                             {badge}
                         </span>
                     )}

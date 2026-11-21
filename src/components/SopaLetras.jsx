@@ -9,6 +9,7 @@ import {
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import { almacen } from '../utils/almacen.js';
 import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
+import { registrarRespuesta, seleccionarConRepaso } from '../utils/repaso.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import ConfiguracionModal from './ConfiguracionModal';
 import { useSonido } from '../hooks/useSonido.js';
@@ -544,10 +545,13 @@ export default function SopaLetras({
     const generarNuevoJuego = () => {
         const baseDatosActiva = obtenerBaseDatosActiva(tipoContenido, categoriasFaunaActivas, categoriasFloraActivas);
         const poolSeguro = baseDatosActiva.length > 0 ? baseDatosActiva : filtrarContenidoPorCategorias(listaAnimales, categoriaInicialPorDefecto('fauna'));
-        const candidatos = [...poolSeguro]
-            .filter(a => limpiarPalabra(a.diidxaza, modoDificil).length <= tamanoActual && limpiarPalabra(a.diidxaza, modoDificil).length > 1)
-            .sort(() => Math.random() - 0.5)
-            .slice(0, cantidadPalabras);
+        const candidatosDisponibles = poolSeguro
+            .filter(a => limpiarPalabra(a.diidxaza, modoDificil).length <= tamanoActual && limpiarPalabra(a.diidxaza, modoDificil).length > 1);
+        const candidatos = seleccionarConRepaso(
+            candidatosDisponibles,
+            Math.min(cantidadPalabras, candidatosDisponibles.length),
+            tipoContenido
+        );
 
         let nuevaMatriz = Array(tamanoActual).fill(null).map(() => Array(tamanoActual).fill(''));
         let nuevoMapaCoords = {};
@@ -698,6 +702,15 @@ export default function SopaLetras({
 
         if (animalEncontrado) {
             try { reproducirSonido('click2'); } catch (e) {}
+            registrarRespuesta(
+                {
+                    tipo: tipoContenido,
+                    id: animalEncontrado.id,
+                    palabra: animalEncontrado.diidxaza,
+                    spanish: animalEncontrado.spanish
+                },
+                true
+            );
             const nuevasEncontradas = [...palabrasEncontradas, animalEncontrado.id];
             setPalabrasEncontradas(nuevasEncontradas);
         } else {

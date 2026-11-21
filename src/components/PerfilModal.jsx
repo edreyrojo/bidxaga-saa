@@ -9,6 +9,7 @@ import CreadorAvatar from './CreadorAvatar';
 import SeccionTienda from './SeccionTienda';
 import SeccionLogros from './SeccionLogros';
 import SeccionInventario from './SeccionInventario';
+import SeccionRepaso from './SeccionRepaso';
 
 // 🗂️ Misma carpeta que usan SeccionTienda/SeccionInventario/CreadorAvatar para accesorios
 const RUTA_MERCADO_ACCESORIOS = '/avatares/mercado/';
@@ -219,6 +220,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     const [tiendaAbierta, setTiendaAbierta] = useState(false);
     const [logrosAbiertos, setLogrosAbiertos] = useState(false);
     const [inventarioAbierto, setInventarioAbierto] = useState(false);
+    const [repasoAbierto, setRepasoAbierto] = useState(false);
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -494,6 +496,12 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             logrosAbiertos={logrosAbiertos}
                             setLogrosAbiertos={setLogrosAbiertos}
                             logrosDesbloqueados={logrosDesbloqueados}
+                        />
+
+                        <SeccionRepaso
+                            abierto={repasoAbierto}
+                            setAbierto={setRepasoAbierto}
+                            user={user}
                         />
                     </div>
 

@@ -1,13 +1,23 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useSonido } from '../hooks/useSonido';
+import { useRepaso } from '../hooks/useRepaso';
+import { useRetoDiario } from '../hooks/useRetoDiario';
+import SeccionRepaso from './SeccionRepaso';
+import { generarPalabraDelDia } from '../utils/retoDiario';
+import { compartirTexto } from '../utils/compartir';
 
-export default function MenuPrincipal({ setVistaActual }) {
+export default function MenuPrincipal({ setVistaActual, user }) {
     const { reproducirSonido } = useSonido();
+    const { pendientes } = useRepaso(user);
+    const { completadoHoy, reto, rachaActual, hoy } = useRetoDiario(user);
+    const palabraDelDia = useMemo(() => generarPalabraDelDia(hoy), [hoy]);
+    const [estadoCompartir, setEstadoCompartir] = useState(null);
 
     // Estados para controlar los modales de la interfaz de usuario
     const [mostrarModalApoyo, setMostrarModalApoyo] = useState(false);
     const [mostrarModalCreditos, setMostrarModalCreditos] = useState(false);
     const [mostrarModalInstalar, setMostrarModalInstalar] = useState(false);
+    const [repasoAbierto, setRepasoAbierto] = useState(false);
 
     // Estado para alternar entre plataformas en la ventana de instalacion ('android' o 'iphone')
     const [plataformaInstalacion, setPlataformaInstalacion] = useState('android');
@@ -24,6 +34,26 @@ export default function MenuPrincipal({ setVistaActual }) {
 
     // Estilo comun para la etiqueta vertical de nivel en el lateral del boton
     const estiloNivelVertical = "absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center font-black uppercase tracking-widest [writing-mode:vertical-rl] rotate-180 rounded-l-2xl text-[10px]";
+
+    const mensajeCompartir = estadoCompartir === 'copiado'
+        ? '¡Copiado!'
+        : estadoCompartir === 'compartido'
+            ? '¡Compartido!'
+            : estadoCompartir === 'no-disponible'
+                ? 'No disponible'
+                : '';
+
+    const compartirPalabraDelDia = async () => {
+        try { reproducirSonido('click1'); } catch (e) {}
+        const resultado = await compartirTexto({
+            titulo: 'Palabra del día - Bidxaga Saa',
+            texto: `🌿 Palabra del día en diidxazá: «${palabraDelDia.diidxaza}» significa «${palabraDelDia.spanish}».`,
+        });
+
+        if (resultado === 'cancelado') return;
+        setEstadoCompartir(resultado);
+        setTimeout(() => setEstadoCompartir(null), 2500);
+    };
 
     return (
         <div className="max-w-md mx-auto px-5 py-8 sm:py-12 flex flex-col items-center select-none w-full pb-[env(safe-area-inset-bottom)]">
@@ -45,7 +75,75 @@ export default function MenuPrincipal({ setVistaActual }) {
                 </h1>
             </div>
 
+            {/* RETO DIARIO */}
+            <button
+                type="button"
+                onClick={() => {
+                    reproducirSonido('click1');
+                    setVistaActual('reto');
+                }}
+                className="w-full mb-4 bg-gradient-to-r from-amber-700 to-orange-800 hover:from-amber-800 hover:to-orange-900 active:scale-[0.99] text-white rounded-2xl p-4 shadow-lg border-2 border-amber-500 flex items-center gap-3 transition-transform cursor-pointer"
+            >
+                <span className="text-3xl bg-white/15 rounded-2xl p-2 leading-none">🔥</span>
+                <div className="flex-1 text-left min-w-0">
+                    <span className="block font-black text-lg leading-tight">Reto Diario</span>
+                    <span className="block text-[11px] font-medium text-amber-100">
+                        {completadoHoy
+                            ? `Completado ${reto?.aciertos ?? 0}/${reto?.total ?? 5} · +${reto?.recompensa ?? 0} totopos`
+                            : '5 preguntas · hasta 50 totopos'}
+                    </span>
+                </div>
+                <div className="text-right shrink-0">
+                    <span className="block text-sm font-black">
+                        {rachaActual > 0 ? `🔥 ${rachaActual} ${rachaActual === 1 ? 'día' : 'días'}` : 'Hoy'}
+                    </span>
+                    <span className="block text-[10px] text-amber-100">
+                        {completadoHoy ? 'Vuelve mañana' : 'Empezar'}
+                    </span>
+                </div>
+            </button>
+
+            {/* PALABRA DEL DÍA */}
+            <div className="w-full mb-4 bg-white border-2 border-amber-200 rounded-2xl p-3 shadow-sm flex items-center gap-3">
+                <img
+                    src={palabraDelDia.image}
+                    alt={palabraDelDia.spanish}
+                    className="w-14 h-14 object-contain bg-amber-50 rounded-xl border border-amber-200 p-1 shrink-0"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                />
+                <div className="min-w-0 flex-1 text-left">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">Palabra del día</p>
+                    <p className="text-base font-black text-amber-950 truncate">{palabraDelDia.diidxaza}</p>
+                    <p className="text-xs text-amber-700 font-medium truncate">
+                        {palabraDelDia.spanish} · {palabraDelDia.tipo === 'flora' ? 'Flora' : 'Fauna'}
+                    </p>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                    <button
+                        type="button"
+                        onClick={compartirPalabraDelDia}
+                        className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl px-2.5 py-1.5 text-[11px] font-bold cursor-pointer"
+                    >
+                        📤 Compartir
+                    </button>
+                    {mensajeCompartir && (
+                        <span className="text-[10px] font-bold text-emerald-700">{mensajeCompartir}</span>
+                    )}
+                </div>
+            </div>
+
             {/* SECCION DE JUEGOS CON NIVELES VERTICALES EN EL LATERAL */}
+            {pendientes > 0 && (
+                <div className="w-full mb-4 flex items-center justify-center gap-2 bg-amber-100/90 border-2 border-amber-300 rounded-2xl px-4 py-2.5 text-xs font-bold text-amber-900 shadow-sm">
+                    <span className="text-base">🔁</span>
+                    <span>
+                        {pendientes === 1
+                            ? 'Tienes 1 palabra para reforzar'
+                            : `Tienes ${pendientes} palabras para reforzar`}
+                    </span>
+                </div>
+            )}
+
             <div className="flex flex-col gap-3.5 w-full mb-8">
 
                 {/* Memorama - Inicial */}
@@ -132,6 +230,15 @@ export default function MenuPrincipal({ setVistaActual }) {
                     </div>
                 </button>
 
+            </div>
+
+            {/* REPASO INTELIGENTE */}
+            <div className="w-full mb-4">
+                <SeccionRepaso
+                    abierto={repasoAbierto}
+                    setAbierto={setRepasoAbierto}
+                    user={user}
+                />
             </div>
 
             {/* SECCION INFERIOR: BOTONES SECUNDARIOS CON ESTETICA MEJORADA */}

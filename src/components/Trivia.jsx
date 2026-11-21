@@ -8,6 +8,7 @@ import {
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import { almacen } from '../utils/almacen.js';
 import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
+import { registrarRespuesta, seleccionarConRepaso } from '../utils/repaso.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { useSonido } from '../hooks/useSonido.js';
 import { useVidasJuego } from '../hooks/useVidasJuego.js';
@@ -369,7 +370,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
         const poolActivo = filtrarContenidoPorCategorias(listaAnimales, categoriasFaunaActivas);
         const poolSeguro = poolActivo.length >= 4 ? poolActivo : listaAnimales;
 
-        const animalCorrecto = poolSeguro[Math.floor(Math.random() * poolSeguro.length)];
+        const animalCorrecto = seleccionarConRepaso(poolSeguro, 1, 'fauna')[0] || poolSeguro[0];
 
         const distractores = [...poolSeguro]
             .filter(a => a.id !== animalCorrecto.id)
@@ -390,11 +391,29 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
         if (opcionElegida.id === preguntaActual.id) {
             try { reproducirSonido('click2'); } catch (e) {} 
+            registrarRespuesta(
+                {
+                    tipo: 'fauna',
+                    id: preguntaActual.id,
+                    palabra: preguntaActual.diidxaza,
+                    spanish: preguntaActual.spanish
+                },
+                true
+            );
             setEstadoRespuesta('correcta');
             setTimeout(() => {
                 setAciertosNivel(prev => prev + 1);
             }, 1000);
         } else {
+            registrarRespuesta(
+                {
+                    tipo: 'fauna',
+                    id: preguntaActual.id,
+                    palabra: preguntaActual.diidxaza,
+                    spanish: preguntaActual.spanish
+                },
+                false
+            );
             setEstadoRespuesta('incorrecta');
             setErrores(prev => prev + 1);
             setErroresNivel(prev => prev + 1);

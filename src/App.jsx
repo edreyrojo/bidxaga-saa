@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { auth, db } from './firebaseConfig';
 import { almacen, configurarScope } from './utils/almacen.js';
+import { useSyncRepaso } from './hooks/useSyncRepaso.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 
@@ -11,6 +12,7 @@ const Memorama = lazy(() => import('./components/Memorama'));
 const SopaLetras = lazy(() => import('./components/SopaLetras'));
 const Crucigrama = lazy(() => import('./components/Crucigrama'));
 const Trivia = lazy(() => import('./components/Trivia'));
+const RetoDiario = lazy(() => import('./components/RetoDiario'));
 const GeneradorDev = lazy(() => import('./components/GeneradorDev'));
 import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
@@ -198,6 +200,8 @@ function App() {
   const logroTimerRef = useRef(null);
 
   const [controlesJuegoActivo, setControlesJuegoActivo] = useState(null);
+
+  useSyncRepaso(user);
 
   useEffect(() => {
     // Temporizador para controlar la animación inicial del banner
@@ -422,7 +426,7 @@ function App() {
             onClick={() => setShowHerramientasMovil((visible) => !visible)}
             className="w-10 h-10 rounded-2xl flex items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2 relative"
             title="Más opciones"
-            aria-label="⋯ Más opciones"
+            aria-label={listaAvisos.length > 0 ? `⋯ Más opciones (${listaAvisos.length} avisos)` : '⋯ Más opciones'}
             aria-expanded={showHerramientasMovil}
           >
             <span className="text-xl font-black leading-none">⋯</span>
@@ -485,7 +489,7 @@ function App() {
           onClick={() => setShowAvisosModal(true)}
           className="hidden sm:flex w-10 h-10 sm:w-11 sm:h-11 rounded-2xl items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2 relative"
           title="Avisos"
-          aria-label="Avisos"
+          aria-label={listaAvisos.length > 0 ? `Avisos (${listaAvisos.length})` : 'Avisos'}
         >
           <span className="text-lg">📢</span>
           {listaAvisos.length > 0 && (
@@ -538,10 +542,20 @@ function App() {
           </div>
         )}>
         {vistaActual === 'menu' && (
-          <MenuPrincipal setVistaActual={(vista) => {
+          <MenuPrincipal user={user} setVistaActual={(vista) => {
             setControlesJuegoActivo(null);
             setVistaActual(vista);
           }} />
+        )}
+
+        {vistaActual === 'reto' && (
+          <RetoDiario
+            user={user}
+            onBack={() => {
+              setControlesJuegoActivo(null);
+              setVistaActual('menu');
+            }}
+          />
         )}
 
         {vistaActual === 'memorama' && (

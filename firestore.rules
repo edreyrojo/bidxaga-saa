@@ -24,6 +24,20 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function esRegistroRepasoValido(data) {
+      return data.tipo in ['fauna', 'flora']
+        && data.id is int
+        && data.palabra is string
+        && data.palabra.size() <= 120
+        && (!('spanish' in data) || (data.spanish is string && data.spanish.size() <= 120))
+        && data.aciertos is int && data.aciertos >= 0 && data.aciertos <= 100000
+        && data.errores is int && data.errores >= 0 && data.errores <= 100000
+        && data.caja is int && data.caja >= 0 && data.caja <= 5
+        && data.racha is int && data.racha >= 0 && data.racha <= 100000
+        && data.ultimaVez is int && data.ultimaVez >= 0
+        && data.proximoRepaso is int && data.proximoRepaso >= 0;
+    }
+
     match /usuarios/{uid} {
       allow get: if isOwner(uid) || isAdmin();
       allow list: if isAdmin();
@@ -52,9 +66,37 @@ service cloud.firestore {
           (request.resource.data.vidas is number && request.resource.data.vidas >= 0)
         ))
         && (!('progreso' in request.resource.data) || request.resource.data.progreso is map)
-        && (!('logrosDesbloqueados' in request.resource.data) || request.resource.data.logrosDesbloqueados is list);
+        && (!('logrosDesbloqueados' in request.resource.data) || request.resource.data.logrosDesbloqueados is list)
+        && (!('retoDiario' in request.resource.data) || (
+          request.resource.data.retoDiario is map
+          && request.resource.data.retoDiario.fecha is string
+          && request.resource.data.retoDiario.fecha.size() == 10
+          && request.resource.data.retoDiario.aciertos is int
+          && request.resource.data.retoDiario.aciertos >= 0
+          && request.resource.data.retoDiario.total is int
+          && request.resource.data.retoDiario.total > 0
+          && request.resource.data.retoDiario.recompensa is int
+          && request.resource.data.retoDiario.recompensa >= 0
+          && request.resource.data.retoDiario.completadoEn is int
+        ))
+        && (!('rachaReto' in request.resource.data) || (
+          request.resource.data.rachaReto is map
+          && request.resource.data.rachaReto.dias is int
+          && request.resource.data.rachaReto.dias >= 0
+          && request.resource.data.rachaReto.ultimoDia is string
+          && request.resource.data.rachaReto.ultimoDia.size() == 10
+        ));
 
       allow delete: if isAdmin();
+    }
+
+    // Historial de repaso espaciado: una subcolección por usuario.
+    match /usuarios/{uid}/repaso/{clave} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update: if isOwner(uid)
+        && clave.size() <= 40
+        && esRegistroRepasoValido(request.resource.data);
+      allow delete: if isOwner(uid) || isAdmin();
     }
 
     match /avisos/{avisoId} {

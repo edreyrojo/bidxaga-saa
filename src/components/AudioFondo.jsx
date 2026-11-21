@@ -8,16 +8,16 @@ export const LISTA_PISTAS = [
 export default function AudioFondo({ isPlaying, indicePista, onPlayStateChange }) {
     const audioRef = useRef(null);
 
-    // No descargar las pistas hasta que el usuario decida escucharlas.
-    useEffect(() => {
-        if (audioRef.current) {
-            audioRef.current.load();
-        }
-    }, [indicePista]);
-
-    // Controlar la reproducción de audio según el estado global
+    // Controlar la reproducción de audio según el estado global.
+    // No se fuerza la carga de la pista: con preload="none" solo se descarga al reproducir.
     useEffect(() => {
         if (!audioRef.current) return;
+
+        if (isPlaying && !navigator.onLine) {
+            audioRef.current.pause();
+            if (onPlayStateChange) onPlayStateChange(false);
+            return;
+        }
 
         if (isPlaying) {
             audioRef.current.play().catch(e => {
@@ -35,6 +35,9 @@ export default function AudioFondo({ isPlaying, indicePista, onPlayStateChange }
             src={LISTA_PISTAS[indicePista].ruta}
             loop
             preload="none"
+            onError={() => {
+                if (onPlayStateChange) onPlayStateChange(false);
+            }}
         />
     );
 }

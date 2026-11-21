@@ -9,6 +9,7 @@ import {
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import { almacen } from '../utils/almacen.js';
 import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
+import { registrarRespuesta, seleccionarConRepaso } from '../utils/repaso.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { useVidasJuego } from '../hooks/useVidasJuego.js';
 import { useTotopos } from '../hooks/useTotopos.js';
@@ -583,10 +584,13 @@ export default function Crucigrama({
         const baseDatosActiva = obtenerBaseDatosActiva(tipoContenido, categoriasFaunaActivas, categoriasFloraActivas);
         const poolSeguro = baseDatosActiva.length > 0 ? baseDatosActiva : filtrarContenidoPorCategorias(listaAnimales, categoriaInicialPorDefecto('fauna'));
         const cantidadAnimales = Math.min(2 + nivel, 6);
-        const candidatos = [...poolSeguro]
-            .filter(a => a && a.diidxaza && limpiarPalabra(a.diidxaza, modoDificil).length > 2)
-            .sort(() => Math.random() - 0.5)
-            .slice(0, cantidadAnimales);
+        const candidatosDisponibles = poolSeguro
+            .filter(a => a && a.diidxaza && limpiarPalabra(a.diidxaza, modoDificil).length > 2);
+        const candidatos = seleccionarConRepaso(
+            candidatosDisponibles,
+            Math.min(cantidadAnimales, candidatosDisponibles.length),
+            tipoContenido
+        );
 
         const data = generarTableroCrucigrama(candidatos, modoDificil);
         setMatriz(data.matriz);
@@ -736,6 +740,15 @@ export default function Crucigrama({
 
         if (palabraFormada === activePlacement.text) {
             reproducirSonido(2); 
+            registrarRespuesta(
+                {
+                    tipo: tipoContenido,
+                    id: activePlacement.animal.id,
+                    palabra: activePlacement.animal.diidxaza,
+                    spanish: activePlacement.animal.spanish
+                },
+                true
+            );
             const nuevasRespuestas = { ...respuestasUsuario };
             for (let i = 0; i < activePlacement.text.length; i++) {
                 let pr = activePlacement.startY + (i * activePlacement.dirY);
@@ -751,6 +764,15 @@ export default function Crucigrama({
             setActivePlacement(null);
             setLetrasElegidas([]);
         } else {
+            registrarRespuesta(
+                {
+                    tipo: tipoContenido,
+                    id: activePlacement.animal.id,
+                    palabra: activePlacement.animal.diidxaza,
+                    spanish: activePlacement.animal.spanish
+                },
+                false
+            );
             const idPalabraSeguro = activePlacement.number; 
             const erroresDePalabra = intentosErroneosPalabras[idPalabraSeguro] || {};
             const errorCount = (erroresDePalabra[palabraFormada] || 0) + 1;

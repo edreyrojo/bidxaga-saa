@@ -1,6 +1,8 @@
 /* Service worker de Bidxaga Saa.
    Versión: cambia este número cuando quieras invalidar la caché. */
-const CACHE = 'bidxaga-saa-v2';
+const CACHE = 'bidxaga-saa-/* __VERSION__ */';
+
+// Assets base que siempre deben estar disponibles.
 const CORE = [
   '/',
   '/manifest.json',
@@ -15,28 +17,57 @@ const CORE = [
   '/guiechachi.png',
   '/tehuana.png',
   '/images/banner.png',
-  '/images/bannerinicio.png'
+  '/images/bannerinicio.png',
+  '/audio/click1.mp3',
+  '/audio/click2.mp3',
+  '/audio/click3.mp3'
 ];
 
+// Los chunks con hash y las imágenes se inyectan al compilar.
+const BUILD_ASSETS = /* __PRECACHE__ */ [];
+const IMAGE_ASSETS = /* __IMAGENES__ */ [];
+
+const PRECACHE = [...new Set([...CORE, ...BUILD_ASSETS])];
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => Promise.allSettled(CORE.map((url) => cache.add(url))))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await Promise.allSettled(PRECACHE.map((url) => cache.add(url)));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(
-        keys
-          .filter((key) => key.startsWith('bidxaga-saa-') && key !== CACHE)
-          .map((key) => caches.delete(key))
-      ))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys
+        .filter((key) => key.startsWith('bidxaga-saa-') && key !== CACHE)
+        .map((key) => caches.delete(key))
+    );
+    await self.clients.claim();
+  })());
+
+  // Las imágenes se guardan después de activar, sin bloquear la primera pantalla.
+  event.waitUntil(calentarImagenes());
 });
+
+async function calentarImagenes() {
+  if (IMAGE_ASSETS.length === 0) return;
+
+  const cache = await caches.open(CACHE);
+  const LOTE = 8;
+
+  for (let inicio = 0; inicio < IMAGE_ASSETS.length; inicio += LOTE) {
+    const lote = IMAGE_ASSETS.slice(inicio, inicio + LOTE);
+    await Promise.allSettled(
+      lote.map(async (url) => {
+        const existente = await cache.match(url, { ignoreVary: true });
+        if (!existente) await cache.add(url);
+      })
+    );
+  }
+}
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -58,14 +89,14 @@ self.addEventListener('fetch', (event) => {
           return response;
         }
         return (
-          (await caches.match(request)) ||
-          (await caches.match('/')) ||
+          (await caches.match(request, { ignoreVary: true })) ||
+          (await caches.match('/', { ignoreVary: true })) ||
           response
         );
       } catch {
         return (
-          (await caches.match(request)) ||
-          (await caches.match('/')) ||
+          (await caches.match(request, { ignoreVary: true })) ||
+          (await caches.match('/', { ignoreVary: true })) ||
           Response.error()
         );
       }
@@ -76,7 +107,7 @@ self.addEventListener('fetch', (event) => {
   // Assets estáticos: caché primero y actualización en segundo plano.
   if (/\.(?:png|jpe?g|webp|svg|gif|mp3|woff2?|css|js|json)$/i.test(url.pathname)) {
     event.respondWith(
-      caches.match(request).then((cached) => {
+      caches.match(request, { ignoreVary: true }).then((cached) => {
         if (cached) return cached;
 
         return fetch(request).then((response) => {

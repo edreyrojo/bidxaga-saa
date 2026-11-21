@@ -2,6 +2,8 @@
 
 Este proyecto ya incluye reglas de Firestore en `firestore.rules` y configuración de Firebase CLI en `firebase.json` / `.firebaserc`.
 
+> **Estado:** las reglas están desplegadas en el proyecto `bidxaga-saa` (20/11/2026).
+
 ## Qué protegen las reglas
 
 - Cada usuario solo puede leer y editar su propio documento `usuarios/{uid}`.
@@ -13,6 +15,7 @@ Este proyecto ya incluye reglas de Firestore en `firestore.rules` y configuraci�
   - Sopa y Crucigrama: `intentos > 0`.
   - Trivia: `errores >= 0`.
 - Los invitados ya no guardan récords globales; conservan su progreso local y se les pide iniciar sesión.
+- El historial de repaso vive en `usuarios/{uid}/repaso/{clave}`: cada usuario solo puede leer y escribir sus propios registros, y cada registro valida tipo, contadores, caja y fechas.
 
 ## Cómo validar las reglas sin desplegar
 
@@ -69,7 +72,7 @@ Puedes editar manualmente `usuarios/{uid}.role = "admin"` desde la consola de Fi
 
 ## Limitaciones actuales
 
-Las reglas protegen el rol de administrador, los avisos y los rankings, pero **totopos, vidas, progreso, categorías, avatares y logros todavía se escriben desde el cliente**. Un usuario con conocimientos técnicos podría modificar su propio saldo o progreso.
+Las reglas protegen el rol de administrador, los avisos y los rankings, pero **totopos, vidas, progreso, categorías, avatares, logros, repaso y reto diario todavía se escriben desde el cliente**. Un usuario con conocimientos técnicos podría modificar su propio saldo o progreso.
 
 Para una integridad total habría que mover esas operaciones a Cloud Functions o a un backend propio, por ejemplo:
 

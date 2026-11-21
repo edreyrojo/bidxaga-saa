@@ -9,6 +9,7 @@ import {
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import { almacen } from '../utils/almacen.js';
 import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
+import { registrarRespuesta, seleccionarConRepaso } from '../utils/repaso.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { useSonido } from '../hooks/useSonido';
 import { useVidasJuego } from '../hooks/useVidasJuego.js';
@@ -671,9 +672,7 @@ export default function Tablero({
         const parejasReales = Math.min(parejasDelNivel, poolSeguro.length);
         setParejasEnJuego(parejasReales);
 
-        const animalesSeleccionados = [...poolSeguro]
-            .sort(() => Math.random() - 0.5)
-            .slice(0, parejasReales);
+        const animalesSeleccionados = seleccionarConRepaso(poolSeguro, parejasReales, tipoContenido);
 
         const cartasImagenes = animalesSeleccionados.map(animal => ({
             id: `img-${animal.id}-${Math.random()}`,
@@ -681,7 +680,8 @@ export default function Tablero({
             type: 'image',
             content: animal.image,
             label: animal.spanish,
-            isMatched: false
+            isMatched: false,
+            repaso: { tipo: tipoContenido, id: animal.id, palabra: animal.diidxaza, spanish: animal.spanish }
         }));
 
         const cartasPalabras = animalesSeleccionados.map(animal => ({
@@ -690,7 +690,8 @@ export default function Tablero({
             type: 'word',
             content: modoDificil ? animal.spanish : animal.diidxaza,
             label: animal.spanish,
-            isMatched: false
+            isMatched: false,
+            repaso: { tipo: tipoContenido, id: animal.id, palabra: animal.diidxaza, spanish: animal.spanish }
         }));
 
         const mazoMezclado = [...cartasImagenes, ...cartasPalabras].sort(() => Math.random() - 0.5);
@@ -858,10 +859,13 @@ export default function Tablero({
             setDisabled(true);
             if (choiceOne.pairId === choiceTwo.pairId) {
                 reproducirSonido('click2');
+                registrarRespuesta(choiceOne.repaso, true);
                 setCards(prevCards => prevCards.map(card => card.pairId === choiceOne.pairId ? { ...card, isMatched: true } : card));
                 setMatches(prev => prev + 1);
                 resetTurn();
             } else {
+                registrarRespuesta(choiceOne.repaso, false);
+                registrarRespuesta(choiceTwo.repaso, false);
                 setTimeout(() => {
                     const todasVistas = cards.length > 0 && fichasVistas.length >= cards.length;
                     const comboKey = [choiceOne.pairId, choiceTwo.pairId].sort().join('|');

@@ -29,6 +29,27 @@ export const CATALOGO_LOGROS = [
         nombre: 'Sabio Zapoteco',
         desc: 'Termina un nivel de Trivia en Modo Difícil sin errores.',
         emoji: '🌟'
+    },
+    {
+        id: 'logro_reto_diario',
+        juego: 'Reto Diario',
+        nombre: 'Constancia Istmeña',
+        desc: 'Completa tu primer reto diario.',
+        emoji: '🔥'
+    },
+    {
+        id: 'logro_racha_7',
+        juego: 'Reto Diario',
+        nombre: 'Semana Zapoteca',
+        desc: 'Completa el reto diario 7 días seguidos.',
+        emoji: '📅'
+    },
+    {
+        id: 'logro_racha_30',
+        juego: 'Reto Diario',
+        nombre: 'Luna Completa',
+        desc: 'Completa el reto diario 30 días seguidos.',
+        emoji: '🌕'
     }
 ];
 

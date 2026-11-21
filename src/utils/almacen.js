@@ -34,7 +34,11 @@ const CLAVES_CONOCIDAS = [
     'crucigramaModoDificil',
     'crucigramaPlayerName',
     'crucigramaCategoriasFaunaActivas',
-    'crucigramaCategoriasFloraActivas'
+    'crucigramaCategoriasFloraActivas',
+    'repasoPalabras',
+    'repasoBorradoEn',
+    'retoDiario',
+    'rachaReto'
 ];
 
 let scopeActual = 'guest';
