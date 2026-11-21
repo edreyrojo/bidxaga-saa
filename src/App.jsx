@@ -246,7 +246,7 @@ function App() {
             nombre: data.nombre || '',
             avatar: avatarId,
             nivel: nivelCalc,
-            role: data.role || ''
+            role: typeof data.role === 'string' ? data.role.toLowerCase() : ''
           });
         }
       } catch (error) {
@@ -641,10 +641,6 @@ function App() {
               setControlesJuegoActivo(null);
               setVistaActual('menu');
             }}
-            onAbrirPanelAnterior={() => {
-              setVistaActual('menu');
-              setShowConfigModal(true);
-            }}
             onOpenGenerador={() => {
               setVistaActual('generador');
             }}
@@ -827,12 +823,6 @@ function App() {
         onCambiarPista={cambiarPistaAudio}
         listaPistas={LISTA_PISTAS}
         controlesJuegoActivo={controlesJuegoActivo}
-        user={user} 
-        onOpenGenerador={() => setVistaActual('generador')} 
-        onOpenAdmin={() => {
-          setShowConfigModal(false);
-          setVistaActual('admin');
-        }}
       />
 
       {logroToast && (

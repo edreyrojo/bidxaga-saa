@@ -21,11 +21,50 @@ La pantalla de inicio se organiza en cuatro bloques para que la navegación sea 
   - **Avisos**: crear, editar, activar/desactivar, prioridad, expiración, borrado con confirmación y auditoría. Los avisos inactivos o expirados no se muestran en la app.
   - **Rankings**: Memorama, Trivia, Sopa, Crucigrama y Reto Diario (por fecha); búsqueda, exportación CSV y borrado con auditoría.
   - **Sugerencias**: filtros por estado y tipo, búsqueda, paginación, detalle, copiar datos y aprobar/rechazar con nota interna.
-  - **Herramientas**: acceso al panel anterior y al generador de avatares.
+  - **Herramientas**: generador de avatares.
 - Cada acción administrativa relevante se registra en `admin_logs` dentro del mismo lote que la escritura.
-- El panel anterior sigue disponible como respaldo mientras se valida la migración completa.
+- El panel anterior se retiró: toda la administración vive ahora en esta pantalla.
 - La verificación usa el custom claim `admin` o el campo `usuarios/{uid}.role`.
 - El badge de avisos de la app ahora cuenta **avisos no leídos** y se marca como leído al abrir el panel de avisos.
+
+## Seguridad sin backend
+
+### App Check con reCAPTCHA v3 (gratuito)
+
+1. En Firebase Console → **App Check** → aplicación web → **reCAPTCHA v3**, crea una site key.
+2. Copia `.env.example` a `.env` y define:
+
+```bash
+VITE_RECAPTCHA_SITE_KEY=tu_site_key
+```
+
+3. En Vercel, agrega la misma variable de entorno.
+4. Despliega y confirma que la app sigue funcionando.
+5. Solo entonces activa **Enforcement** para Firestore en Firebase Console.
+
+Sin site key, la app funciona sin App Check; no actives Enforcement antes de configurarla o las peticiones fallarán.
+
+### Custom claim para administradores (gratuito)
+
+Los cambios de rol ahora requieren el claim `admin`, no solo el campo `role`.
+
+1. Descarga una cuenta de servicio desde Firebase Console → Configuración del proyecto → Cuentas de servicio.
+2. Guárdala fuera del repositorio. `.gitignore` excluye `serviceAccount*.json`.
+3. Ejecuta:
+
+```bash
+npm run admin:claim -- ruta/serviceAccount.json UID_DEL_USUARIO
+```
+
+4. Cierra sesión y vuelve a entrar para refrescar el token.
+
+Para retirarlo:
+
+```bash
+npm run admin:claim -- ruta/serviceAccount.json UID_DEL_USUARIO quitar
+```
+
+El campo `role` sigue funcionando como respaldo para acceder al panel, pero **solo un administrador con custom claim puede cambiar roles**.
 
 ## Calidad y CI
 
@@ -83,6 +122,7 @@ Vite abre la app en `http://localhost:5173`.
 | `npm run test:calidad` | Prueba vidas, niveles y almacenamiento por usuario |
 | `npm run test:admin` | Prueba CSV, orden de rankings y helpers administrativos |
 | `npm test` | Ejecuta todas las pruebas |
+| `npm run admin:claim` | Asigna o retira el custom claim `admin` con Firebase Admin SDK |
 | `npm run ci` | Lint + pruebas + build, igual que GitHub Actions |
 | `npm run check:rules` | Valida las reglas de Firestore sin desplegarlas |
 | `npm run deploy:rules` | Despliega las reglas de Firestore |

@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth"; // <--- 1. Importamos getAuth
 
@@ -13,6 +14,22 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// App Check es gratuito con reCAPTCHA v3. Se activa solo si existe la site key.
+const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+
+if (recaptchaSiteKey) {
+    try {
+        initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+            isTokenAutoRefreshEnabled: true,
+        });
+    } catch (error) {
+        console.error('No se pudo inicializar App Check:', error);
+    }
+} else if (import.meta.env.DEV) {
+    console.warn('App Check no está configurado. Define VITE_RECAPTCHA_SITE_KEY para probarlo.');
+}
 
 // Exportamos la base de datos y la autenticación
 export const db = getFirestore(app);

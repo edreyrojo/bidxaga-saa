@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Variables de entorno locales
+.env
+.env.*
+!.env.example
+
+# Cuenta de servicio para scripts de administración
+serviceAccount*.json
+
 # Caché local de los scripts de optimización
 scripts/.imagenes-optimizadas.json
 scripts/.audio-optimizado.json

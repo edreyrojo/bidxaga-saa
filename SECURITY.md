@@ -75,6 +75,13 @@ No subas el archivo `serviceAccount.json` al repositorio.
 
 Puedes editar manualmente `usuarios/{uid}.role = "admin"` desde la consola de Firebase o con Admin SDK. Las reglas impiden que el usuario se lo asigne a sí mismo desde el cliente.
 
+## Endurecimiento sin backend
+
+- **App Check** está preparado con reCAPTCHA v3. La site key se define con `VITE_RECAPTCHA_SITE_KEY`; la aplicación no activa Enforcement por sí sola. Debe activarse en Firebase Console después de verificar que la app funciona.
+- Los **cambios de rol** requieren el custom claim `admin`; el campo `role` sigue sirviendo como respaldo para acceder al panel, pero no para modificar roles.
+- El script `npm run admin:claim` permite asignar o retirar el claim usando una cuenta de servicio local. La cuenta no se sube al repositorio.
+- Las sugerencias tienen un límite local de 5 minutos entre envíos; App Check es la protección principal contra abuso automatizado.
+
 ## Limitaciones actuales
 
 Las reglas protegen el rol de administrador, los avisos y los rankings, pero **totopos, vidas, progreso, categorías, avatares, logros, repaso y reto diario todavía se escriben desde el cliente**. Un usuario con conocimientos técnicos podría modificar su propio saldo o progreso.
@@ -96,8 +103,9 @@ La auditoría de `admin_logs` también se escribe desde el cliente. Un administr
 
 Además:
 
-- La protección del “último administrador” es del cliente; las reglas permiten a un administrador cambiar roles. Para una garantía total haría falta una Cloud Function con validación server-side.
+- La protección del “último administrador” es del cliente; las reglas permiten a un administrador con custom claim cambiar roles. Para una garantía total haría falta una Cloud Function con validación server-side.
 - El límite de 10 000 totopos por regalo también es del cliente; las reglas solo validan que el saldo no sea negativo.
+- Los totopos, compras y recompensas siguen siendo client-side. Sin Cloud Functions no se puede demostrar su legitimidad.
 - No hay borrado/desactivación de cuentas desde el panel. Eliminar un usuario de Firestore no elimina su cuenta de Firebase Auth ni sus subcolecciones.
 - La lista de usuarios se pagina por correo; la búsqueda por nombre es por prefijo y distingue mayúsculas.
 - Los rankings del panel se limitan a 100 registros por consulta.

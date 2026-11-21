@@ -43,7 +43,6 @@ export default function AdminResumen({
     onIrUsuarios,
     onIrAvisos,
     onIrRankings,
-    onAbrirPanelAnterior,
     onOpenGenerador,
 }) {
     if (cargando && !datos) {
@@ -175,14 +174,6 @@ export default function AdminResumen({
                     >
                         <Icono nombre="trophy" className="w-4 h-4 text-amber-700" />
                         <span className="text-xs font-bold text-amber-950">Ver rankings</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onAbrirPanelAnterior}
-                        className="bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl p-3 text-left flex items-center gap-2 cursor-pointer"
-                    >
-                        <Icono nombre="settings" className="w-4 h-4 text-amber-700" />
-                        <span className="text-xs font-bold text-amber-950">Panel anterior</span>
                     </button>
                     <button
                         type="button"

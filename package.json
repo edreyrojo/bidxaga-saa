@@ -19,6 +19,7 @@
     "test:calidad": "node scripts/probar-calidad.mjs",
     "test:admin": "node scripts/probar-admin.mjs",
     "test": "npm run test:repaso && npm run test:reto && npm run test:calidad && npm run test:admin",
+    "admin:claim": "node scripts/crear-admin.mjs",
     "ci": "npm run lint && npm test && npm run build",
     "lint": "oxlint",
     "preview": "vite preview"
@@ -36,6 +37,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.2",
     "ffmpeg-static": "^5.3.0",
+    "firebase-admin": "^14.5.1",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.16",
     "sharp": "^0.35.5",

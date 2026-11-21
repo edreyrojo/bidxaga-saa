@@ -1,12 +1,10 @@
 import {
     collection,
-    deleteDoc,
     doc,
     getDocs,
     limit,
     orderBy,
     query,
-    updateDoc,
     writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
@@ -91,15 +89,4 @@ export const eliminarAviso = async ({ id, titulo, actor }) => {
     });
     if (log) batch.set(doc(collection(db, 'admin_logs')), log);
     await batch.commit();
-};
-
-// Se mantienen para compatibilidad con el panel anterior.
-export const eliminarAvisoSimple = async (id) => {
-    if (!id) throw new Error('AVISO_SIN_ID');
-    await deleteDoc(doc(db, 'avisos', id));
-};
-
-export const actualizarAvisoSimple = async (id, datos) => {
-    if (!id) throw new Error('AVISO_SIN_ID');
-    await updateDoc(doc(db, 'avisos', id), datos);
 };

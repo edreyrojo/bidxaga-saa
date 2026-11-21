@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 export function useAdmin(user, rolDocumento) {
     const [estado, setEstado] = useState(() => ({
         esAdmin: rolDocumento === 'admin',
+        esAdminClaim: false,
         verificando: Boolean(user),
     }));
 
@@ -17,20 +18,23 @@ export function useAdmin(user, rolDocumento) {
         let activo = true;
 
         if (!user) {
-            setEstado({ esAdmin: false, verificando: false });
+            setEstado({ esAdmin: false, esAdminClaim: false, verificando: false });
             return undefined;
         }
 
         setEstado((previo) => ({
             esAdmin: rolDocumento === 'admin' || previo.esAdmin,
+            esAdminClaim: previo.esAdminClaim,
             verificando: true,
         }));
 
         user.getIdTokenResult()
             .then((token) => {
                 if (!activo) return;
+                const claim = token.claims?.admin === true;
                 setEstado({
-                    esAdmin: token.claims?.admin === true || rolDocumento === 'admin',
+                    esAdmin: claim || rolDocumento === 'admin',
+                    esAdminClaim: claim,
                     verificando: false,
                 });
             })
@@ -38,6 +42,7 @@ export function useAdmin(user, rolDocumento) {
                 if (!activo) return;
                 setEstado({
                     esAdmin: rolDocumento === 'admin',
+                    esAdminClaim: false,
                     verificando: false,
                 });
             });

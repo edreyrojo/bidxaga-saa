@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useSonido } from '../hooks/useSonido.js';
+import { almacen } from '../utils/almacen.js';
 import Icono from './Icono.jsx';
 
 const TIPOS = [
@@ -54,6 +55,13 @@ export default function SugerenciaModal({ user, onClose }) {
             return;
         }
 
+        const ultimaSugerencia = Number(almacen.getItem('sugerenciaUltimaEn')) || 0;
+        const espera = 5 * 60 * 1000 - (Date.now() - ultimaSugerencia);
+        if (espera > 0) {
+            setError(`Espera ${Math.ceil(espera / 60000)} minuto(s) antes de enviar otra sugerencia.`);
+            return;
+        }
+
         setEnviando(true);
         setError('');
 
@@ -72,6 +80,7 @@ export default function SugerenciaModal({ user, onClose }) {
             });
 
             setEnviado(true);
+            almacen.setItem('sugerenciaUltimaEn', String(Date.now()));
         } catch (err) {
             console.error('No se pudo enviar la sugerencia:', err);
             setError('No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.');

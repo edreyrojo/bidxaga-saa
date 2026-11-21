@@ -23,10 +23,9 @@ export default function AdminPanel({
     user,
     rolDocumento,
     onBack,
-    onAbrirPanelAnterior,
     onOpenGenerador,
 }) {
-    const { esAdmin, verificando } = useAdmin(user, rolDocumento);
+    const { esAdmin, esAdminClaim, verificando } = useAdmin(user, rolDocumento);
     const [seccion, setSeccion] = useState('resumen');
     const [resumen, setResumen] = useState(null);
     const [cargandoResumen, setCargandoResumen] = useState(true);
@@ -172,7 +171,6 @@ export default function AdminPanel({
                         onIrUsuarios={() => setSeccion('usuarios')}
                         onIrAvisos={() => setSeccion('avisos')}
                         onIrRankings={() => setSeccion('rankings')}
-                        onAbrirPanelAnterior={onAbrirPanelAnterior}
                         onOpenGenerador={onOpenGenerador}
                     />
                 )}
@@ -186,7 +184,7 @@ export default function AdminPanel({
                 )}
 
                 {seccion === 'usuarios' && (
-                    <AdminUsuarios user={user} onToast={mostrarToast} />
+                    <AdminUsuarios user={user} onToast={mostrarToast} puedeCambiarRoles={esAdminClaim} />
                 )}
 
                 {seccion === 'avisos' && (
@@ -199,21 +197,6 @@ export default function AdminPanel({
 
                 {seccion === 'herramientas' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <section className="bg-white rounded-2xl border-2 border-amber-200 p-4 shadow-sm">
-                            <Icono nombre="settings" className="w-6 h-6 text-amber-700 mb-2" />
-                            <h2 className="font-black text-amber-950 text-sm">Panel anterior</h2>
-                            <p className="text-xs text-amber-800 mt-1 mb-3 leading-relaxed">
-                                Usuarios, avisos y rankings siguen disponibles en el panel anterior mientras migramos esas secciones.
-                            </p>
-                            <button
-                                type="button"
-                                onClick={onAbrirPanelAnterior}
-                                className="bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold px-3 py-2 rounded-xl cursor-pointer"
-                            >
-                                Abrir panel anterior
-                            </button>
-                        </section>
-
                         <section className="bg-white rounded-2xl border-2 border-amber-200 p-4 shadow-sm">
                             <Icono nombre="wrench" className="w-6 h-6 text-amber-700 mb-2" />
                             <h2 className="font-black text-amber-950 text-sm">Generador de avatares</h2>

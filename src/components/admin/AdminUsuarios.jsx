@@ -26,7 +26,7 @@ const nivelJuego = (progreso, juego) => {
     return datos?.nivel ?? datos?.level ?? '—';
 };
 
-export default function AdminUsuarios({ user, onToast }) {
+export default function AdminUsuarios({ user, onToast, puedeCambiarRoles = false }) {
     const [usuarios, setUsuarios] = useState([]);
     const [ultimo, setUltimo] = useState(null);
     const [hayMas, setHayMas] = useState(false);
@@ -150,6 +150,10 @@ export default function AdminUsuarios({ user, onToast }) {
     };
 
     const pedirRol = () => {
+        if (!puedeCambiarRoles) {
+            onToast?.('Los cambios de rol requieren el custom claim admin. Ejecuta el script de administrador.', 'info');
+            return;
+        }
         if (esMiUsuario) {
             onToast?.('No puedes cambiar tu propio rol desde este panel.', 'info');
             return;
@@ -462,6 +466,10 @@ export default function AdminUsuarios({ user, onToast }) {
                                     {esMiUsuario ? (
                                         <p className="text-[10px] text-amber-700">
                                             No puedes cambiar tu propio rol desde este panel. Pídeselo a otro administrador.
+                                        </p>
+                                    ) : !puedeCambiarRoles ? (
+                                        <p className="text-[10px] text-amber-700">
+                                            Los cambios de rol requieren el custom claim <code>admin</code>. Ejecuta el script de administrador y vuelve a iniciar sesión.
                                         </p>
                                     ) : (
                                         <>
