@@ -3,6 +3,10 @@
 
 const { escaparCSV, generarCSV } = await import('../src/utils/csv.js');
 const { ordenarRegistros } = await import('../src/utils/ordenRankings.js');
+const {
+    detectarSugerenciasDuplicadas,
+    esAnomaliaRanking,
+} = await import('../src/utils/adminHelpers.js');
 
 let fallos = 0;
 
@@ -70,6 +74,27 @@ comprobar(
     reto.map((r) => r.id).join(',') === 'd,c,b,a',
     reto.map((r) => r.id).join(',')
 );
+
+comprobar('Memorama válido no es anomalía', !esAnomaliaRanking({ id: 'a', level: 2, score: 10 }, 'memorama'));
+comprobar('Memorama sin puntaje es anomalía', esAnomaliaRanking({ id: 'a', level: 2, score: 0 }, 'memorama'));
+comprobar('Nivel menor a 1 es anomalía', esAnomaliaRanking({ id: 'a', level: 0, score: 10 }, 'memorama'));
+comprobar('Trivia con errores negativos es anomalía', esAnomaliaRanking({ id: 'a', level: 2, errores: -1 }, 'trivia'));
+comprobar('Reto con más aciertos que el total es anomalía', esAnomaliaRanking({ id: 'a', aciertos: 6, total: 5 }, 'reto'));
+comprobar('Reto válido no es anomalía', !esAnomaliaRanking({ id: 'a', aciertos: 5, total: 5 }, 'reto'));
+
+const duplicadas = detectarSugerenciasDuplicadas([
+    { id: '1', palabra: 'Bixid' },
+    { id: '2', palabra: ' bixid ' },
+    { id: '3', palabra: 'Guetu' },
+    { id: '4', palabra: '' },
+    { id: '5', palabra: '' },
+]);
+comprobar('Detecta palabras repetidas sin distinguir mayúsculas', duplicadas.has('1') && duplicadas.has('2'));
+comprobar('No marca palabras únicas', !duplicadas.has('3'));
+comprobar('Ignora palabras vacías', !duplicadas.has('4') && !duplicadas.has('5'));
+
+const sinDuplicados = detectarSugerenciasDuplicadas([{ id: 'x', palabra: 'Niza' }]);
+comprobar('Sin duplicados devuelve un conjunto vacío', sinDuplicados.size === 0);
 
 if (fallos > 0) {
     console.error(`\n${fallos} prueba(s) fallaron.`);

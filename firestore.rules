@@ -128,13 +128,14 @@ service cloud.firestore {
         && (!('activo' in request.resource.data) || request.resource.data.activo is bool)
         && (!('prioridad' in request.resource.data) || request.resource.data.prioridad in ['normal', 'alta'])
         && (!('expiraEn' in request.resource.data) || request.resource.data.expiraEn == null || request.resource.data.expiraEn is int)
+        && (!('publicadoEn' in request.resource.data) || request.resource.data.publicadoEn == null || request.resource.data.publicadoEn is int)
         && (!('actualizadoEn' in request.resource.data) || request.resource.data.actualizadoEn is int);
       allow delete: if isAdmin();
     }
 
     match /ranking/{docId} {
       allow read: if true;
-      allow create, update: if signedIn()
+      allow create: if signedIn()
         && docId == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 60
@@ -143,12 +144,28 @@ service cloud.firestore {
         && request.resource.data.score is number
         && request.resource.data.score > 0
         && request.resource.data.completado == true;
+      allow update: if (
+        signedIn()
+        && docId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.level is number
+        && request.resource.data.level >= 1
+        && request.resource.data.score is number
+        && request.resource.data.score > 0
+        && request.resource.data.completado == true
+      ) || (
+        isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+      );
       allow delete: if isAdmin() || (signedIn() && docId == request.auth.uid);
     }
 
     match /ranking_trivia/{docId} {
       allow read: if true;
-      allow create, update: if signedIn()
+      allow create: if signedIn()
         && docId == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 60
@@ -157,12 +174,28 @@ service cloud.firestore {
         && request.resource.data.errores is number
         && request.resource.data.errores >= 0
         && request.resource.data.completado == true;
+      allow update: if (
+        signedIn()
+        && docId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.level is number
+        && request.resource.data.level >= 1
+        && request.resource.data.errores is number
+        && request.resource.data.errores >= 0
+        && request.resource.data.completado == true
+      ) || (
+        isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+      );
       allow delete: if isAdmin() || (signedIn() && docId == request.auth.uid);
     }
 
     match /ranking_sopa/{docId} {
       allow read: if true;
-      allow create, update: if signedIn()
+      allow create: if signedIn()
         && docId == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 60
@@ -171,12 +204,28 @@ service cloud.firestore {
         && request.resource.data.intentos is number
         && request.resource.data.intentos > 0
         && request.resource.data.completado == true;
+      allow update: if (
+        signedIn()
+        && docId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.level is number
+        && request.resource.data.level >= 1
+        && request.resource.data.intentos is number
+        && request.resource.data.intentos > 0
+        && request.resource.data.completado == true
+      ) || (
+        isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+      );
       allow delete: if isAdmin() || (signedIn() && docId == request.auth.uid);
     }
 
     match /ranking_crucigrama/{docId} {
       allow read: if true;
-      allow create, update: if signedIn()
+      allow create: if signedIn()
         && docId == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 60
@@ -185,13 +234,29 @@ service cloud.firestore {
         && request.resource.data.intentos is number
         && request.resource.data.intentos > 0
         && request.resource.data.completado == true;
+      allow update: if (
+        signedIn()
+        && docId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.level is number
+        && request.resource.data.level >= 1
+        && request.resource.data.intentos is number
+        && request.resource.data.intentos > 0
+        && request.resource.data.completado == true
+      ) || (
+        isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60
+      );
       allow delete: if isAdmin() || (signedIn() && docId == request.auth.uid);
     }
 
     // Ranking diario del reto: una subcolección por fecha.
     match /ranking_reto/{fecha}/jugadores/{uid} {
       allow read: if true;
-      allow create, update: if signedIn()
+      allow create: if signedIn()
         && uid == request.auth.uid
         && request.resource.data.uid == uid
         && request.resource.data.fecha == fecha
@@ -206,6 +271,27 @@ service cloud.firestore {
         && request.resource.data.racha is int
         && request.resource.data.racha >= 0
         && request.resource.data.completadoEn is int;
+      allow update: if (
+        signedIn()
+        && uid == request.auth.uid
+        && request.resource.data.uid == uid
+        && request.resource.data.fecha == fecha
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() <= 60
+        && request.resource.data.aciertos is int
+        && request.resource.data.aciertos >= 0
+        && request.resource.data.aciertos <= 5
+        && request.resource.data.total is int
+        && request.resource.data.total > 0
+        && request.resource.data.racha is int
+        && request.resource.data.racha >= 0
+        && request.resource.data.completadoEn is int
+      ) || (
+        isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre'])
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() <= 60
+      );
       allow delete: if isAdmin() || (signedIn() && uid == request.auth.uid);
     }
 
@@ -236,9 +322,9 @@ service cloud.firestore {
 
       allow read: if isAdmin();
       allow update: if isAdmin()
-        && request.resource.data.estado in ['aprobada', 'rechazada']
+        && request.resource.data.estado in ['aprobada', 'rechazada', 'convertida']
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'estado', 'revisadoEn', 'revisadoPor', 'revisorNombre', 'notaAdmin'
+          'estado', 'revisadoEn', 'revisadoPor', 'revisorNombre', 'notaAdmin', 'convertidoEn'
         ]);
       allow delete: if isAdmin();
     }

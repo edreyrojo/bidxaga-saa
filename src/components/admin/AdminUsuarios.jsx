@@ -1,12 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../../firebaseConfig';
 import Icono from '../Icono.jsx';
 import AdminConfirmacion from './AdminConfirmacion.jsx';
 import { VIDAS_POR_JUEGO, normalizarVidas } from '../../utils/vidas.js';
 import { calcularNivelCuenta } from '../../utils/Nivelcuenta.js';
 import { generarCSV, descargarArchivo } from '../../utils/csv.js';
+import { registrarLogAdmin } from '../../services/admin/adminLogs.js';
 import {
     actualizarRolUsuario,
     buscarUsuarios,
+    cargarRepasoUsuario,
+    cargarTodosLosUsuarios,
     cargarUsuarioDetalle,
     cargarUsuariosPagina,
     regalarTotoposUsuario,
@@ -20,6 +25,13 @@ const formatearFecha = (valor) => {
 };
 
 const rolTexto = (rol) => (rol === 'admin' ? 'Administrador' : 'Usuario');
+
+const fechaMs = (valor) => {
+    if (!valor) return 0;
+    const fecha = valor?.toDate ? valor.toDate() : new Date(valor);
+    const tiempo = fecha.getTime();
+    return Number.isNaN(tiempo) ? 0 : tiempo;
+};
 
 const nivelJuego = (progreso, juego) => {
     const datos = progreso?.[juego];
@@ -35,9 +47,13 @@ export default function AdminUsuarios({ user, onToast, puedeCambiarRoles = false
     const [busqueda, setBusqueda] = useState('');
     const [resultadosBusqueda, setResultadosBusqueda] = useState(null);
     const [buscando, setBuscando] = useState(false);
+    const [filtroRol, setFiltroRol] = useState('todos');
     const [seleccionado, setSeleccionado] = useState(null);
     const [detalle, setDetalle] = useState(null);
     const [cargandoDetalle, setCargandoDetalle] = useState(false);
+    const [repaso, setRepaso] = useState([]);
+    const [cargandoRepaso, setCargandoRepaso] = useState(false);
+    const [exportandoTodo, setExportandoTodo] = useState(false);
     const [cantidad, setCantidad] = useState('');
     const [motivo, setMotivo] = useState('');
     const [contarHistorico, setContarHistorico] = useState(false);
@@ -45,7 +61,12 @@ export default function AdminUsuarios({ user, onToast, puedeCambiarRoles = false
     const [confirmacion, setConfirmacion] = useState(null);
     const [procesando, setProcesando] = useState(false);
 
-    const listaVisible = resultadosBusqueda ?? usuarios;
+    const listaVisible = (resultadosBusqueda ?? usuarios).filter((usuario) => {
+        const rol = String(usuario.role || '').toLowerCase();
+        if (filtroRol === 'admin') return rol === 'admin';
+        if (filtroRol === 'usuario') return rol !== 'admin';
+        return true;
+    });
 
     const cargarInicial = async () => {
         setCargando(true);
@@ -111,17 +132,22 @@ export default function AdminUsuarios({ user, onToast, puedeCambiarRoles = false
         setCantidad('');
         setMotivo('');
         setContarHistorico(false);
+        setRepaso([]);
         setCargandoDetalle(true);
+        setCargandoRepaso(true);
         try {
             const fresco = await cargarUsuarioDetalle(usuario.id);
             if (fresco) {
                 setDetalle(fresco);
                 setRolSeleccionado(fresco.role === 'admin' ? 'admin' : '');
             }
+            const registrosRepaso = await cargarRepasoUsuario(usuario.id);
+            setRepaso(registrosRepaso);
         } catch (err) {
             console.error('No se pudo cargar el detalle del usuario:', err);
         } finally {
             setCargandoDetalle(false);
+            setCargandoRepaso(false);
         }
     };
 
@@ -215,13 +241,7 @@ export default function AdminUsuarios({ user, onToast, puedeCambiarRoles = false
         }
     };
 
-    const exportar = () => {
-        const filas = listaVisible;
-        if (filas.length === 0) {
-            onToast?.('No hay usuarios para exportar.', 'info');
-            return;
-        }
-
+    const exportarFilas = (filas, nombre) => {
         const csv = generarCSV(filas, [
             { titulo: 'Nombre', valor: (u) => u.nombre || '' },
             { titulo: 'Correo', valor: (u) => u.email || '' },
@@ -234,8 +254,65 @@ export default function AdminUsuarios({ user, onToast, puedeCambiarRoles = false
             { titulo: 'Racha', valor: (u) => u.rachaReto?.dias ?? 0 },
         ]);
 
-        descargarArchivo('usuarios-bidxaga.csv', csv);
+        descargarArchivo(nombre, csv);
+    };
+
+    const exportar = () => {
+        if (listaVisible.length === 0) {
+            onToast?.('No hay usuarios para exportar.', 'info');
+            return;
+        }
+        exportarFilas(listaVisible, 'usuarios-bidxaga.csv');
         onToast?.('CSV de usuarios generado.', 'exito');
+    };
+
+    const exportarTodo = async () => {
+        setExportandoTodo(true);
+        try {
+            const todos = await cargarTodosLosUsuarios();
+            if (todos.length === 0) {
+                onToast?.('No hay usuarios para exportar.', 'info');
+                return;
+            }
+            exportarFilas(todos, 'usuarios-bidxaga-completo.csv');
+            onToast?.(`Se exportaron ${todos.length} usuarios.`, 'exito');
+        } catch (err) {
+            console.error('No se pudo exportar todos los usuarios:', err);
+            onToast?.('No se pudo exportar la lista completa. Inténtalo de nuevo.', 'error');
+        } finally {
+            setExportandoTodo(false);
+        }
+    };
+
+    const copiar = async (texto, etiqueta) => {
+        if (!texto) return;
+        try {
+            await navigator.clipboard.writeText(texto);
+            onToast?.(`${etiqueta} copiado.`, 'exito');
+        } catch {
+            onToast?.('No se pudo copiar. Revisa los permisos del navegador.', 'error');
+        }
+    };
+
+    const enviarReset = async () => {
+        if (!detalle?.email) {
+            onToast?.('Este usuario no tiene correo registrado.', 'info');
+            return;
+        }
+
+        try {
+            await sendPasswordResetEmail(auth, detalle.email);
+            onToast?.(`Correo de restablecimiento enviado a ${detalle.email}.`, 'exito');
+            registrarLogAdmin({
+                user,
+                accion: 'password_reset_enviado',
+                objetivo: `usuarios/${detalle.id}`,
+                detalle: { email: detalle.email },
+            }).catch((error) => console.warn('No se pudo auditar el reset de contraseña:', error));
+        } catch (err) {
+            console.error('No se pudo enviar el correo de restablecimiento:', err);
+            onToast?.('No se pudo enviar el correo. Verifica que el correo sea válido.', 'error');
+        }
     };
 
     const vidasDetalle = useMemo(() => normalizarVidas(detalle?.vidas), [detalle?.vidas]);
@@ -243,6 +320,30 @@ export default function AdminUsuarios({ user, onToast, puedeCambiarRoles = false
     const nivelCuenta = calcularNivelCuenta(
         Math.max(Number(detalle?.totoposHistoricos) || 0, Number(detalle?.totopos) || 0)
     );
+
+    const repasoResumen = useMemo(() => {
+        const ahora = Date.now();
+        const top = [...repaso]
+            .sort((a, b) => (b.errores || 0) - (a.errores || 0))
+            .slice(0, 5);
+
+        return {
+            total: repaso.length,
+            dominadas: repaso.filter((registro) => (registro.caja || 0) >= 4).length,
+            pendientes: repaso.filter((registro) => (registro.proximoRepaso || 0) <= ahora).length,
+            errores: repaso.reduce((total, registro) => total + (registro.errores || 0), 0),
+            top,
+        };
+    }, [repaso]);
+
+    const ultimaActividad = useMemo(() => {
+        const fechas = [
+            fechaMs(detalle?.createdAt),
+            ...repaso.map((registro) => Number(registro.ultimaVez) || 0),
+            Number(detalle?.retoDiario?.completadoEn) || 0,
+        ];
+        return Math.max(...fechas, 0);
+    }, [detalle, repaso]);
 
     return (
         <div className="flex flex-col gap-4">
@@ -263,6 +364,14 @@ export default function AdminUsuarios({ user, onToast, puedeCambiarRoles = false
                         className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
                     >
                         <Icono nombre="clipboard" className="w-4 h-4" /> CSV
+                    </button>
+                    <button
+                        type="button"
+                        onClick={exportarTodo}
+                        disabled={exportandoTodo}
+                        className="bg-amber-100 hover:bg-amber-200 disabled:opacity-60 text-amber-950 border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <Icono nombre="clipboard" className="w-4 h-4" /> {exportandoTodo ? 'Exportando…' : 'Todo'}
                     </button>
                     <button
                         type="button"
@@ -293,6 +402,16 @@ export default function AdminUsuarios({ user, onToast, puedeCambiarRoles = false
                 >
                     {buscando ? 'Buscando…' : 'Buscar'}
                 </button>
+                <select
+                    value={filtroRol}
+                    onChange={(evento) => setFiltroRol(evento.target.value)}
+                    aria-label="Filtrar por rol"
+                    className="bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-xs font-medium text-amber-950 outline-none focus:border-amber-500"
+                >
+                    <option value="todos">Todos los roles</option>
+                    <option value="admin">Administradores</option>
+                    <option value="usuario">Usuarios</option>
+                </select>
                 {resultadosBusqueda && (
                     <button
                         type="button"
@@ -381,6 +500,14 @@ export default function AdminUsuarios({ user, onToast, puedeCambiarRoles = false
                                 <p className="text-[10px] font-black uppercase text-amber-700">Detalle de usuario</p>
                                 <h2 id="detalle-usuario" className="text-lg font-black text-amber-950 truncate">{detalle?.nombre || 'Sin nombre'}</h2>
                                 <p className="text-xs text-amber-800 truncate">{detalle?.email || 'Sin correo'}</p>
+                                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                    <button type="button" onClick={() => copiar(detalle?.email, 'Correo')} disabled={!detalle?.email} className="bg-amber-50 hover:bg-amber-100 disabled:opacity-50 text-amber-900 border border-amber-200 rounded-lg px-2 py-1 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer">
+                                        <Icono nombre="copy" className="w-3 h-3" /> Correo
+                                    </button>
+                                    <button type="button" onClick={() => copiar(detalle?.id, 'UID')} disabled={!detalle?.id} className="bg-amber-50 hover:bg-amber-100 disabled:opacity-50 text-amber-900 border border-amber-200 rounded-lg px-2 py-1 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer">
+                                        <Icono nombre="copy" className="w-3 h-3" /> UID
+                                    </button>
+                                </div>
                             </div>
                             <button type="button" onClick={() => setSeleccionado(null)} aria-label="Cerrar detalle" className="text-amber-700 hover:text-amber-950 p-1 cursor-pointer">
                                 <Icono nombre="x" className="w-5 h-5" />
@@ -426,6 +553,59 @@ export default function AdminUsuarios({ user, onToast, puedeCambiarRoles = false
                                     </p>
                                     <p className="text-[10px] font-bold text-amber-800 mt-1">
                                         Reto: {detalle?.retoDiario?.aciertos ?? '—'}/{detalle?.retoDiario?.total ?? 5} · Racha: {detalle?.rachaReto?.dias ?? 0}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-amber-800 mt-1">
+                                        Última actividad: {ultimaActividad ? formatearFecha(ultimaActividad) : 'Sin actividad'}
+                                    </p>
+                                </section>
+
+                                <section className="mt-3 bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                        <h3 className="text-[11px] font-black uppercase text-amber-800">Repaso espaciado</h3>
+                                        {cargandoRepaso && <span className="text-[10px] font-bold text-amber-700">Cargando…</span>}
+                                    </div>
+                                    {repaso.length === 0 && !cargandoRepaso ? (
+                                        <p className="text-[10px] font-bold text-amber-700">Este usuario todavía no tiene palabras en repaso.</p>
+                                    ) : (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-1.5">
+                                                <div className="text-[10px] font-bold text-amber-900 bg-white border border-amber-200 rounded-lg px-2 py-1">
+                                                    Palabras: {repasoResumen.total}
+                                                </div>
+                                                <div className="text-[10px] font-bold text-amber-900 bg-white border border-amber-200 rounded-lg px-2 py-1">
+                                                    Dominadas: {repasoResumen.dominadas}
+                                                </div>
+                                                <div className="text-[10px] font-bold text-amber-900 bg-white border border-amber-200 rounded-lg px-2 py-1">
+                                                    Pendientes: {repasoResumen.pendientes}
+                                                </div>
+                                                <div className="text-[10px] font-bold text-amber-900 bg-white border border-amber-200 rounded-lg px-2 py-1">
+                                                    Errores: {repasoResumen.errores}
+                                                </div>
+                                            </div>
+                                            {repasoResumen.top.length > 0 && (
+                                                <div className="mt-2">
+                                                    <p className="text-[10px] font-black uppercase text-amber-700 mb-1">Más difíciles</p>
+                                                    <ul className="space-y-1">
+                                                        {repasoResumen.top.map((registro) => (
+                                                            <li key={`${registro.tipo}-${registro.id}`} className="flex items-center justify-between gap-2 text-[10px] font-bold text-amber-900 bg-white border border-amber-200 rounded-lg px-2 py-1">
+                                                                <span className="truncate">{registro.palabra || registro.id}</span>
+                                                                <span className="shrink-0 text-amber-700">{registro.errores || 0} err · caja {registro.caja ?? 0}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </section>
+
+                                <section className="mt-3 bg-white border-2 border-amber-200 rounded-2xl p-3">
+                                    <h3 className="text-[11px] font-black uppercase text-amber-800 mb-2">Soporte</h3>
+                                    <button type="button" onClick={enviarReset} disabled={!detalle?.email} className="bg-amber-100 hover:bg-amber-200 disabled:opacity-50 text-amber-950 border border-amber-300 rounded-xl px-3 py-2 text-[10px] font-bold inline-flex items-center gap-1.5 cursor-pointer">
+                                        <Icono nombre="mail" className="w-3.5 h-3.5" /> Enviar restablecimiento de contraseña
+                                    </button>
+                                    <p className="text-[10px] text-amber-700 mt-2">
+                                        Envía un correo de Firebase para que el usuario cambie su contraseña. No cambia la sesión actual.
                                     </p>
                                 </section>
 

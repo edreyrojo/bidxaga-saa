@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Icono from '../Icono.jsx';
 import AdminConfirmacion from './AdminConfirmacion.jsx';
-import { cargarSugerencias, revisarSugerencia } from '../../services/admin/adminSugerencias.js';
+import { generarCSV, descargarArchivo } from '../../utils/csv.js';
+import {
+    cargarSugerencias,
+    revisarSugerencia,
+    revisarSugerenciasLote,
+} from '../../services/admin/adminSugerencias.js';
+
+import { detectarSugerenciasDuplicadas } from '../../utils/adminHelpers.js';
 
 const POR_PAGINA = 8;
 
@@ -9,6 +16,7 @@ const ESTADOS = [
     { id: 'todas', label: 'Todas' },
     { id: 'pendiente', label: 'Pendientes' },
     { id: 'aprobada', label: 'Aprobadas' },
+    { id: 'convertida', label: 'Convertidas' },
     { id: 'rechazada', label: 'Rechazadas' },
 ];
 
@@ -40,8 +48,16 @@ const formatearFecha = (timestamp) => {
 
 const claseEstado = (estado) => {
     if (estado === 'aprobada') return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    if (estado === 'convertida') return 'bg-sky-100 text-sky-800 border-sky-200';
     if (estado === 'rechazada') return 'bg-red-100 text-red-800 border-red-200';
     return 'bg-orange-100 text-orange-800 border-orange-200';
+};
+
+const ETIQUETA_ESTADO = {
+    pendiente: 'Pendiente',
+    aprobada: 'Aprobada',
+    convertida: 'Convertida',
+    rechazada: 'Rechazada',
 };
 
 const textoParaCopiar = (sugerencia) => (
@@ -66,6 +82,7 @@ export default function AdminSugerencias({ user, onPendientesChange, onToast }) 
     const [busqueda, setBusqueda] = useState('');
     const [pagina, setPagina] = useState(0);
     const [seleccion, setSeleccion] = useState(null);
+    const [seleccionMultiple, setSeleccionMultiple] = useState([]);
     const [confirmacion, setConfirmacion] = useState(null);
     const [nota, setNota] = useState('');
     const [procesando, setProcesando] = useState(false);
@@ -110,6 +127,52 @@ export default function AdminSugerencias({ user, onPendientesChange, onToast }) 
     const visibles = filtradas.slice(paginaSegura * POR_PAGINA, (paginaSegura + 1) * POR_PAGINA);
     const pendientes = sugerencias.filter((sugerencia) => sugerencia.estado === 'pendiente').length;
 
+    // Detecta palabras repetidas en la lista cargada para evitar revisar dos veces lo mismo.
+    const duplicadas = useMemo(() => detectarSugerenciasDuplicadas(sugerencias), [sugerencias]);
+
+    const pendientesVisibles = visibles.filter((sugerencia) => sugerencia.estado === 'pendiente');
+    const todosVisiblesSeleccionados = pendientesVisibles.length > 0
+        && pendientesVisibles.every((sugerencia) => seleccionMultiple.includes(sugerencia.id));
+
+    const alternarSeleccion = (id) => {
+        setSeleccionMultiple((actual) => (
+            actual.includes(id) ? actual.filter((item) => item !== id) : [...actual, id]
+        ));
+    };
+
+    const alternarSeleccionVisibles = () => {
+        const ids = pendientesVisibles.map((sugerencia) => sugerencia.id);
+        setSeleccionMultiple((actual) => {
+            if (todosVisiblesSeleccionados) {
+                return actual.filter((id) => !ids.includes(id));
+            }
+            return Array.from(new Set([...actual, ...ids]));
+        });
+    };
+
+    const exportar = () => {
+        if (filtradas.length === 0) {
+            onToast?.('No hay sugerencias para exportar.', 'info');
+            return;
+        }
+
+        const csv = generarCSV(filtradas, [
+            { titulo: 'Tipo', valor: (s) => TIPO_LABEL[s.tipo] || s.tipo || '' },
+            { titulo: 'Estado', valor: (s) => ETIQUETA_ESTADO[s.estado] || s.estado || '' },
+            { titulo: 'Palabra', valor: (s) => s.palabra || '' },
+            { titulo: 'Significado', valor: (s) => s.significado || '' },
+            { titulo: 'Categoría', valor: (s) => s.categoria || '' },
+            { titulo: 'Notas', valor: (s) => s.notas || '' },
+            { titulo: 'Contacto', valor: (s) => s.contacto || '' },
+            { titulo: 'UID', valor: (s) => s.uid || 'invitado' },
+            { titulo: 'Nota admin', valor: (s) => s.notaAdmin || '' },
+            { titulo: 'Fecha', valor: (s) => formatearFecha(s.creadoEn) },
+        ]);
+
+        descargarArchivo('sugerencias-bidxaga.csv', csv);
+        onToast?.('CSV de sugerencias generado.', 'exito');
+    };
+
     const copiar = async (sugerencia) => {
         try {
             await navigator.clipboard.writeText(textoParaCopiar(sugerencia));
@@ -122,7 +185,16 @@ export default function AdminSugerencias({ user, onPendientesChange, onToast }) 
     const pedirRevision = (sugerencia, estado) => {
         setSeleccion(null);
         setNota('');
-        setConfirmacion({ sugerencia, estado });
+        setConfirmacion({ modo: 'individual', sugerencia, estado });
+    };
+
+    const pedirRevisionLote = (estado) => {
+        if (seleccionMultiple.length === 0) {
+            onToast?.('Selecciona al menos una sugerencia pendiente.', 'info');
+            return;
+        }
+        setNota('');
+        setConfirmacion({ modo: 'lote', ids: [...seleccionMultiple], estado });
     };
 
     const confirmarRevision = async () => {
@@ -130,16 +202,31 @@ export default function AdminSugerencias({ user, onPendientesChange, onToast }) 
         setProcesando(true);
 
         try {
-            await revisarSugerencia({
-                id: confirmacion.sugerencia.id,
-                estado: confirmacion.estado,
-                nota,
-                user,
-            });
-            onToast?.(
-                confirmacion.estado === 'aprobada' ? 'Sugerencia aprobada.' : 'Sugerencia rechazada.',
-                'exito'
-            );
+            if (confirmacion.modo === 'lote') {
+                await revisarSugerenciasLote({
+                    ids: confirmacion.ids,
+                    estado: confirmacion.estado,
+                    nota,
+                    user,
+                });
+                onToast?.(
+                    `${confirmacion.ids.length} sugerencias ${confirmacion.estado === 'aprobada' ? 'aprobadas' : 'rechazadas'}.`,
+                    'exito'
+                );
+                setSeleccionMultiple([]);
+            } else {
+                await revisarSugerencia({
+                    id: confirmacion.sugerencia.id,
+                    estado: confirmacion.estado,
+                    nota,
+                    user,
+                });
+                onToast?.(
+                    confirmacion.estado === 'aprobada' ? 'Sugerencia aprobada.' : 'Sugerencia rechazada.',
+                    'exito'
+                );
+            }
+
             setConfirmacion(null);
             setNota('');
             await cargar();
@@ -147,6 +234,28 @@ export default function AdminSugerencias({ user, onPendientesChange, onToast }) 
         } catch (err) {
             console.error('No se pudo revisar la sugerencia:', err);
             onToast?.('No se pudo actualizar la sugerencia. Inténtalo de nuevo.', 'error');
+        } finally {
+            setProcesando(false);
+        }
+    };
+
+    const marcarConvertida = async (sugerencia) => {
+        setProcesando(true);
+        try {
+            await revisarSugerencia({
+                id: sugerencia.id,
+                estado: 'convertida',
+                nota: nota || sugerencia.notaAdmin || '',
+                user,
+            });
+            onToast?.('Sugerencia marcada como convertida en el catálogo.', 'exito');
+            setSeleccion(null);
+            setNota('');
+            await cargar();
+            onPendientesChange?.();
+        } catch (err) {
+            console.error('No se pudo marcar como convertida:', err);
+            onToast?.('No se pudo marcar la sugerencia. Inténtalo de nuevo.', 'error');
         } finally {
             setProcesando(false);
         }
@@ -164,13 +273,22 @@ export default function AdminSugerencias({ user, onPendientesChange, onToast }) 
                     </p>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={cargar}
-                    className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer self-start"
-                >
-                    <Icono nombre="refresh" className="w-4 h-4" /> Actualizar
-                </button>
+                <div className="flex gap-2 self-start">
+                    <button
+                        type="button"
+                        onClick={exportar}
+                        className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <Icono nombre="clipboard" className="w-4 h-4" /> CSV
+                    </button>
+                    <button
+                        type="button"
+                        onClick={cargar}
+                        className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <Icono nombre="refresh" className="w-4 h-4" /> Actualizar
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-2xl border-2 border-amber-200 p-3 shadow-sm flex flex-col gap-2">
@@ -216,6 +334,46 @@ export default function AdminSugerencias({ user, onPendientesChange, onToast }) 
                 </div>
             </div>
 
+            {pendientesVisibles.length > 0 && (
+                <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <label className="flex items-center gap-2 text-[11px] font-bold text-amber-900 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={todosVisiblesSeleccionados}
+                            onChange={alternarSeleccionVisibles}
+                        />
+                        Seleccionar pendientes de esta página ({pendientesVisibles.length})
+                    </label>
+
+                    {seleccionMultiple.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] font-bold text-amber-900">{seleccionMultiple.length} seleccionadas</span>
+                            <button
+                                type="button"
+                                onClick={() => pedirRevisionLote('aprobada')}
+                                className="bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg px-2.5 py-1.5 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                            >
+                                <Icono nombre="check" className="w-3 h-3" /> Aprobar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => pedirRevisionLote('rechazada')}
+                                className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-2.5 py-1.5 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                            >
+                                <Icono nombre="x" className="w-3 h-3" /> Rechazar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSeleccionMultiple([])}
+                                className="bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg px-2.5 py-1.5 text-[10px] font-bold cursor-pointer"
+                            >
+                                Limpiar
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {cargando ? (
                 <div className="space-y-2">
                     {[0, 1, 2].map((indice) => (
@@ -244,11 +402,26 @@ export default function AdminSugerencias({ user, onPendientesChange, onToast }) 
                     {visibles.map((sugerencia) => (
                         <article key={sugerencia.id} className="bg-white rounded-2xl border-2 border-amber-200 p-4 shadow-sm flex flex-col">
                             <div className="flex items-center justify-between gap-2 mb-2">
-                                <span className="text-[10px] font-black uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 rounded-full px-2 py-0.5">
-                                    {TIPO_LABEL[sugerencia.tipo] || 'Otro'}
-                                </span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    {sugerencia.estado === 'pendiente' && (
+                                        <input
+                                            type="checkbox"
+                                            checked={seleccionMultiple.includes(sugerencia.id)}
+                                            onChange={() => alternarSeleccion(sugerencia.id)}
+                                            aria-label={`Seleccionar ${sugerencia.palabra}`}
+                                        />
+                                    )}
+                                    <span className="text-[10px] font-black uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 rounded-full px-2 py-0.5">
+                                        {TIPO_LABEL[sugerencia.tipo] || 'Otro'}
+                                    </span>
+                                    {duplicadas.has(sugerencia.id) && (
+                                        <span className="text-[10px] font-black uppercase tracking-wide bg-orange-100 text-orange-800 border border-orange-200 rounded-full px-2 py-0.5">
+                                            Duplicada
+                                        </span>
+                                    )}
+                                </div>
                                 <span className={`text-[10px] font-black uppercase rounded-full px-2 py-0.5 border ${claseEstado(sugerencia.estado)}`}>
-                                    {sugerencia.estado || 'pendiente'}
+                                    {ETIQUETA_ESTADO[sugerencia.estado] || sugerencia.estado || 'Pendiente'}
                                 </span>
                             </div>
 
@@ -359,7 +532,12 @@ export default function AdminSugerencias({ user, onPendientesChange, onToast }) 
                             <p><strong>Contacto:</strong> {seleccion.contacto || 'No proporcionado'}</p>
                             <p><strong>Enviado por:</strong> {seleccion.uid || 'Invitado'}</p>
                             <p><strong>Fecha:</strong> {formatearFecha(seleccion.creadoEn)}</p>
-                            <p><strong>Estado:</strong> {seleccion.estado || 'pendiente'}</p>
+                            <p><strong>Estado:</strong> {ETIQUETA_ESTADO[seleccion.estado] || seleccion.estado || 'Pendiente'}</p>
+                            {duplicadas.has(seleccion.id) && (
+                                <p className="bg-orange-50 border border-orange-200 rounded-xl p-2 text-orange-900">
+                                    <strong>Atención:</strong> hay otra sugerencia con la misma palabra en la lista cargada.
+                                </p>
+                            )}
                             {seleccion.notaAdmin && (
                                 <p className="bg-amber-50 border border-amber-200 rounded-xl p-2">
                                     <strong>Nota del revisor:</strong> {seleccion.notaAdmin}
@@ -375,6 +553,17 @@ export default function AdminSugerencias({ user, onPendientesChange, onToast }) 
                             >
                                 <Icono nombre="clipboard" className="w-3.5 h-3.5" /> Copiar datos
                             </button>
+
+                            {seleccion.estado === 'aprobada' && (
+                                <button
+                                    type="button"
+                                    onClick={() => marcarConvertida(seleccion)}
+                                    disabled={procesando}
+                                    className="bg-sky-700 hover:bg-sky-800 disabled:opacity-60 text-white rounded-lg px-3 py-2 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                                >
+                                    <Icono nombre="check" className="w-3.5 h-3.5" /> Marcar convertida
+                                </button>
+                            )}
 
                             {seleccion.estado === 'pendiente' && (
                                 <>
@@ -401,10 +590,16 @@ export default function AdminSugerencias({ user, onPendientesChange, onToast }) 
 
             <AdminConfirmacion
                 abierto={Boolean(confirmacion)}
-                titulo={confirmacion?.estado === 'aprobada' ? 'Aprobar sugerencia' : 'Rechazar sugerencia'}
+                titulo={
+                    confirmacion?.modo === 'lote'
+                        ? `${confirmacion.estado === 'aprobada' ? 'Aprobar' : 'Rechazar'} ${confirmacion.ids.length} sugerencias`
+                        : (confirmacion?.estado === 'aprobada' ? 'Aprobar sugerencia' : 'Rechazar sugerencia')
+                }
                 mensaje={
                     confirmacion
-                        ? `«${confirmacion.sugerencia.palabra}» — ${confirmacion.sugerencia.significado}`
+                        ? (confirmacion.modo === 'lote'
+                            ? `Se revisarán ${confirmacion.ids.length} sugerencias seleccionadas.`
+                            : `«${confirmacion.sugerencia.palabra}» — ${confirmacion.sugerencia.significado}`)
                         : ''
                 }
                 nota={nota}

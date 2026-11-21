@@ -3,6 +3,7 @@ import { auth, db } from './firebaseConfig';
 import { almacen, configurarScope } from './utils/almacen.js';
 import { useSyncRepaso } from './hooks/useSyncRepaso.js';
 import { useAdmin } from './hooks/useAdmin.js';
+import { useAdminPendientes } from './hooks/useAdminPendientes.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy, limit } from 'firebase/firestore';
 
@@ -216,6 +217,7 @@ function App() {
 
   useSyncRepaso(user);
   const { esAdmin } = useAdmin(user, perfilInfo.role);
+  const sugerenciasPendientes = useAdminPendientes(user, esAdmin);
 
   useEffect(() => {
     // Temporizador para controlar la animación inicial del banner
@@ -263,7 +265,9 @@ function App() {
       const querySnapshot = await getDocs(q);
       const avisos = querySnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(aviso => aviso.activo !== false && (!aviso.expiraEn || Number(aviso.expiraEn) > Date.now()))
+        .filter(aviso => aviso.activo !== false
+          && (!aviso.expiraEn || Number(aviso.expiraEn) > Date.now())
+          && (!aviso.publicadoEn || Number(aviso.publicadoEn) <= Date.now()))
         .sort((a, b) => {
           const prioridadA = a.prioridad === 'alta' ? 1 : 0;
           const prioridadB = b.prioridad === 'alta' ? 1 : 0;
@@ -518,9 +522,14 @@ function App() {
                       setVistaActual('admin');
                       setShowHerramientasMovil(false);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-100 text-sm font-bold text-amber-950 flex items-center gap-2 cursor-pointer"
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-100 text-sm font-bold text-amber-950 flex items-center justify-between gap-2 cursor-pointer"
                   >
                     <span className="inline-flex items-center gap-2"><Icono nombre="shield" className="w-4 h-4" /> Administración</span>
+                    {sugerenciasPendientes > 0 && (
+                      <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        {sugerenciasPendientes}
+                      </span>
+                    )}
                   </button>
                 )}
                 <button
@@ -564,11 +573,16 @@ function App() {
         {esAdmin && (
           <button
             onClick={() => setVistaActual('admin')}
-            className="hidden sm:flex w-10 h-10 sm:w-11 sm:h-11 rounded-2xl items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2"
-            title="Administración"
-            aria-label="Administración"
+            className="hidden sm:flex w-10 h-10 sm:w-11 sm:h-11 rounded-2xl items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 shadow-md transition-transform transform active:scale-95 border-2 border-amber-300 cursor-pointer p-2 relative"
+            title={sugerenciasPendientes > 0 ? `Administración (${sugerenciasPendientes} sugerencias pendientes)` : 'Administración'}
+            aria-label={sugerenciasPendientes > 0 ? `Administración (${sugerenciasPendientes} sugerencias pendientes)` : 'Administración'}
           >
             <Icono nombre="shield" className="w-5 h-5" />
+            {sugerenciasPendientes > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {sugerenciasPendientes}
+              </span>
+            )}
           </button>
         )}
 

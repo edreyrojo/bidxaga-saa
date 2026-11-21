@@ -1,11 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Icono from '../Icono.jsx';
 import AdminConfirmacion from './AdminConfirmacion.jsx';
 import { generarCSV, descargarArchivo } from '../../utils/csv.js';
+import { esAnomaliaRanking as esAnomalia } from '../../utils/adminHelpers.js';
 import {
     JUEGOS_RANKING,
     cargarRankingAdmin,
+    cargarTodoRankingAdmin,
     eliminarRegistroRanking,
+    renombrarRegistroRanking,
 } from '../../services/admin/adminRankings.js';
 
 const fechaHoy = () => {
@@ -36,6 +39,8 @@ const metricas = (registro, juego) => {
     return `Nivel ${registro.level ?? registro.nivel ?? '—'} · ${registro.intentos ?? 0} intentos`;
 };
 
+const nombreRegistro = (registro) => registro.name || registro.nombre || 'Anónimo';
+
 export default function AdminRankings({ user, onToast }) {
     const [juego, setJuego] = useState('memorama');
     const [fecha, setFecha] = useState(fechaHoy());
@@ -43,8 +48,16 @@ export default function AdminRankings({ user, onToast }) {
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState(false);
     const [busqueda, setBusqueda] = useState('');
+    const [soloAnomalias, setSoloAnomalias] = useState(false);
+    const [ultimo, setUltimo] = useState(null);
+    const [hayMas, setHayMas] = useState(false);
+    const [cargandoMas, setCargandoMas] = useState(false);
+    const [exportandoTodo, setExportandoTodo] = useState(false);
     const [porEliminar, setPorEliminar] = useState(null);
     const [eliminando, setEliminando] = useState(false);
+    const [porRenombrar, setPorRenombrar] = useState(null);
+    const [nuevoNombre, setNuevoNombre] = useState('');
+    const [renombrando, setRenombrando] = useState(false);
 
     const cargar = async () => {
         if (juego === 'reto' && !fecha) {
@@ -54,8 +67,10 @@ export default function AdminRankings({ user, onToast }) {
         setCargando(true);
         setError(false);
         try {
-            const lista = await cargarRankingAdmin({ juego, fecha });
-            setRegistros(lista);
+            const pagina = await cargarRankingAdmin({ juego, fecha, limite: 100 });
+            setRegistros(pagina.registros);
+            setUltimo(pagina.ultimo);
+            setHayMas(pagina.hayMas);
         } catch (err) {
             console.error('No se pudo cargar el ranking:', err);
             setError(true);
@@ -65,24 +80,46 @@ export default function AdminRankings({ user, onToast }) {
     };
 
     useEffect(() => {
+        setBusqueda('');
+        setSoloAnomalias(false);
         cargar();
     }, [juego, fecha]);
 
-    const filtrados = registros.filter((registro) => {
-        const texto = busqueda.trim().toLowerCase();
-        if (!texto) return true;
-        return `${registro.name || ''} ${registro.nombre || ''} ${registro.id || ''}`.toLowerCase().includes(texto);
-    });
-
-    const exportar = () => {
-        if (filtrados.length === 0) {
-            onToast?.('No hay registros para exportar.', 'info');
-            return;
+    const cargarMas = async () => {
+        if (!ultimo || cargandoMas) return;
+        setCargandoMas(true);
+        try {
+            const pagina = await cargarRankingAdmin({ juego, fecha, limite: 100, despues: ultimo });
+            setRegistros((actual) => [...actual, ...pagina.registros]);
+            setUltimo(pagina.ultimo);
+            setHayMas(pagina.hayMas);
+        } catch (err) {
+            console.error('No se pudo cargar más del ranking:', err);
+            onToast?.('No se pudo cargar más registros.', 'error');
+        } finally {
+            setCargandoMas(false);
         }
+    };
 
+    const filtrados = useMemo(() => {
+        const texto = busqueda.trim().toLowerCase();
+
+        return registros.filter((registro) => {
+            if (soloAnomalias && !esAnomalia(registro, juego)) return false;
+            if (!texto) return true;
+            return `${registro.name || ''} ${registro.nombre || ''} ${registro.id || ''}`.toLowerCase().includes(texto);
+        });
+    }, [registros, busqueda, soloAnomalias, juego]);
+
+    const anomalias = useMemo(
+        () => registros.filter((registro) => esAnomalia(registro, juego)).length,
+        [registros, juego]
+    );
+
+    const exportarFilas = (filas, sufijo = '') => {
         const columnas = [
             { titulo: 'Posición', valor: (_registro, indice) => indice + 1 },
-            { titulo: 'Nombre', valor: (registro) => registro.name || registro.nombre || '' },
+            { titulo: 'Nombre', valor: (registro) => nombreRegistro(registro) },
             { titulo: 'UID', valor: (registro) => registro.id || '' },
         ];
 
@@ -111,14 +148,71 @@ export default function AdminRankings({ user, onToast }) {
             );
         }
 
-        const filas = filtrados.map((registro, indice) => ({ ...registro, _indice: indice }));
-        const csv = generarCSV(filas, columnas.map((columna) => ({
+        columnas.push({ titulo: 'Anomalía', valor: (registro) => (esAnomalia(registro, juego) ? 'Sí' : 'No') });
+
+        const filasConIndice = filas.map((registro, indice) => ({ ...registro, _indice: indice }));
+        const csv = generarCSV(filasConIndice, columnas.map((columna) => ({
             ...columna,
             valor: (fila) => (columna.titulo === 'Posición' ? fila._indice + 1 : columna.valor(fila)),
         })));
 
-        descargarArchivo(`ranking-${juego}-${juego === 'reto' ? fecha : 'global'}.csv`, csv);
+        descargarArchivo(`ranking-${juego}-${juego === 'reto' ? fecha : 'global'}${sufijo}.csv`, csv);
+    };
+
+    const exportar = () => {
+        if (filtrados.length === 0) {
+            onToast?.('No hay registros para exportar.', 'info');
+            return;
+        }
+        exportarFilas(filtrados);
         onToast?.('CSV del ranking generado.', 'exito');
+    };
+
+    const exportarTodo = async () => {
+        setExportandoTodo(true);
+        try {
+            const todos = await cargarTodoRankingAdmin({ juego, fecha });
+            if (todos.length === 0) {
+                onToast?.('No hay registros para exportar.', 'info');
+                return;
+            }
+            exportarFilas(todos, '-completo');
+            onToast?.(`Se exportaron ${todos.length} registros.`, 'exito');
+        } catch (err) {
+            console.error('No se pudo exportar todo el ranking:', err);
+            onToast?.('No se pudo exportar el ranking completo.', 'error');
+        } finally {
+            setExportandoTodo(false);
+        }
+    };
+
+    const pedirRenombrar = (registro) => {
+        setPorRenombrar(registro);
+        setNuevoNombre(nombreRegistro(registro));
+    };
+
+    const confirmarRenombrar = async () => {
+        if (!porRenombrar) return;
+        setRenombrando(true);
+        try {
+            await renombrarRegistroRanking({
+                juego,
+                fecha,
+                id: porRenombrar.id,
+                nuevoNombre,
+                nombreAnterior: nombreRegistro(porRenombrar),
+                actor: user,
+            });
+            onToast?.('Nombre actualizado.', 'exito');
+            setPorRenombrar(null);
+            setNuevoNombre('');
+            await cargar();
+        } catch (err) {
+            console.error('No se pudo renombrar el registro:', err);
+            onToast?.('No se pudo renombrar el registro.', 'error');
+        } finally {
+            setRenombrando(false);
+        }
     };
 
     const confirmarEliminar = async () => {
@@ -151,13 +245,16 @@ export default function AdminRankings({ user, onToast }) {
                         <Icono nombre="trophy" className="w-5 h-5 text-amber-700" /> Rankings
                     </h2>
                     <p className="text-[11px] text-amber-700 font-medium">
-                        Hasta 100 registros por consulta · {filtrados.length} visibles
+                        {registros.length} cargados · {filtrados.length} visibles · {anomalias} anomalías
                     </p>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={exportar} className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer">
                         <Icono nombre="clipboard" className="w-4 h-4" /> CSV
+                    </button>
+                    <button type="button" onClick={exportarTodo} disabled={exportandoTodo} className="bg-amber-100 hover:bg-amber-200 disabled:opacity-60 text-amber-950 border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer">
+                        <Icono nombre="clipboard" className="w-4 h-4" /> {exportandoTodo ? 'Exportando…' : 'Todo'}
                     </button>
                     <button type="button" onClick={cargar} className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer">
                         <Icono nombre="refresh" className="w-4 h-4" /> Actualizar
@@ -206,6 +303,15 @@ export default function AdminRankings({ user, onToast }) {
                         />
                     )}
                 </div>
+
+                <label className="flex items-center gap-2 text-[11px] font-bold text-amber-900 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={soloAnomalias}
+                        onChange={(evento) => setSoloAnomalias(evento.target.checked)}
+                    />
+                    Mostrar solo anomalías (puntajes, niveles o datos fuera de rango)
+                </label>
             </div>
 
             {cargando ? (
@@ -228,20 +334,74 @@ export default function AdminRankings({ user, onToast }) {
                         <li key={registro.id} className="bg-white rounded-xl border border-amber-200 px-3 py-2 shadow-sm flex items-center gap-2">
                             <span className="w-7 text-center text-xs font-black text-amber-700">{indice + 1}</span>
                             <div className="flex-1 min-w-0">
-                                <p className="text-xs font-black text-amber-950 truncate">{registro.name || registro.nombre || 'Anónimo'}</p>
+                                <p className="text-xs font-black text-amber-950 truncate flex items-center gap-1.5">
+                                    {nombreRegistro(registro)}
+                                    {esAnomalia(registro, juego) && (
+                                        <span className="text-[9px] font-black uppercase bg-orange-100 text-orange-800 border border-orange-200 rounded-full px-1.5 py-0.5">
+                                            Anomalía
+                                        </span>
+                                    )}
+                                </p>
                                 <p className="text-[10px] font-medium text-amber-700">{metricas(registro, juego)}</p>
                                 <p className="text-[10px] text-amber-700 truncate">{registro.id}</p>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setPorEliminar(registro)}
-                                className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg px-2 py-1.5 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer shrink-0"
-                            >
-                                <Icono nombre="trash" className="w-3 h-3" /> Borrar
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-1 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => pedirRenombrar(registro)}
+                                    className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg px-2 py-1.5 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                                >
+                                    <Icono nombre="pencil" className="w-3 h-3" /> Renombrar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPorEliminar(registro)}
+                                    className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg px-2 py-1.5 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                                >
+                                    <Icono nombre="trash" className="w-3 h-3" /> Borrar
+                                </button>
+                            </div>
                         </li>
                     ))}
                 </ol>
+            )}
+
+            {!cargando && !error && hayMas && !soloAnomalias && !busqueda && (
+                <button
+                    type="button"
+                    onClick={cargarMas}
+                    disabled={cargandoMas}
+                    className="self-center bg-amber-100 hover:bg-amber-200 disabled:opacity-60 text-amber-950 border border-amber-300 rounded-xl px-4 py-2 text-xs font-bold cursor-pointer"
+                >
+                    {cargandoMas ? 'Cargando…' : 'Cargar más registros'}
+                </button>
+            )}
+
+            {porRenombrar && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
+                    <div role="dialog" aria-modal="true" aria-labelledby="renombrar-ranking" className="bg-white rounded-3xl border-2 border-amber-300 p-5 shadow-2xl w-full max-w-sm">
+                        <h2 id="renombrar-ranking" className="text-lg font-black text-amber-950 mb-1">Renombrar registro</h2>
+                        <p className="text-[11px] text-amber-700 font-medium mb-3">
+                            Este cambio se refleja en el ranking público y queda auditado.
+                        </p>
+                        <label className="block text-[10px] font-black uppercase text-amber-800 mb-1">Nombre visible</label>
+                        <input
+                            type="text"
+                            value={nuevoNombre}
+                            maxLength={60}
+                            onChange={(evento) => setNuevoNombre(evento.target.value)}
+                            className="w-full bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-xs font-medium text-amber-950 outline-none focus:border-amber-500"
+                        />
+                        <div className="flex justify-end gap-2 mt-4">
+                            <button type="button" onClick={() => setPorRenombrar(null)} className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl px-3 py-2 text-[11px] font-bold cursor-pointer">
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={confirmarRenombrar} disabled={renombrando || !nuevoNombre.trim()} className="bg-amber-700 hover:bg-amber-800 disabled:opacity-60 text-white rounded-xl px-3 py-2 text-[11px] font-bold cursor-pointer">
+                                {renombrando ? 'Guardando…' : 'Guardar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             <AdminConfirmacion

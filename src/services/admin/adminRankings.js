@@ -1,10 +1,12 @@
 import {
     collection,
     doc,
+    documentId,
     getDocs,
     limit,
     orderBy,
     query,
+    startAfter,
     writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
@@ -26,19 +28,85 @@ export const JUEGOS_RANKING = [
     { id: 'reto', nombre: 'Reto Diario' },
 ];
 
-export const cargarRankingAdmin = async ({ juego, fecha, limite = 100 }) => {
+const referenciaRanking = (juego, fecha) => {
     if (juego === 'reto') {
-        const snapshot = await getDocs(query(collection(db, 'ranking_reto', fecha, 'jugadores'), limit(limite)));
-        const registros = snapshot.docs.map((documento) => ({ id: documento.id, ...documento.data() }));
-        return ordenarRegistros(registros, juego);
+        return collection(db, 'ranking_reto', fecha, 'jugadores');
     }
 
     const nombre = COLECCIONES_RANKING[juego];
     if (!nombre) throw new Error('JUEGO_INVALIDO');
+    return collection(db, nombre);
+};
 
-    const snapshot = await getDocs(query(collection(db, nombre), orderBy('level', 'desc'), limit(limite)));
-    const registros = snapshot.docs.map((documento) => ({ id: documento.id, ...documento.data() }));
-    return ordenarRegistros(registros, juego);
+/**
+ * Carga una página del ranking. Usa el identificador del documento como
+ * cursor estable para poder pasar de 100 registros sin duplicados.
+ */
+export const cargarRankingAdmin = async ({ juego, fecha, limite = 100, despues = null }) => {
+    const referencia = referenciaRanking(juego, fecha);
+    const restricciones = [orderBy(documentId())];
+
+    if (despues) restricciones.push(startAfter(despues));
+    restricciones.push(limit(limite + 1));
+
+    const snapshot = await getDocs(query(referencia, ...restricciones));
+    const documentos = snapshot.docs.slice(0, limite);
+    const registros = documentos.map((documento) => ({ id: documento.id, ...documento.data() }));
+
+    return {
+        registros: ordenarRegistros(registros, juego),
+        ultimo: documentos.length > 0 ? documentos[documentos.length - 1] : null,
+        hayMas: snapshot.docs.length > limite,
+    };
+};
+
+export const cargarTodoRankingAdmin = async ({ juego, fecha, limiteTotal = 2000 }) => {
+    const acumulado = [];
+    let despues = null;
+    let hayMas = true;
+
+    while (hayMas && acumulado.length < limiteTotal) {
+        const pagina = await cargarRankingAdmin({
+            juego,
+            fecha,
+            limite: 100,
+            despues,
+        });
+        acumulado.push(...pagina.registros);
+        despues = pagina.ultimo;
+        hayMas = pagina.hayMas && Boolean(despues);
+    }
+
+    return ordenarRegistros(acumulado, juego).slice(0, limiteTotal);
+};
+
+const camposNombre = (juego) => (juego === 'reto' ? 'nombre' : 'name');
+
+export const renombrarRegistroRanking = async ({ juego, fecha, id, nuevoNombre, nombreAnterior, actor }) => {
+    if (!id) throw new Error('REGISTRO_SIN_ID');
+
+    const limpio = String(nuevoNombre || '').trim().slice(0, 60);
+    if (!limpio) throw new Error('NOMBRE_VACIO');
+
+    const referencia = juego === 'reto'
+        ? doc(db, 'ranking_reto', fecha, 'jugadores', id)
+        : doc(db, COLECCIONES_RANKING[juego], id);
+
+    const batch = writeBatch(db);
+    batch.update(referencia, { [camposNombre(juego)]: limpio });
+
+    const log = crearLogAdmin({
+        user: actor,
+        accion: 'ranking_renombrado',
+        objetivo: referencia.path,
+        detalle: {
+            juego,
+            anterior: String(nombreAnterior || '').slice(0, 60),
+            nuevo: limpio,
+        },
+    });
+    if (log) batch.set(doc(collection(db, 'admin_logs')), log);
+    await batch.commit();
 };
 
 export const eliminarRegistroRanking = async ({ juego, fecha, id, nombre, actor }) => {

@@ -69,6 +69,28 @@ export const cargarUsuarioDetalle = async (uid) => {
     return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
 };
 
+export const cargarRepasoUsuario = async (uid, limite = 100) => {
+    if (!uid) return [];
+    const snapshot = await getDocs(query(collection(db, 'usuarios', uid, 'repaso'), limit(limite)));
+    return snapshot.docs.map((documento) => ({ id: documento.id, ...documento.data() }));
+};
+
+export const cargarTodosLosUsuarios = async (limiteTotal = 2000) => {
+    const todos = [];
+    let despues = null;
+    let hayMas = true;
+
+    while (hayMas && todos.length < limiteTotal) {
+        const pagina = await cargarUsuariosPagina({ limite: 100, despues });
+        todos.push(...pagina.usuarios);
+        despues = pagina.ultimo;
+        hayMas = pagina.hayMas;
+        if (!despues) break;
+    }
+
+    return todos.slice(0, limiteTotal);
+};
+
 export const contarAdminsPorRol = async () => {
     const snapshot = await getCountFromServer(query(REFERENCIA, where('role', '==', 'admin')));
     return snapshot.data().count;

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Icono from '../Icono.jsx';
 import AdminResumen from './AdminResumen.jsx';
+import AdminAuditoria from './AdminAuditoria.jsx';
 import AdminSugerencias from './AdminSugerencias.jsx';
 import AdminUsuarios from './AdminUsuarios.jsx';
 import AdminAvisos from './AdminAvisos.jsx';
@@ -12,6 +13,7 @@ import { contarSugerenciasPendientes } from '../../services/admin/adminSugerenci
 
 const SECCIONES = [
     { id: 'resumen', label: 'Resumen', icono: 'chart' },
+    { id: 'auditoria', label: 'Auditoría', icono: 'clipboard' },
     { id: 'usuarios', label: 'Usuarios', icono: 'users' },
     { id: 'avisos', label: 'Avisos', icono: 'book' },
     { id: 'rankings', label: 'Rankings', icono: 'trophy' },
@@ -171,6 +173,7 @@ export default function AdminPanel({
                         onIrUsuarios={() => setSeccion('usuarios')}
                         onIrAvisos={() => setSeccion('avisos')}
                         onIrRankings={() => setSeccion('rankings')}
+                        onIrAuditoria={() => setSeccion('auditoria')}
                         onOpenGenerador={onOpenGenerador}
                     />
                 )}
@@ -181,6 +184,10 @@ export default function AdminPanel({
                         onPendientesChange={recargarTodo}
                         onToast={mostrarToast}
                     />
+                )}
+
+                {seccion === 'auditoria' && (
+                    <AdminAuditoria onToast={mostrarToast} />
                 )}
 
                 {seccion === 'usuarios' && (

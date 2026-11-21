@@ -17,15 +17,17 @@ La pantalla de inicio se organiza en cuatro bloques para que la navegación sea 
 - Nuevo panel a pantalla completa, cargado solo cuando se abre (no viaja en el bundle principal).
 - Secciones actuales:
   - **Resumen**: usuarios totales, nuevos en 7 días, sugerencias pendientes, avisos, últimas sugerencias y actividad administrativa.
-  - **Usuarios**: búsqueda por correo, nombre o UID; paginación; detalle; vidas, progreso, logros, reto y racha; regalo de totopos con motivo y opción de contar para históricos; cambio de rol con protección del último administrador por rol; exportación CSV.
-  - **Avisos**: crear, editar, activar/desactivar, prioridad, expiración, borrado con confirmación y auditoría. Los avisos inactivos o expirados no se muestran en la app.
-  - **Rankings**: Memorama, Trivia, Sopa, Crucigrama y Reto Diario (por fecha); búsqueda, exportación CSV y borrado con auditoría.
-  - **Sugerencias**: filtros por estado y tipo, búsqueda, paginación, detalle, copiar datos y aprobar/rechazar con nota interna.
+  - **Auditoría**: últimos 300 registros con filtros por acción, admin, texto y fechas; paginación y exportación CSV.
+  - **Usuarios**: búsqueda por correo, nombre o UID; filtro por rol; paginación; detalle con vidas, progreso, logros, repaso espaciado, última actividad y reto/racha; copiar correo/UID; restablecimiento de contraseña; regalo de totopos con motivo y opción de contar para históricos; cambio de rol con protección del último administrador por rol; exportación CSV de la página o de todos los usuarios.
+  - **Avisos**: crear, editar, duplicar, activar/desactivar, prioridad, programación de publicación, expiración, vista previa, borrado con confirmación y auditoría. Los avisos inactivos, programados a futuro o expirados no se muestran en la app.
+  - **Rankings**: Memorama, Trivia, Sopa, Crucigrama y Reto Diario (por fecha); búsqueda, filtro de anomalías, paginación más allá de 100 registros, exportación CSV de lo filtrado o de todo, renombrado y borrado con auditoría.
+  - **Sugerencias**: filtros por estado (incluye convertidas) y tipo, búsqueda, paginación, detección de duplicados, acciones masivas de aprobación/rechazo, marcado como convertida, exportación CSV, detalle, copia de datos y nota interna.
   - **Herramientas**: generador de avatares.
 - Cada acción administrativa relevante se registra en `admin_logs` dentro del mismo lote que la escritura.
 - El panel anterior se retiró: toda la administración vive ahora en esta pantalla.
 - La verificación usa el custom claim `admin` o el campo `usuarios/{uid}.role`.
 - El badge de avisos de la app ahora cuenta **avisos no leídos** y se marca como leído al abrir el panel de avisos.
+- El acceso de administración muestra un contador en tiempo real de **sugerencias pendientes**.
 
 ## Seguridad sin backend
 

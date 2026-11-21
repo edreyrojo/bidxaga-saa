@@ -108,7 +108,10 @@ Además:
 - Los totopos, compras y recompensas siguen siendo client-side. Sin Cloud Functions no se puede demostrar su legitimidad.
 - No hay borrado/desactivación de cuentas desde el panel. Eliminar un usuario de Firestore no elimina su cuenta de Firebase Auth ni sus subcolecciones.
 - La lista de usuarios se pagina por correo; la búsqueda por nombre es por prefijo y distingue mayúsculas.
-- Los rankings del panel se limitan a 100 registros por consulta.
+- Los rankings del panel cargan 100 registros por página; la exportación completa se detiene en 2000 registros para no agotar la cuota gratuita.
+- El renombrado de rankings solo puede cambiar el nombre visible; no corrige puntajes ni niveles. Esas anomalías se detectan y se deben borrar.
+- La programación de avisos y la detección de duplicados de sugerencias se evalúan en el cliente; un cambio de reloj puede adelantar o retrasar la visibilidad.
+- Las acciones masivas de sugerencias y el restablecimiento de contraseña quedan auditados, pero dependen del cliente.
 
 ## Recomendaciones adicionales
 

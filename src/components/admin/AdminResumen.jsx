@@ -43,6 +43,7 @@ export default function AdminResumen({
     onIrUsuarios,
     onIrAvisos,
     onIrRankings,
+    onIrAuditoria,
     onOpenGenerador,
 }) {
     if (cargando && !datos) {
@@ -116,9 +117,18 @@ export default function AdminResumen({
                 </section>
 
                 <section className="bg-white rounded-2xl border-2 border-amber-200 p-4 shadow-sm">
-                    <h2 className="font-black text-amber-950 text-sm flex items-center gap-2 mb-3">
-                        <Icono nombre="clipboard" className="w-4 h-4 text-amber-700" /> Actividad administrativa
-                    </h2>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                        <h2 className="font-black text-amber-950 text-sm flex items-center gap-2">
+                            <Icono nombre="clipboard" className="w-4 h-4 text-amber-700" /> Actividad administrativa
+                        </h2>
+                        <button
+                            type="button"
+                            onClick={onIrAuditoria}
+                            className="text-[10px] font-bold text-amber-800 hover:text-amber-950 cursor-pointer"
+                        >
+                            Ver todo
+                        </button>
+                    </div>
 
                     {(!datos?.logsRecientes || datos.logsRecientes.length === 0) ? (
                         <p className="text-xs text-amber-700 font-medium">Aún no hay acciones registradas.</p>
@@ -174,6 +184,14 @@ export default function AdminResumen({
                     >
                         <Icono nombre="trophy" className="w-4 h-4 text-amber-700" />
                         <span className="text-xs font-bold text-amber-950">Ver rankings</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onIrAuditoria}
+                        className="bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl p-3 text-left flex items-center gap-2 cursor-pointer"
+                    >
+                        <Icono nombre="clipboard" className="w-4 h-4 text-amber-700" />
+                        <span className="text-xs font-bold text-amber-950">Ver auditoría</span>
                     </button>
                     <button
                         type="button"

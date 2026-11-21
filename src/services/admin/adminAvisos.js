@@ -18,18 +18,19 @@ export const cargarAvisosAdmin = async (limite = 50) => {
     return snapshot.docs.map((documento) => ({ id: documento.id, ...documento.data() }));
 };
 
-const datosAviso = ({ titulo, mensaje, prioridad, activo, expiraEn }) => ({
+const datosAviso = ({ titulo, mensaje, prioridad, activo, expiraEn, publicadoEn }) => ({
     titulo: String(titulo || '').trim().slice(0, 120),
     mensaje: String(mensaje || '').trim().slice(0, 2000),
     prioridad: prioridad === 'alta' ? 'alta' : 'normal',
     activo: activo !== false,
     expiraEn: expiraEn ? Number(expiraEn) : null,
+    publicadoEn: publicadoEn ? Number(publicadoEn) : null,
     actualizadoEn: Date.now(),
 });
 
-export const crearAviso = async ({ titulo, mensaje, prioridad, activo, expiraEn, actor }) => {
+export const crearAviso = async ({ titulo, mensaje, prioridad, activo, expiraEn, publicadoEn, actor }) => {
     const datos = {
-        ...datosAviso({ titulo, mensaje, prioridad, activo, expiraEn }),
+        ...datosAviso({ titulo, mensaje, prioridad, activo, expiraEn, publicadoEn }),
         fecha: new Date().toISOString(),
     };
 
@@ -47,9 +48,9 @@ export const crearAviso = async ({ titulo, mensaje, prioridad, activo, expiraEn,
     return referencia.id;
 };
 
-export const actualizarAviso = async ({ id, titulo, mensaje, prioridad, activo, expiraEn, actor }) => {
+export const actualizarAviso = async ({ id, titulo, mensaje, prioridad, activo, expiraEn, publicadoEn, actor }) => {
     if (!id) throw new Error('AVISO_SIN_ID');
-    const datos = datosAviso({ titulo, mensaje, prioridad, activo, expiraEn });
+    const datos = datosAviso({ titulo, mensaje, prioridad, activo, expiraEn, publicadoEn });
 
     const batch = writeBatch(db);
     batch.update(doc(db, 'avisos', id), datos);

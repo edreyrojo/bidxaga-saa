@@ -15,6 +15,7 @@ const FORM_VACIO = {
     prioridad: 'normal',
     activo: true,
     expiraEnLocal: '',
+    publicadoEnLocal: '',
 };
 
 const aInputLocal = (ms) => {
@@ -34,10 +35,26 @@ const formatearFecha = (valor) => {
 
 const estadoAviso = (aviso) => {
     if (aviso.activo === false) return { label: 'Inactivo', clase: 'bg-gray-100 text-gray-700 border-gray-200' };
+    if (aviso.publicadoEn && Number(aviso.publicadoEn) > Date.now()) {
+        return { label: 'Programado', clase: 'bg-sky-100 text-sky-800 border-sky-200' };
+    }
     if (aviso.expiraEn && Number(aviso.expiraEn) < Date.now()) {
         return { label: 'Expirado', clase: 'bg-red-100 text-red-800 border-red-200' };
     }
     return { label: 'Activo', clase: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+};
+
+const formatearFechaHora = (valor) => {
+    if (!valor) return '';
+    const fecha = new Date(valor);
+    if (Number.isNaN(fecha.getTime())) return '';
+    return fecha.toLocaleString('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 };
 
 export default function AdminAvisos({ user, onToast }) {
@@ -47,6 +64,7 @@ export default function AdminAvisos({ user, onToast }) {
     const [formulario, setFormulario] = useState(null);
     const [form, setForm] = useState(FORM_VACIO);
     const [guardando, setGuardando] = useState(false);
+    const [verPrevia, setVerPrevia] = useState(false);
     const [porEliminar, setPorEliminar] = useState(null);
     const [eliminando, setEliminando] = useState(false);
 
@@ -70,6 +88,7 @@ export default function AdminAvisos({ user, onToast }) {
 
     const abrirNuevo = () => {
         setForm(FORM_VACIO);
+        setVerPrevia(false);
         setFormulario({ modo: 'crear' });
     };
 
@@ -80,8 +99,23 @@ export default function AdminAvisos({ user, onToast }) {
             prioridad: aviso.prioridad === 'alta' ? 'alta' : 'normal',
             activo: aviso.activo !== false,
             expiraEnLocal: aInputLocal(aviso.expiraEn),
+            publicadoEnLocal: aInputLocal(aviso.publicadoEn),
         });
+        setVerPrevia(false);
         setFormulario({ modo: 'editar', aviso });
+    };
+
+    const abrirDuplicar = (aviso) => {
+        setForm({
+            titulo: `${aviso.titulo || 'Aviso'} (copia)`.slice(0, 120),
+            mensaje: aviso.mensaje || '',
+            prioridad: aviso.prioridad === 'alta' ? 'alta' : 'normal',
+            activo: false,
+            expiraEnLocal: '',
+            publicadoEnLocal: '',
+        });
+        setVerPrevia(false);
+        setFormulario({ modo: 'crear' });
     };
 
     const guardar = async (evento) => {
@@ -102,6 +136,16 @@ export default function AdminAvisos({ user, onToast }) {
             return;
         }
 
+        const publicadoEn = form.publicadoEnLocal ? new Date(form.publicadoEnLocal).getTime() : null;
+        if (form.publicadoEnLocal && !Number.isFinite(publicadoEn)) {
+            onToast?.('La fecha de publicación no es válida.', 'error');
+            return;
+        }
+        if (publicadoEn && expiraEn && publicadoEn >= expiraEn) {
+            onToast?.('La publicación debe ser anterior a la expiración.', 'error');
+            return;
+        }
+
         setGuardando(true);
         try {
             if (formulario?.modo === 'editar') {
@@ -109,12 +153,13 @@ export default function AdminAvisos({ user, onToast }) {
                     id: formulario.aviso.id,
                     ...form,
                     expiraEn,
+                    publicadoEn,
                     actor: user,
                 });
                 onToast?.('Aviso actualizado.', 'exito');
             } else {
-                await crearAviso({ ...form, expiraEn, actor: user });
-                onToast?.('Aviso publicado.', 'exito');
+                await crearAviso({ ...form, expiraEn, publicadoEn, actor: user });
+                onToast?.(publicadoEn && publicadoEn > Date.now() ? 'Aviso programado.' : 'Aviso publicado.', 'exito');
             }
 
             setFormulario(null);
@@ -214,13 +259,21 @@ export default function AdminAvisos({ user, onToast }) {
                                 <h3 className="text-sm font-black text-amber-950">{aviso.titulo}</h3>
                                 <p className="text-xs text-amber-800 mt-1 whitespace-pre-wrap line-clamp-3">{aviso.mensaje}</p>
 
+                                {aviso.publicadoEn && (
+                                    <p className="text-[10px] font-bold text-sky-700 mt-2">
+                                        {Number(aviso.publicadoEn) > Date.now() ? 'Se publica' : 'Publicado'}: {formatearFechaHora(aviso.publicadoEn)}
+                                    </p>
+                                )}
                                 {aviso.expiraEn && (
-                                    <p className="text-[10px] font-bold text-amber-700 mt-2">Expira: {formatearFecha(aviso.expiraEn)}</p>
+                                    <p className="text-[10px] font-bold text-amber-700 mt-1">Expira: {formatearFechaHora(aviso.expiraEn)}</p>
                                 )}
 
                                 <div className="flex flex-wrap gap-1.5 mt-3">
                                     <button type="button" onClick={() => abrirEditar(aviso)} className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-lg px-2.5 py-1.5 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer">
                                         <Icono nombre="pencil" className="w-3 h-3" /> Editar
+                                    </button>
+                                    <button type="button" onClick={() => abrirDuplicar(aviso)} className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg px-2.5 py-1.5 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer">
+                                        <Icono nombre="copy" className="w-3 h-3" /> Duplicar
                                     </button>
                                     <button type="button" onClick={() => alternarActivo(aviso)} className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg px-2.5 py-1.5 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer">
                                         <Icono nombre={aviso.activo === false ? 'play' : 'lock'} className="w-3 h-3" /> {aviso.activo === false ? 'Activar' : 'Desactivar'}
@@ -275,7 +328,7 @@ export default function AdminAvisos({ user, onToast }) {
                             />
                         </label>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <label className="block text-[11px] font-bold text-amber-900">
                                 Prioridad
                                 <select
@@ -288,7 +341,16 @@ export default function AdminAvisos({ user, onToast }) {
                                 </select>
                             </label>
                             <label className="block text-[11px] font-bold text-amber-900">
-                                Expira
+                                Publicar el (opcional)
+                                <input
+                                    type="datetime-local"
+                                    value={form.publicadoEnLocal}
+                                    onChange={(evento) => setForm((previo) => ({ ...previo, publicadoEnLocal: evento.target.value }))}
+                                    className="mt-1 w-full bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-xs font-medium text-amber-950 outline-none focus:border-amber-500"
+                                />
+                            </label>
+                            <label className="block text-[11px] font-bold text-amber-900">
+                                Expira (opcional)
                                 <input
                                     type="datetime-local"
                                     value={form.expiraEnLocal}
@@ -298,6 +360,10 @@ export default function AdminAvisos({ user, onToast }) {
                             </label>
                         </div>
 
+                        <p className="text-[10px] text-amber-700 mt-1">
+                            Si dejas la fecha de publicación vacía, el aviso aparece de inmediato. Los avisos inactivos no se muestran.
+                        </p>
+
                         <label className="flex items-center gap-2 text-[11px] font-bold text-amber-800 mt-3">
                             <input
                                 type="checkbox"
@@ -306,6 +372,39 @@ export default function AdminAvisos({ user, onToast }) {
                             />
                             Activo (visible en la app)
                         </label>
+
+                        <button
+                            type="button"
+                            onClick={() => setVerPrevia((valor) => !valor)}
+                            className="mt-3 text-[11px] font-bold text-amber-800 hover:text-amber-950 underline cursor-pointer"
+                        >
+                            {verPrevia ? 'Ocultar vista previa' : 'Ver vista previa'}
+                        </button>
+
+                        {verPrevia && (
+                            <div className="mt-2 bg-amber-50 border-2 border-dashed border-amber-300 rounded-2xl p-3">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <span className={`text-[10px] font-black uppercase rounded-full px-2 py-0.5 border ${
+                                        form.activo ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-gray-100 text-gray-700 border-gray-200'
+                                    }`}>
+                                        {form.activo ? 'Activo' : 'Inactivo'}
+                                    </span>
+                                    {form.prioridad === 'alta' && (
+                                        <span className="text-[10px] font-black uppercase rounded-full px-2 py-0.5 border bg-orange-100 text-orange-800 border-orange-200">Alta</span>
+                                    )}
+                                </div>
+                                <h3 className="text-sm font-black text-amber-950">{form.titulo.trim() || 'Título del aviso'}</h3>
+                                <p className="text-xs text-amber-900 mt-1 whitespace-pre-wrap">
+                                    {form.mensaje.trim() || 'Escribe el mensaje para verlo aquí.'}
+                                </p>
+                                {form.publicadoEnLocal && (
+                                    <p className="text-[10px] font-bold text-sky-700 mt-2">Se publica: {formatearFechaHora(new Date(form.publicadoEnLocal).getTime())}</p>
+                                )}
+                                {form.expiraEnLocal && (
+                                    <p className="text-[10px] font-bold text-amber-700 mt-1">Expira: {formatearFechaHora(new Date(form.expiraEnLocal).getTime())}</p>
+                                )}
+                            </div>
+                        )}
 
                         <div className="flex gap-2 mt-4">
                             <button type="button" onClick={() => setFormulario(null)} disabled={guardando} className="flex-1 bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold py-2.5 rounded-xl text-xs border border-amber-300 cursor-pointer disabled:opacity-60">
