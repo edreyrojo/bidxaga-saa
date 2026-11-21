@@ -39,7 +39,8 @@ const CLAVES_CONOCIDAS = [
     'repasoBorradoEn',
     'retoDiario',
     'rachaReto',
-    'actividadDiaria'
+    'actividadDiaria',
+    'recordatorioRachaOculto'
 ];
 
 let scopeActual = 'guest';

@@ -2,6 +2,15 @@
 
 Aplicación web para aprender **diidxazá** (zapoteco del Istmo de Tehuantepec) con cuatro juegos: Memorama, Reto Trivia, Crucigrama y Sopa de Letras. Incluye progreso por usuario, totopos, vidas, tienda, logros, rankings y una experiencia instalable tipo app (PWA).
 
+## Hub principal
+
+La pantalla de inicio se organiza en cuatro bloques para que la navegación sea directa:
+
+- **Hoy**: recordatorio de racha, Reto Diario y Palabra del día.
+- **Juega**: los cuatro juegos en una cuadrícula de 2×2 con su nivel actual.
+- **Tu avance**: acceso al panel de progreso, que reúne estadísticas, Repaso Inteligente, actividad, niveles y logros.
+- **Más**: instalar la app, apoyar el proyecto y créditos.
+
 ## Requisitos
 
 - Node.js 20 o superior
@@ -123,6 +132,8 @@ Accesible desde **Mi progreso** en el menú principal:
 - Las respuestas también alimentan el **Repaso Inteligente**.
 - Con sesión iniciada, el reto y la racha se sincronizan con `usuarios/{uid}.retoDiario` y `usuarios/{uid}.rachaReto`. Los invitados los guardan localmente.
 - Hay logros para el primer reto, 7 días y 30 días de racha.
+- **Ranking diario**: los usuarios con sesión aparecen en `ranking_reto/{fecha}/jugadores`. Se ordena por aciertos, luego racha y luego hora de finalización. Los invitados pueden consultarlo, pero no aparecer.
+- **Recordatorio de racha**: si el reto de hoy está pendiente, el menú muestra un aviso con la racha en juego y un botón directo al reto. Se puede ocultar por ese día. Es un recordatorio dentro de la app; las notificaciones push requieren un backend.
 
 ## Repaso inteligente
 

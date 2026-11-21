@@ -6,6 +6,8 @@ import { useSonido } from '../hooks/useSonido.js';
 import { generarRetoDiario } from '../utils/retoDiario.js';
 import { registrarRespuesta } from '../utils/repaso.js';
 import { compartirTexto } from '../utils/compartir.js';
+import { guardarRankingReto } from '../utils/rankingReto.js';
+import { useRankingReto } from '../hooks/useRankingReto.js';
 import Icono from './Icono.jsx';
 
 const formatearFecha = (fechaISO) => {
@@ -17,7 +19,7 @@ const formatearFecha = (fechaISO) => {
     });
 };
 
-export default function RetoDiario({ user, onBack }) {
+export default function RetoDiario({ user, nombreJugador, onBack }) {
     const { reproducirSonido } = useSonido();
     const { abonar } = useTotopos(user);
     const { desbloquear } = useLogros(user);
@@ -29,6 +31,13 @@ export default function RetoDiario({ user, onBack }) {
         recompensaMaxima,
         completarReto,
     } = useRetoDiario(user);
+
+    const {
+        ranking,
+        cargando: cargandoRanking,
+        error: errorRanking,
+        refrescar: refrescarRanking,
+    } = useRankingReto(hoy);
 
     const preguntas = useMemo(() => generarRetoDiario(hoy), [hoy]);
 
@@ -105,6 +114,22 @@ export default function RetoDiario({ user, onBack }) {
             desbloquear('logro_reto_diario');
             if (cierre.racha >= 7) desbloquear('logro_racha_7');
             if (cierre.racha >= 30) desbloquear('logro_racha_30');
+
+            if (user) {
+                guardarRankingReto({
+                    fecha: hoy,
+                    aciertos: totalAciertos,
+                    total: preguntas.length,
+                    racha: cierre.racha,
+                    nombre: nombreJugador,
+                })
+                    .then((guardado) => {
+                        if (guardado) refrescarRanking();
+                    })
+                    .catch((error) => {
+                        console.warn('No se pudo guardar el ranking del reto:', error?.code || error?.message || error);
+                    });
+            }
         }
 
         setResultado({
@@ -364,6 +389,64 @@ export default function RetoDiario({ user, onBack }) {
                     </div>
                 </div>
             )}
+
+            <section className="bg-white rounded-3xl border-2 border-amber-200 p-4 shadow-sm mt-4">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                    <h2 className="font-black text-amber-950 text-sm flex items-center gap-2">
+                        <Icono nombre="trophy" className="w-4 h-4 text-amber-700" /> Ranking de hoy
+                    </h2>
+                    <span className="text-[11px] font-bold text-amber-700">
+                        {cargandoRanking ? 'Cargando…' : `${ranking.length} jugadores`}
+                    </span>
+                </div>
+
+                {errorRanking ? (
+                    <p className="text-xs text-amber-700 font-medium">
+                        No se pudo cargar el ranking. Revisa tu conexión.
+                    </p>
+                ) : cargandoRanking ? (
+                    <div className="space-y-2 animate-pulse">
+                        {[0, 1, 2].map((indice) => (
+                            <div key={indice} className="h-8 bg-amber-100 rounded-xl" />
+                        ))}
+                    </div>
+                ) : ranking.length === 0 ? (
+                    <p className="text-xs text-amber-700 font-medium">
+                        Aún no hay resultados hoy. ¡Sé el primero!
+                    </p>
+                ) : (
+                    <ol className="space-y-1.5">
+                        {ranking.map((entrada, indice) => (
+                            <li
+                                key={entrada.id}
+                                className={`flex items-center gap-2 rounded-xl px-2 py-1.5 ${
+                                    entrada.uid === user?.uid
+                                        ? 'bg-amber-100 border border-amber-300'
+                                        : 'bg-amber-50/60 border border-amber-100'
+                                }`}
+                            >
+                                <span className="w-5 text-center text-xs font-black text-amber-700">{indice + 1}</span>
+                                <span className="flex-1 min-w-0 truncate text-xs font-bold text-amber-950">
+                                    {entrada.nombre || 'Jugador'}
+                                </span>
+                                <span className="text-xs font-black text-emerald-700">
+                                    {entrada.aciertos ?? 0}/{entrada.total ?? 5}
+                                </span>
+                                <span className="text-[10px] font-bold text-orange-700 inline-flex items-center gap-0.5">
+                                    <Icono nombre="flame" className="w-3 h-3" />
+                                    {entrada.racha ?? 0}
+                                </span>
+                            </li>
+                        ))}
+                    </ol>
+                )}
+
+                {!user && (
+                    <p className="text-[11px] font-medium text-amber-700 mt-3">
+                        Inicia sesión para aparecer en el ranking.
+                    </p>
+                )}
+            </section>
         </div>
     );
 }

@@ -553,6 +553,7 @@ function App() {
         {vistaActual === 'reto' && (
           <RetoDiario
             user={user}
+            nombreJugador={perfilInfo.nombre || user?.displayName || (user?.email ? user.email.split('@')[0] : '')}
             onBack={() => {
               setControlesJuegoActivo(null);
               setVistaActual('menu');

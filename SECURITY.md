@@ -10,6 +10,7 @@ Este proyecto ya incluye reglas de Firestore en `firestore.rules` y configuraci�
 - Un usuario **no puede cambiarse el rol, el correo ni la fecha de creación**.
 - Solo un administrador puede listar todos los usuarios y crear/editar/eliminar avisos.
 - Los rankings son públicos para lectura, pero solo se pueden escribir con una sesión autenticada y únicamente en el documento del propio usuario.
+- El ranking diario del reto vive en `ranking_reto/{fecha}/jugadores/{uid}`: lectura pública y escritura limitada al propio usuario, con validación de fecha, nombre, aciertos y racha.
 - Los récords deben incluir `completado: true` y puntajes válidos:
   - Memorama: `score > 0`.
   - Sopa y Crucigrama: `intentos > 0`.
@@ -80,9 +81,10 @@ Para una integridad total habría que mover esas operaciones a Cloud Functions o
 - `comprarAvatar`
 - `desbloquearCategoria`
 - `guardarRecord`
+- `guardarRankingReto`
 - `desbloquearLogro`
 
-Mientras eso no exista, las reglas validan tipos y evitan valores negativos, pero no pueden demostrar que un premio o una compra sean legítimos.
+Mientras eso no exista, las reglas validan tipos y evitan valores negativos, pero no pueden demostrar que un premio, una compra o un puntaje de ranking sean legítimos. El ranking diario del reto, en particular, recibe los aciertos reportados por el cliente.
 
 ## Recomendaciones adicionales
 

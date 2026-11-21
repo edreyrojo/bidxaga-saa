@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useProgresoAprendizaje } from '../hooks/useProgresoAprendizaje.js';
 import { useSonido } from '../hooks/useSonido.js';
 import Icono from './Icono.jsx';
+import SeccionRepaso from './SeccionRepaso.jsx';
 
 const ICONOS_JUEGO = {
     memorama: 'layers',
@@ -36,6 +37,7 @@ function TarjetaStat({ valor, etiqueta, color = 'amber' }) {
 
 export default function PanelProgreso({ user, onBack }) {
     const { reproducirSonido } = useSonido();
+    const [repasoAbierto, setRepasoAbierto] = useState(false);
     const {
         total,
         dominadas,
@@ -102,6 +104,14 @@ export default function PanelProgreso({ user, onBack }) {
                 <TarjetaStat valor={dominadas} etiqueta="Dominadas" color="emerald" />
                 <TarjetaStat valor={pendientes} etiqueta="Por reforzar" color="orange" />
                 <TarjetaStat valor={`${precision}%`} etiqueta="Precisión" color="amber" />
+            </div>
+
+            <div className="mb-4">
+                <SeccionRepaso
+                    abierto={repasoAbierto}
+                    setAbierto={setRepasoAbierto}
+                    user={user}
+                />
             </div>
 
             <div className="bg-white rounded-3xl border-2 border-amber-200 p-4 shadow-sm mb-4">
