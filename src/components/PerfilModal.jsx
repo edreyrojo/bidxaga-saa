@@ -3,6 +3,10 @@ import { db, auth } from '../firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { VIDAS_POR_JUEGO, crearVidasIniciales, normalizarVidas, totalVidas } from '../utils/vidas.js';
+import {
+    calcularProgresoNivel,
+    obtenerNivelCuenta,
+} from '../utils/Nivelcuenta.js';
 import { useTotopos } from '../hooks/useTotopos.js';
 import { useLogros } from '../hooks/useLogros.js';
 import CreadorAvatar from './CreadorAvatar';
@@ -10,32 +14,10 @@ import SeccionTienda from './SeccionTienda';
 import SeccionLogros from './SeccionLogros';
 import SeccionInventario from './SeccionInventario';
 import SeccionRepaso from './SeccionRepaso';
+import SeccionNiveles from './SeccionNiveles.jsx';
 
 // 🗂️ Misma carpeta que usan SeccionTienda/SeccionInventario/CreadorAvatar para accesorios
 const RUTA_MERCADO_ACCESORIOS = '/avatares/mercado/';
-
-// Funciones de Nivel y Progreso
-const calcularNivelYTitulo = (totalHistorico) => {
-    if (totalHistorico < 100) return { nivel: 1, titulo: "Recién Llegado" };
-    if (totalHistorico < 300) return { nivel: 2, titulo: "Explorador Istmeño" };
-    if (totalHistorico < 600) return { nivel: 3, titulo: "Estudiante Zapoteco" };
-    if (totalHistorico < 1000) return { nivel: 4, titulo: "Conocedor Diidxazá" };
-    return { nivel: 5, titulo: "Maestro Zapoteco" };
-};
-
-const calcularProgresoNivel = (totalHistorico) => {
-    if (totalHistorico < 100) {
-        return { necesario: 100, porcentaje: Math.min(100, (totalHistorico / 100) * 100) };
-    } else if (totalHistorico < 300) {
-        return { necesario: 300, porcentaje: Math.min(100, ((totalHistorico - 100) / 200) * 100) };
-    } else if (totalHistorico < 600) {
-        return { necesario: 600, porcentaje: Math.min(100, ((totalHistorico - 300) / 300) * 100) };
-    } else if (totalHistorico < 1000) {
-        return { necesario: 1000, porcentaje: Math.min(100, ((totalHistorico - 600) / 400) * 100) };
-    } else {
-        return { necesario: totalHistorico, porcentaje: 100 };
-    }
-};
 
 /* ==========================================
    RENDERIZADOR DE AVATAR (Compatible con Variantes y SVG)
@@ -221,6 +203,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
     const [logrosAbiertos, setLogrosAbiertos] = useState(false);
     const [inventarioAbierto, setInventarioAbierto] = useState(false);
     const [repasoAbierto, setRepasoAbierto] = useState(false);
+    const [nivelesAbiertos, setNivelesAbiertos] = useState(false);
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -256,7 +239,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                     );
 
                     if (onProfileUpdate) {
-                        const calc = calcularNivelYTitulo(historico);
+                        const calc = obtenerNivelCuenta(historico);
                         onProfileUpdate({
                             nombre: nombreUsuario,
                             avatar: avatarId,
@@ -297,7 +280,7 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
             setAvatarActual(configuracionAvatar);
             setMensaje('Avatar personalizado guardado con exito.');
             
-            const calc = calcularNivelYTitulo(totoposHistoricos);
+            const calc = obtenerNivelCuenta(totoposHistoricos);
             if (onProfileUpdate) {
                 onProfileUpdate({
                     nombre,
@@ -322,7 +305,8 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
         }
     };
 
-    const { nivel, titulo } = calcularNivelYTitulo(totoposHistoricos);
+    const nivelInfo = obtenerNivelCuenta(totoposHistoricos);
+    const { nivel, titulo } = nivelInfo;
     const progresoInfo = calcularProgresoNivel(totoposHistoricos);
 
     return (
@@ -430,6 +414,11 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             <div className="w-full bg-amber-100 rounded-full h-3.5 overflow-hidden border border-amber-300 shadow-inner">
                                 <div className="bg-amber-500 h-full rounded-full transition-all duration-500 ease-out shadow-sm" style={{ width: `${progresoInfo.porcentaje}%` }}></div>
                             </div>
+                            <p className="text-[10px] font-bold text-amber-700 mt-1.5 text-center leading-tight">
+                                {progresoInfo.esMaximo
+                                    ? 'Nivel máximo alcanzado · Bidxaga Saa'
+                                    : `Siguiente: Nv ${progresoInfo.siguiente.nivel} · ${progresoInfo.siguiente.titulo} · faltan ${progresoInfo.faltan.toLocaleString('es-MX')} totopos`}
+                            </p>
                         </div>
 
                         {/* CONTADORES */}
@@ -496,6 +485,12 @@ export default function PerfilModal({ user, onClose, onProfileUpdate }) {
                             logrosAbiertos={logrosAbiertos}
                             setLogrosAbiertos={setLogrosAbiertos}
                             logrosDesbloqueados={logrosDesbloqueados}
+                        />
+
+                        <SeccionNiveles
+                            abierto={nivelesAbiertos}
+                            setAbierto={setNivelesAbiertos}
+                            totalHistorico={totoposHistoricos}
                         />
 
                         <SeccionRepaso

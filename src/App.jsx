@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { auth, db } from './firebaseConfig';
 import { almacen, configurarScope } from './utils/almacen.js';
+import { calcularNivelCuenta } from './utils/Nivelcuenta.js';
 import { useSyncRepaso } from './hooks/useSyncRepaso.js';
 import { useAdmin } from './hooks/useAdmin.js';
 import { useAdminPendientes } from './hooks/useAdminPendientes.js';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 
 import MenuPrincipal from './components/MenuPrincipal';
 import AudioFondo, { LISTA_PISTAS } from './components/AudioFondo';
@@ -25,14 +26,6 @@ import Icono from './components/Icono';
 import AvisoActualizacion from './components/AvisoActualizacion';
 
 const RUTA_MERCADO_ACCESORIOS = '/avatares/mercado/';
-
-const calcularNivelRapido = (totalHistorico) => {
-    if (totalHistorico < 100) return 1;
-    if (totalHistorico < 300) return 2;
-    if (totalHistorico < 600) return 3;
-    if (totalHistorico < 1000) return 4;
-    return 5;
-};
 
 function RenderAvatarSuperior({ avatar }) {
     const esPersonalizado = typeof avatar === 'object' && avatar !== null;
@@ -241,7 +234,7 @@ function App() {
           const data = docSnap.data();
           let historico = data.totoposHistoricos || data.totopos || 0;
           if (data.totopos > historico) historico = data.totopos;
-          const nivelCalc = calcularNivelRapido(historico);
+          const nivelCalc = calcularNivelCuenta(historico);
           const avatarId = data.avatar !== undefined ? data.avatar : 'default';
 
           setPerfilInfo({
@@ -721,7 +714,7 @@ function App() {
           <GeneradorDev 
             onBack={() => {
               setControlesJuegoActivo(null);
-              setVistaActual('menu');
+              setVistaActual('admin');
             }} 
           />
         )}

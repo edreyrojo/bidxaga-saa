@@ -22,7 +22,7 @@ const {
     totalVidas,
 } = await import('../src/utils/vidas.js');
 
-const { calcularNivelCuenta } = await import('../src/utils/Nivelcuenta.js');
+const { calcularNivelCuenta, calcularProgresoNivel, obtenerNivelCuenta, NIVEL_MAXIMO } = await import('../src/utils/Nivelcuenta.js');
 const { almacen, configurarScope, obtenerScopeActual } = await import('../src/utils/almacen.js');
 
 let fallos = 0;
@@ -69,6 +69,14 @@ comprobar('Nivel 2 desde 100', calcularNivelCuenta(100) === 2);
 comprobar('Nivel 3 desde 300', calcularNivelCuenta(300) === 3);
 comprobar('Nivel 4 desde 600', calcularNivelCuenta(600) === 4);
 comprobar('Nivel 5 desde 1000', calcularNivelCuenta(1000) === 5);
+comprobar('Nivel 6 desde 2000', calcularNivelCuenta(2000) === 6);
+comprobar('Nivel 10 desde 12000', calcularNivelCuenta(12000) === 10);
+comprobar('Nivel máximo desde 80000', calcularNivelCuenta(80000) === NIVEL_MAXIMO);
+comprobar('No se pasa del nivel máximo', calcularNivelCuenta(999999) === NIVEL_MAXIMO);
+comprobar('El nivel 1 empieza en 0 %', calcularProgresoNivel(0).porcentaje === 0);
+comprobar('El nivel 2 calcula su avance', Math.round(calcularProgresoNivel(200).porcentaje) === 50);
+comprobar('El nivel máximo está al 100 %', calcularProgresoNivel(80000).esMaximo === true);
+comprobar('El siguiente nivel se informa', obtenerNivelCuenta(1000).siguiente?.nivel === 6);
 
 configurarScope(null);
 almacen.setItem('prueba', 'invitado');

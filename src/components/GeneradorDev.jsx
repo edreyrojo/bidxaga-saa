@@ -1,62 +1,261 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Icono from './Icono.jsx';
+import { almacen } from '../utils/almacen.js';
+
+const CLAVE_BORRADOR = 'generadorAvatarBorrador';
+
+const clonar = (valor) => JSON.parse(JSON.stringify(valor));
+
+const slugify = (texto) => String(texto || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+const subcapa = (id, archivo, editable = true) => ({
+    id,
+    archivo,
+    editable,
+    previewUrl: null,
+});
+
+const variante = (id, nombre, subCapas, costo = 0) => ({
+    id,
+    nombre,
+    costo,
+    subCapas,
+});
+
+const capa = (id, nombreCapa, colorDefault, paleta, variantes) => ({
+    id,
+    nombreCapa,
+    colorDefault,
+    paleta,
+    editable: true,
+    variantes,
+});
+
+const PALETA_PIEL = ['#F5C6A0', '#E0AC69', '#C68642', '#8D5524', '#ffdbac', '#f1c27d'];
+const PALETA_ROPA = ['#E65100', '#D32F2F', '#1976D2', '#388E3C', '#7B1FA2'];
+const PALETA_NEUTRA = ['#1A1A1A', '#333333', '#555555', '#7F8C8D', '#BDC3C7', '#FFFFFF'];
+
+const BASES = {
+    personaje1: {
+        nombre: 'Personaje 1 · Clásico',
+        capas: [
+            capa('silueta', 'Silueta / Ropa base', '#1A1A1A', PALETA_NEUTRA, [
+                variante('var1', 'Ropa clásica', [subcapa('sc1', '1silueta.svg', false)]),
+            ]),
+            capa('piel', 'Tono de piel', '#F5C6A0', PALETA_PIEL, [
+                variante('var1', 'Piel base', [subcapa('sc1', 'piel.svg', true)]),
+            ]),
+            capa('inferior', 'Prenda inferior', '#4A3525', PALETA_ROPA, [
+                variante('v1', 'Short', [subcapa('sc1', '1shorts1.svg', true)]),
+                variante('v2', 'Pantalón', [subcapa('sc1', 'pantalon1.svg', true)]),
+            ]),
+            capa('superior', 'Prenda superior', '#E65100', PALETA_ROPA, [
+                variante('v1', 'Playera', [subcapa('sc1', '1playera1.svg', true)]),
+                variante('v2', 'Camisa', [subcapa('sc1', 'camisa1.svg', true)]),
+            ]),
+            capa('rostro', 'Rostro', '#1A1A1A', PALETA_NEUTRA, [
+                variante('var1', 'Rostro base', [subcapa('sc1', '1rostro1.svg', false)]),
+            ]),
+            capa('ojos', 'Ojos', '#000000', ['#000000', '#4A3525', '#1976D2', '#19d27b', '#c7c7c7'], [
+                variante('v1', 'Ojos 1', [subcapa('sc1', '1ojos1.svg', true)]),
+                variante('v2', 'Ojos 2', [subcapa('sc1', '1ojos2_1.svg', true)]),
+                variante('v3', 'Ojos 3', [subcapa('sc1', '1ojos3.svg', true)]),
+            ]),
+            capa('cabello', 'Cabello', '#4A3525', ['#000000', '#4A3525', '#c7c7c7'], [
+                variante('v1', 'Cabello 1', [subcapa('sc1', '1cabello1.svg', true)]),
+                variante('v2', 'Cabello 2', [subcapa('sc1', '1cabello2.svg', true)]),
+                variante('v3', 'Cabello 3', [subcapa('sc1', 'cabello3.svg', true)]),
+                variante('v4', 'Cabello 4', [subcapa('sc1', 'cabello4.svg', true)]),
+                variante('v5', 'Cabello 5', [subcapa('sc1', 'cabello 5.svg', true)]),
+            ]),
+        ],
+        colores: {
+            silueta: '#1A1A1A',
+            piel: '#F5C6A0',
+            inferior: '#4A3525',
+            superior: '#E65100',
+            rostro: '#1A1A1A',
+            ojos: '#000000',
+            cabello: '#4A3525',
+        },
+        variantes: {
+            silueta: 'var1',
+            piel: 'var1',
+            inferior: 'v1',
+            superior: 'v1',
+            rostro: 'var1',
+            ojos: 'v1',
+            cabello: 'v1',
+        },
+    },
+    personaje2: {
+        nombre: 'Personaje 2 · Blusón',
+        capas: [
+            capa('fondo', 'Fondo', '#FDE68A', PALETA_NEUTRA, [
+                variante('var1', 'Fondo base', [subcapa('sc1', '2fondo.svg', false)]),
+            ]),
+            capa('silueta', 'Silueta / Cuerpo', '#1A1A1A', PALETA_NEUTRA, [
+                variante('var1', 'Cuerpo base', [subcapa('sc1', '2silueta.svg', false)]),
+            ]),
+            capa('piel', 'Tono de piel', '#F5C6A0', PALETA_PIEL, [
+                variante('var1', 'Piel base', [subcapa('sc1', '2piel.svg', true)]),
+            ]),
+            capa('bluson', 'Blusón / Ropa', '#C2410C', PALETA_ROPA, [
+                variante('var1', 'Blusón 1', [subcapa('sc1', '2bluson1.svg', true)]),
+            ]),
+            capa('rostro', 'Rostro', '#1A1A1A', PALETA_NEUTRA, [
+                variante('var1', 'Rostro base', [subcapa('sc1', '2rostro.svg', false)]),
+            ]),
+            capa('ojos', 'Ojos', '#000000', ['#000000', '#4A3525', '#1976D2'], [
+                variante('var1', 'Ojos 1', [subcapa('sc1', '2ojos.svg', true)]),
+            ]),
+            capa('cabello', 'Cabello', '#1F2937', ['#000000', '#4A3525', '#c7c7c7'], [
+                variante('var1', 'Cabello 1', [subcapa('sc1', '2cabello.svg', true)]),
+            ]),
+        ],
+        colores: {
+            fondo: '#FDE68A',
+            silueta: '#1A1A1A',
+            piel: '#F5C6A0',
+            bluson: '#C2410C',
+            rostro: '#1A1A1A',
+            ojos: '#000000',
+            cabello: '#1F2937',
+        },
+        variantes: {
+            fondo: 'var1',
+            silueta: 'var1',
+            piel: 'var1',
+            bluson: 'var1',
+            rostro: 'var1',
+            ojos: 'var1',
+            cabello: 'var1',
+        },
+    },
+};
+
+const METADATOS_BASES = Object.entries(BASES).map(([id, base]) => ({
+    id,
+    nombre: base.nombre,
+    icono: 'user',
+    base: true,
+}));
+
+const crearDatosPersonaje = (id) => {
+    const base = BASES[id];
+    if (!base) return { capas: [], colores: {}, variantes: {} };
+    return {
+        capas: clonar(base.capas),
+        colores: { ...base.colores },
+        variantes: { ...base.variantes },
+    };
+};
+
+const crearPersonajesIniciales = () => {
+    const personajes = {};
+    Object.keys(BASES).forEach((id) => {
+        personajes[id] = crearDatosPersonaje(id);
+    });
+    return personajes;
+};
+
+const crearEstadoInicial = () => {
+    const personajes = crearPersonajesIniciales();
+    const nombrePersonaje = 'personaje1';
+    const datos = personajes[nombrePersonaje];
+
+    return {
+        bibliotecaAvatares: METADATOS_BASES.map((avatar) => ({ ...avatar })),
+        personajes,
+        nombrePersonaje,
+        capas: clonar(datos.capas),
+        coloresVivos: { ...datos.colores },
+        variantesActivas: { ...datos.variantes },
+    };
+};
+
+const leerBorrador = () => {
+    try {
+        const crudo = almacen.getItem(CLAVE_BORRADOR);
+        if (!crudo) return null;
+
+        const datos = JSON.parse(crudo);
+        if (!datos || !Array.isArray(datos.bibliotecaAvatares) || !datos.personajes) return null;
+
+        const nombrePersonaje = typeof datos.nombrePersonaje === 'string' && datos.personajes[datos.nombrePersonaje]
+            ? datos.nombrePersonaje
+            : 'personaje1';
+
+        const personajesBase = crearPersonajesIniciales();
+        const personajes = {
+            ...personajesBase,
+            ...datos.personajes,
+        };
+
+        const actual = personajes[nombrePersonaje];
+        if (!actual) return null;
+
+        return {
+            bibliotecaAvatares: datos.bibliotecaAvatares.map((avatar) => ({
+                ...avatar,
+                base: typeof avatar.base === 'boolean' ? avatar.base : Boolean(BASES[avatar.id]),
+            })),
+            personajes,
+            nombrePersonaje,
+            capas: Array.isArray(actual.capas) ? actual.capas : [],
+            coloresVivos: actual.colores && typeof actual.colores === 'object' ? actual.colores : {},
+            variantesActivas: actual.variantes && typeof actual.variantes === 'object' ? actual.variantes : {},
+        };
+    } catch {
+        return null;
+    }
+};
+
+const capasParaGuardar = (capas) => capas.map((capaActual) => ({
+    ...capaActual,
+    variantes: (capaActual.variantes || []).map((varianteActual) => ({
+        ...varianteActual,
+        subCapas: (varianteActual.subCapas || []).map(({
+            archivoFile: _archivoFile,
+            previewUrl: _previewUrl,
+            ...resto
+        }) => resto),
+    })),
+}));
+
+const sanitizarPersonajes = (mapa) => Object.fromEntries(
+    Object.entries(mapa || {}).map(([id, datos]) => [
+        id,
+        {
+            capas: capasParaGuardar(datos?.capas || []),
+            colores: datos?.colores && typeof datos.colores === 'object' ? datos.colores : {},
+            variantes: datos?.variantes && typeof datos.variantes === 'object' ? datos.variantes : {},
+        },
+    ])
+);
 
 export default function GeneradorDev({ onBack }) {
+    const [borradorInicial] = useState(leerBorrador);
+    const [inicial] = useState(() => borradorInicial || crearEstadoInicial());
+
     const [modoGenerador, setModoGenerador] = useState('avatar');
-
-    const [bibliotecaAvatares, setBibliotecaAvatares] = useState([
-        { id: 'personaje1', nombre: 'Personaje 1 (Clásico)', icono: 'user' }
-    ]);
-
-    const [nombrePersonaje, setNombrePersonaje] = useState('personaje1');
-    
-    const [capas, setCapas] = useState([
-        { 
-            id: 'silueta', 
-            nombreCapa: 'Silueta / Ropa', 
-            colorDefault: '#1A1A1A', 
-            paleta: ['#1A1A1A', '#333333', '#555555', '#7F8C8D', '#BDC3C7', '#FFFFFF'], 
-            editable: true,
-            variantes: [
-                { 
-                    id: 'var1', 
-                    nombre: 'Ropa Clásica', 
-                    costo: 0, 
-                    subCapas: [
-                        { id: 'sc1', archivo: '1silueta.svg', editable: true, previewUrl: null }
-                    ] 
-                }
-            ]
-        },
-        { 
-            id: 'piel', 
-            nombreCapa: 'Tono de Piel', 
-            colorDefault: '#F5C6A0', 
-            paleta: ['#F5C6A0', '#E0AC69', '#C68642', '#8D5524', '#ffdbac', '#f1c27d'], 
-            editable: true,
-            variantes: [
-                { 
-                    id: 'var1', 
-                    nombre: 'Piel Base', 
-                    costo: 0, 
-                    subCapas: [
-                        { id: 'sc1', archivo: '1piel_base.svg', editable: true, previewUrl: null },
-                        { id: 'sc2', archivo: '1piel_sombra.svg', editable: false, previewUrl: null }
-                    ] 
-                }
-            ]
-        }
-    ]);
-
-    const [coloresVivos, setColoresVivos] = useState({
-        silueta: '#1A1A1A',
-        piel: '#F5C6A0'
-    });
-
-    const [variantesActivas, setVariantesActivas] = useState({
-        silueta: 'var1',
-        piel: 'var1'
-    });
+    const [bibliotecaAvatares, setBibliotecaAvatares] = useState(inicial.bibliotecaAvatares);
+    const [personajes, setPersonajes] = useState(inicial.personajes);
+    const [nombrePersonaje, setNombrePersonaje] = useState(inicial.nombrePersonaje);
+    const [capas, setCapas] = useState(inicial.capas);
+    const [coloresVivos, setColoresVivos] = useState(inicial.coloresVivos);
+    const [variantesActivas, setVariantesActivas] = useState(inicial.variantesActivas);
+    const [aviso, setAviso] = useState(null);
+    const [guardadoEn, setGuardadoEn] = useState(null);
+    const [nuevoPersonajeAbierto, setNuevoPersonajeAbierto] = useState(false);
+    const [nombreNuevoPersonaje, setNombreNuevoPersonaje] = useState('');
+    const [errorNuevoPersonaje, setErrorNuevoPersonaje] = useState('');
+    const inputImportarRef = useRef(null);
 
     const [nuevaCapa, setNuevaCapa] = useState({ 
         nombreCapa: '', 
@@ -78,6 +277,181 @@ export default function GeneradorDev({ onBack }) {
     const [capaEditandoId, setCapaEditandoId] = useState(null);
     const [coloresRecientes, setColoresRecientes] = useState(['#1A1A1A', '#F5C6A0', '#4A3525', '#FFFFFF', '#E65100', '#1976D2']);
 
+    const avisar = (tipo, mensaje) => setAviso({ tipo, mensaje });
+
+    useEffect(() => {
+        if (!aviso) return undefined;
+        const timer = setTimeout(() => setAviso(null), 4000);
+        return () => clearTimeout(timer);
+    }, [aviso]);
+
+    // Guardado automático del borrador en este dispositivo.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            const personajesActuales = sanitizarPersonajes({
+                ...personajes,
+                [nombrePersonaje]: {
+                    capas,
+                    colores: coloresVivos,
+                    variantes: variantesActivas,
+                },
+            });
+
+            try {
+                almacen.setItem(CLAVE_BORRADOR, JSON.stringify({
+                    version: 2,
+                    bibliotecaAvatares,
+                    personajes: personajesActuales,
+                    nombrePersonaje,
+                }));
+                setGuardadoEn(Date.now());
+            } catch {
+                // Sin localStorage la herramienta sigue funcionando en memoria.
+            }
+        }, 700);
+
+        return () => clearTimeout(timer);
+    }, [bibliotecaAvatares, personajes, nombrePersonaje, capas, coloresVivos, variantesActivas]);
+
+    const construirDatosExportables = () => ({
+        version: 2,
+        bibliotecaAvatares,
+        personajes: sanitizarPersonajes({
+            ...personajes,
+            [nombrePersonaje]: {
+                capas,
+                colores: coloresVivos,
+                variantes: variantesActivas,
+            },
+        }),
+        nombrePersonaje,
+    });
+
+    const seleccionarPersonaje = (avatar) => {
+        const personajesActualizados = sanitizarPersonajes({
+            ...personajes,
+            [nombrePersonaje]: {
+                capas,
+                colores: coloresVivos,
+                variantes: variantesActivas,
+            },
+        });
+
+        setPersonajes(personajesActualizados);
+
+        const datos = personajesActualizados[avatar.id] || crearDatosPersonaje(avatar.id);
+        setNombrePersonaje(avatar.id);
+        setCapas(clonar(datos.capas || []));
+        setColoresVivos({ ...(datos.colores || {}) });
+        setVariantesActivas({ ...(datos.variantes || {}) });
+        cancelarEdicion();
+        setAviso(null);
+    };
+
+    const abrirNuevoPersonaje = () => {
+        setNombreNuevoPersonaje(`nuevo_${bibliotecaAvatares.length + 1}`);
+        setErrorNuevoPersonaje('');
+        setNuevoPersonajeAbierto(true);
+    };
+
+    const crearNuevoPersonaje = () => {
+        const limpio = nombreNuevoPersonaje.trim();
+        const id = slugify(limpio);
+
+        if (!limpio || !id) {
+            setErrorNuevoPersonaje('Escribe un nombre con letras o números.');
+            return;
+        }
+
+        if (bibliotecaAvatares.some((avatar) => avatar.id === id)) {
+            setErrorNuevoPersonaje('Ya existe un personaje con ese nombre.');
+            return;
+        }
+
+        setBibliotecaAvatares((previos) => [
+            ...previos,
+            {
+                id,
+                nombre: limpio,
+                icono: modoGenerador === 'asset' ? 'puzzle' : 'palette',
+            },
+        ]);
+        setPersonajes((previos) => ({
+            ...previos,
+            [id]: { capas: [], colores: {}, variantes: {} },
+        }));
+        setNombrePersonaje(id);
+        setCapas([]);
+        setColoresVivos({});
+        setVariantesActivas({});
+        cancelarEdicion();
+        setNuevoPersonajeAbierto(false);
+        avisar('exito', `Personaje "${limpio}" creado.`);
+    };
+
+    const copiarJSON = async () => {
+        try {
+            await navigator.clipboard.writeText(JSON.stringify(construirDatosExportables(), null, 2));
+            avisar('exito', 'JSON copiado al portapapeles.');
+        } catch {
+            avisar('error', 'No se pudo copiar. Revisa los permisos del navegador.');
+        }
+    };
+
+    const descargarJSON = () => {
+        try {
+            const blob = new Blob([JSON.stringify(construirDatosExportables(), null, 2)], {
+                type: 'application/json',
+            });
+            const url = URL.createObjectURL(blob);
+            const enlace = document.createElement('a');
+            enlace.href = url;
+            enlace.download = `avatar-${nombrePersonaje}.json`;
+            enlace.click();
+            URL.revokeObjectURL(url);
+            avisar('exito', 'JSON descargado.');
+        } catch {
+            avisar('error', 'No se pudo descargar el JSON.');
+        }
+    };
+
+    const importarJSON = (evento) => {
+        const archivo = evento.target.files?.[0];
+        if (!archivo) return;
+
+        const lector = new FileReader();
+        lector.onload = () => {
+            try {
+                const datos = JSON.parse(String(lector.result));
+                if (!datos || !Array.isArray(datos.bibliotecaAvatares) || !datos.personajes) {
+                    throw new Error('FORMATO_INVALIDO');
+                }
+
+                const nombre = typeof datos.nombrePersonaje === 'string' && datos.personajes[datos.nombrePersonaje]
+                    ? datos.nombrePersonaje
+                    : datos.bibliotecaAvatares[0]?.id;
+                const actual = datos.personajes[nombre];
+
+                if (!actual) throw new Error('SIN_PERSONAJE');
+
+                setBibliotecaAvatares(datos.bibliotecaAvatares);
+                setPersonajes(datos.personajes);
+                setNombrePersonaje(nombre);
+                setCapas(Array.isArray(actual.capas) ? actual.capas : []);
+                setColoresVivos(actual.colores && typeof actual.colores === 'object' ? actual.colores : {});
+                setVariantesActivas(actual.variantes && typeof actual.variantes === 'object' ? actual.variantes : {});
+                cancelarEdicion();
+                avisar('exito', 'JSON importado correctamente.');
+            } catch {
+                avisar('error', 'El archivo no tiene el formato esperado.');
+            }
+        };
+        lector.onerror = () => avisar('error', 'No se pudo leer el archivo.');
+        lector.readAsText(archivo);
+
+        if (inputImportarRef.current) inputImportarRef.current.value = '';
+    };
+
     const agregarColorReciente = (hex) => {
         if (!hex) return;
         setColoresRecientes(prev => {
@@ -89,26 +463,32 @@ export default function GeneradorDev({ onBack }) {
 
     const eliminarAvatarDeBiblioteca = (idAEliminar, e) => {
         e.stopPropagation(); 
-        if (bibliotecaAvatares.length <= 1) return;
-        const nuevaBiblioteca = bibliotecaAvatares.filter(av => av.id !== idAEliminar);
-        setBibliotecaAvatares(nuevaBiblioteca);
-        if (nombrePersonaje === idAEliminar) setNombrePersonaje(nuevaBiblioteca[0].id);
-    };
+        const avatar = bibliotecaAvatares.find((item) => item.id === idAEliminar);
 
-    const handleNuevoPersonaje = () => {
-        const nombreInput = prompt("Ingresa el nombre del contenedor (ej: gafas_pro):", "nuevo_" + (bibliotecaAvatares.length + 1));
-        if (!nombreInput) return;
-        
-        const folderLimpio = nombreInput.toLowerCase().replace(/\s+/g, '_');
-        if (!bibliotecaAvatares.some(av => av.id === folderLimpio)) {
-            setBibliotecaAvatares(prev => [...prev, { id: folderLimpio, nombre: folderLimpio, icono: modoGenerador === 'asset' ? 'puzzle' : 'palette' }]);
+        if (!avatar || avatar.base) {
+            avisar('info', 'Las bases del proyecto no se pueden eliminar.');
+            return;
         }
 
-        setNombrePersonaje(folderLimpio);
-        setCapas([]);
-        setColoresVivos({});
-        setVariantesActivas({});
-        cancelarEdicion();
+        if (bibliotecaAvatares.length <= 1) return;
+
+        const nuevaBiblioteca = bibliotecaAvatares.filter(av => av.id !== idAEliminar);
+        setBibliotecaAvatares(nuevaBiblioteca);
+        setPersonajes((previos) => {
+            const copia = { ...previos };
+            delete copia[idAEliminar];
+            return copia;
+        });
+
+        if (nombrePersonaje === idAEliminar) {
+            const siguiente = nuevaBiblioteca[0];
+            const datos = personajes[siguiente.id] || crearDatosPersonaje(siguiente.id);
+            setNombrePersonaje(siguiente.id);
+            setCapas(clonar(datos.capas || []));
+            setColoresVivos({ ...(datos.colores || {}) });
+            setVariantesActivas({ ...(datos.variantes || {}) });
+            cancelarEdicion();
+        }
     };
 
     const handleSubCapaFileChange = (indexVar, indexSub, e) => {
@@ -257,16 +637,51 @@ export default function GeneradorDev({ onBack }) {
     };
 
     const handleGuardarCapa = () => {
-        if (!nuevaCapa.nombreCapa.trim()) return;
+        const nombre = nuevaCapa.nombreCapa.trim();
+        if (!nombre) {
+            avisar('error', 'Escribe un nombre para el grupo de capas.');
+            return;
+        }
 
-        const idGenerado = nuevaCapa.nombreCapa.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+        const idGenerado = slugify(nombre);
+        if (!idGenerado) {
+            avisar('error', 'El nombre debe incluir al menos una letra o número.');
+            return;
+        }
+
+        if (nuevaCapa.variantesTemp.length === 0) {
+            avisar('error', 'Agrega al menos una variante.');
+            return;
+        }
+
+        for (let i = 0; i < nuevaCapa.variantesTemp.length; i += 1) {
+            const actual = nuevaCapa.variantesTemp[i];
+            if (!actual.subCapas || actual.subCapas.length === 0) {
+                avisar('error', `La variante ${i + 1} necesita al menos una subcapa.`);
+                return;
+            }
+            const sinArchivo = actual.subCapas.some((sc) => !String(sc.archivo || '').trim());
+            if (sinArchivo) {
+                avisar('error', `La variante ${i + 1} tiene una subcapa sin archivo SVG.`);
+                return;
+            }
+        }
+
+        const colisiona = capas.some((capaActual) => (
+            capaActual.id === idGenerado && capaActual.id !== capaEditandoId
+        ));
+        if (colisiona) {
+            avisar('error', 'Ya existe un grupo con ese nombre. Usa otro nombre.');
+            return;
+        }
+
         const paletaArray = nuevaCapa.paletaColors.length > 0 ? nuevaCapa.paletaColors : [nuevaCapa.colorDefault];
 
         const variantesFinales = nuevaCapa.variantesTemp.map((v, i) => ({
             id: v.id || `v${i + 1}`,
-            nombre: v.nombre.trim() || `Var ${i + 1}`,
-            costo: Number(v.costo) || 0,
-            subCapas: v.subCapas.map((sc, j) => ({
+            nombre: String(v.nombre || '').trim() || `Variante ${i + 1}`,
+            costo: Math.max(0, Math.floor(Number(v.costo) || 0)),
+            subCapas: (v.subCapas || []).map((sc, j) => ({
                 id: sc.id || `sc${j + 1}`,
                 archivo: sc.archivoFile ? sc.archivoFile.name : sc.archivo,
                 editable: sc.editable,
@@ -277,7 +692,7 @@ export default function GeneradorDev({ onBack }) {
         if (capaEditandoId !== null) {
             setCapas(capas.map(c => {
                 if (c.id === capaEditandoId) {
-                    return { ...c, id: idGenerado, nombreCapa: nuevaCapa.nombreCapa.trim(), colorDefault: nuevaCapa.colorDefault, paleta: paletaArray, variantes: variantesFinales };
+                    return { ...c, id: idGenerado, nombreCapa: nombre, colorDefault: nuevaCapa.colorDefault, paleta: paletaArray, variantes: variantesFinales };
                 }
                 return c;
             }));
@@ -292,11 +707,12 @@ export default function GeneradorDev({ onBack }) {
             } else {
                 setColoresVivos(prev => ({ ...prev, [idGenerado]: nuevaCapa.colorDefault }));
             }
+            avisar('exito', `Grupo "${nombre}" actualizado.`);
         } else {
-            if (capas.some(c => c.id === idGenerado)) return;
-            setCapas([...capas, { id: idGenerado, nombreCapa: nuevaCapa.nombreCapa.trim(), colorDefault: nuevaCapa.colorDefault, paleta: paletaArray, editable: true, variantes: variantesFinales }]);
+            setCapas([...capas, { id: idGenerado, nombreCapa: nombre, colorDefault: nuevaCapa.colorDefault, paleta: paletaArray, editable: true, variantes: variantesFinales }]);
             setColoresVivos(prev => ({ ...prev, [idGenerado]: nuevaCapa.colorDefault }));
             if (variantesFinales.length > 0) setVariantesActivas(prev => ({ ...prev, [idGenerado]: variantesFinales[0].id }));
+            avisar('exito', `Grupo "${nombre}" agregado.`);
         }
         
         cancelarEdicion();
@@ -332,8 +748,13 @@ export default function GeneradorDev({ onBack }) {
         let codigo = "";
 
         if (modoGenerador === 'asset') {
-            const nombreComp = nombrePersonaje.charAt(0).toUpperCase() + nombrePersonaje.slice(1);
+            const nombreComp = nombrePersonaje
+                .split('_')
+                .filter(Boolean)
+                .map((parte) => parte.charAt(0).toUpperCase() + parte.slice(1))
+                .join('') || 'AvatarAsset';
             codigo += `import React from 'react';\n\n`;
+            codigo += `// Asset para /avatares/${nombrePersonaje}/\n`;
             codigo += `export default function ${nombreComp}({ \n`;
             capas.forEach(capa => {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
@@ -343,7 +764,7 @@ export default function GeneradorDev({ onBack }) {
             
             capas.forEach(capa => {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
-                codigo += `    const var${idCap} = ${JSON.stringify(capa.variantes[0].subCapas || [])};\n`;
+                codigo += `    const var${idCap} = ${JSON.stringify(capa.variantes?.[0]?.subCapas || [])};\n`;
             });
 
             codigo += `    return (\n        <div className={\`relative \${className} flex items-center justify-center\`}>\n`;
@@ -372,12 +793,14 @@ export default function GeneradorDev({ onBack }) {
             codigo += `        </div>\n    );\n}\n`;
 
         } else {
-            codigo += `/* Codigo Generado Avatar Multi-Sprites: ${nombrePersonaje} */\n\n`;
+            codigo += `import React, { useState } from 'react';\n\n`;
+            codigo += `/* Código generado para el avatar: ${nombrePersonaje} */\n`;
+            codigo += `/* Pega este bloque dentro de CreadorAvatar.jsx */\n\n`;
             codigo += `const [personajeBase, setPersonajeBase] = useState('${nombrePersonaje}');\n`;
             capas.forEach(capa => {
                 const idCap = capa.id.charAt(0).toUpperCase() + capa.id.slice(1);
                 codigo += `const [color${idCap}, setColor${idCap}] = useState('${coloresVivos[capa.id] || capa.colorDefault}');\n`;
-                const varIdDef = capa.variantes.length > 0 ? capa.variantes[0].id : 'v1';
+                const varIdDef = capa.variantes?.[0]?.id || 'v1';
                 codigo += `const [variante${idCap}, setVariante${idCap}] = useState('${varIdDef}');\n`;
             });
 
@@ -424,13 +847,20 @@ export default function GeneradorDev({ onBack }) {
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 pb-4 border-b-2 border-amber-200">
                 <div className="flex items-center gap-3">
                     {onBack && (
-                        <button onClick={onBack} className="bg-amber-800 hover:bg-amber-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer">
+                        <button onClick={onBack} aria-label="Volver" className="bg-amber-800 hover:bg-amber-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer">
                             ←
                         </button>
                     )}
-                    <h2 className="text-2xl font-black flex items-center gap-2">
-                        {modoGenerador === 'avatar' ? 'Editor Avatar' : 'Editor Asset'}
-                    </h2>
+                    <div>
+                        <h2 className="text-2xl font-black flex items-center gap-2">
+                            {modoGenerador === 'avatar' ? 'Editor Avatar' : 'Editor Asset'}
+                        </h2>
+                        <p className="text-[10px] font-bold text-amber-700 mt-0.5">
+                            {guardadoEn
+                                ? `Borrador guardado a las ${new Date(guardadoEn).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`
+                                : 'Los cambios se guardan automáticamente en este dispositivo'}
+                        </p>
+                    </div>
                 </div>
                 
                 <div className="flex bg-amber-200 rounded-2xl p-1 border border-amber-400 shadow-inner">
@@ -438,21 +868,73 @@ export default function GeneradorDev({ onBack }) {
                     <button onClick={() => setModoGenerador('asset')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${modoGenerador === 'asset' ? 'bg-emerald-600 text-white shadow-md' : 'text-amber-900 hover:bg-amber-300'}`}>Asset Sprites</button>
                 </div>
 
-                <button onClick={handleNuevoPersonaje} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5">
-                    + Nuevo
-                </button>
+                <div className="flex flex-wrap gap-2">
+                    <button onClick={abrirNuevoPersonaje} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5">
+                        + Nuevo
+                    </button>
+                    <button onClick={() => inputImportarRef.current?.click()} className="bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 font-bold px-3 py-2 rounded-xl text-xs cursor-pointer">
+                        Importar
+                    </button>
+                    <button onClick={descargarJSON} className="bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 font-bold px-3 py-2 rounded-xl text-xs cursor-pointer">
+                        Exportar JSON
+                    </button>
+                    <button onClick={copiarJSON} className="bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 font-bold px-3 py-2 rounded-xl text-xs cursor-pointer">
+                        Copiar JSON
+                    </button>
+                    <input
+                        ref={inputImportarRef}
+                        type="file"
+                        accept="application/json,.json"
+                        onChange={importarJSON}
+                        className="hidden"
+                        aria-label="Importar JSON del generador"
+                    />
+                </div>
             </div>
+
+            {aviso && (
+                <div className={`mb-4 rounded-2xl border-2 px-4 py-3 text-xs font-bold ${
+                    aviso.tipo === 'error'
+                        ? 'bg-red-50 border-red-200 text-red-800'
+                        : aviso.tipo === 'info'
+                            ? 'bg-sky-50 border-sky-200 text-sky-800'
+                            : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                }`}>
+                    {aviso.mensaje}
+                </div>
+            )}
 
             <div className="bg-white p-4 rounded-3xl border-2 border-amber-300 shadow-sm mb-6">
                 <h3 className="text-xs font-black uppercase text-amber-900 mb-3 flex items-center justify-between">
                     <span>Biblioteca</span>
+                    <span className="text-[10px] font-bold normal-case text-amber-700">
+                        Elige una base y personaliza sus capas
+                    </span>
                 </h3>
                 <div className="flex flex-wrap gap-2">
                     {bibliotecaAvatares.map((avatar) => (
-                        <div key={avatar.id} onClick={() => { setNombrePersonaje(avatar.id); cancelarEdicion(); }} className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border-2 ${nombrePersonaje === avatar.id ? 'bg-amber-600 text-white border-amber-800 shadow-md scale-105' : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'}`}>
+                        <div
+                            key={avatar.id}
+                            onClick={() => seleccionarPersonaje(avatar)}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border-2 ${nombrePersonaje === avatar.id ? 'bg-amber-600 text-white border-amber-800 shadow-md scale-105' : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'}`}
+                        >
                             <Icono nombre={avatar.icono || 'folder'} className="w-4 h-4" />
                             <span>{avatar.nombre}</span>
-                            <button type="button" onClick={(e) => eliminarAvatarDeBiblioteca(avatar.id, e)} className="ml-1 text-red-600 hover:text-white hover:bg-red-600 bg-white/90 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-black transition-colors">✕</button>
+                            {avatar.base && (
+                                <span className="text-[9px] font-black uppercase bg-white/20 px-1.5 py-0.5 rounded-full">
+                                    Base
+                                </span>
+                            )}
+                            {!avatar.base && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => eliminarAvatarDeBiblioteca(avatar.id, e)}
+                                    aria-label={`Eliminar ${avatar.nombre}`}
+                                    className="ml-1 text-red-600 hover:text-white hover:bg-red-600 bg-white/90 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-black transition-colors"
+                                >
+                                    ✕
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -485,7 +967,7 @@ export default function GeneradorDev({ onBack }) {
                                 <label className="block text-[11px] font-bold text-amber-800 uppercase">Ajustes Vivos:</label>
                                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                                     {capas.map(capa => {
-                                        const varActiva = variantesActivas[capa.id] || capa.variantes[0]?.id;
+                                        const varActiva = variantesActivas[capa.id] || capa.variantes?.[0]?.id;
                                         return (
                                             <div key={capa.id} className="flex flex-col bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-xs gap-2">
                                                 <div className="flex items-center justify-between">
@@ -527,10 +1009,10 @@ export default function GeneradorDev({ onBack }) {
                                             <span className="font-medium text-amber-900 truncate">{c.nombreCapa}</span>
                                         </div>
                                         <div className="flex items-center gap-1 shrink-0">
-                                            <button onClick={() => iniciarEdicionCapa(c)} className="px-1.5 py-1 bg-amber-200 rounded-lg text-xs font-bold cursor-pointer"><Icono nombre="pencil" className="w-3.5 h-3.5" /></button>
-                                            <button onClick={() => moverCapa(i, 'arriba')} disabled={i === 0} className="px-1.5 py-1 bg-amber-200 disabled:opacity-30 rounded-lg text-xs font-bold cursor-pointer"><Icono nombre="arrowUp" className="w-3.5 h-3.5" /></button>
-                                            <button onClick={() => moverCapa(i, 'abajo')} disabled={i === capas.length - 1} className="px-1.5 py-1 bg-amber-200 disabled:opacity-30 rounded-lg text-xs font-bold cursor-pointer"><Icono nombre="arrowDown" className="w-3.5 h-3.5" /></button>
-                                            <button onClick={() => eliminarCapa(c.id)} className="text-red-600 font-bold px-2 py-1 bg-red-100 rounded-lg text-[10px] cursor-pointer ml-1">✕</button>
+                                            <button type="button" onClick={() => iniciarEdicionCapa(c)} aria-label={`Editar ${c.nombreCapa}`} className="px-1.5 py-1 bg-amber-200 rounded-lg text-xs font-bold cursor-pointer"><Icono nombre="pencil" className="w-3.5 h-3.5" /></button>
+                                            <button type="button" onClick={() => moverCapa(i, 'arriba')} disabled={i === 0} aria-label={`Subir ${c.nombreCapa}`} className="px-1.5 py-1 bg-amber-200 disabled:opacity-30 rounded-lg text-xs font-bold cursor-pointer"><Icono nombre="arrowUp" className="w-3.5 h-3.5" /></button>
+                                            <button type="button" onClick={() => moverCapa(i, 'abajo')} disabled={i === capas.length - 1} aria-label={`Bajar ${c.nombreCapa}`} className="px-1.5 py-1 bg-amber-200 disabled:opacity-30 rounded-lg text-xs font-bold cursor-pointer"><Icono nombre="arrowDown" className="w-3.5 h-3.5" /></button>
+                                            <button type="button" onClick={() => eliminarCapa(c.id)} aria-label={`Eliminar ${c.nombreCapa}`} className="text-red-600 font-bold px-2 py-1 bg-red-100 rounded-lg text-[10px] cursor-pointer ml-1">✕</button>
                                         </div>
                                     </li>
                                 ))}
@@ -557,20 +1039,36 @@ export default function GeneradorDev({ onBack }) {
                                 
                                 {nuevaCapa.variantesTemp.map((v, indexVar) => (
                                     <div key={v.id || indexVar} className="bg-amber-50 p-2 rounded-xl border border-amber-300 space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <input type="text" placeholder="Nombre Var" value={v.nombre} onChange={(e) => { const copy = [...nuevaCapa.variantesTemp]; copy[indexVar].nombre = e.target.value; setNuevaCapa(p => ({...p, variantesTemp: copy})); }} className="flex-1 px-2 py-1 border border-amber-300 rounded-lg text-[10px] bg-white outline-none" />
-                                            <button type="button" onClick={() => eliminarVarianteTemp(indexVar)} className="text-red-600 bg-red-100 px-2 py-1 rounded-lg text-xs font-bold"><Icono nombre="trash" className="w-3.5 h-3.5" /></button>
+                                        <div className="grid grid-cols-[1fr_84px_auto] items-center gap-2">
+                                            <input type="text" aria-label={`Nombre de la variante ${indexVar + 1}`} placeholder="Nombre de la variante" value={v.nombre} onChange={(e) => { const copy = [...nuevaCapa.variantesTemp]; copy[indexVar].nombre = e.target.value; setNuevaCapa(p => ({...p, variantesTemp: copy})); }} className="w-full px-2 py-1 border border-amber-300 rounded-lg text-[10px] bg-white outline-none" />
+                                            <label className="flex items-center gap-1 text-[9px] font-bold text-amber-800">
+                                                Costo
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="1"
+                                                    aria-label={`Costo de la variante ${indexVar + 1}`}
+                                                    value={v.costo ?? 0}
+                                                    onChange={(e) => {
+                                                        const copy = [...nuevaCapa.variantesTemp];
+                                                        copy[indexVar].costo = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                                                        setNuevaCapa(p => ({ ...p, variantesTemp: copy }));
+                                                    }}
+                                                    className="w-14 px-1.5 py-1 border border-amber-300 rounded-lg text-[10px] bg-white outline-none"
+                                                />
+                                            </label>
+                                            <button type="button" onClick={() => eliminarVarianteTemp(indexVar)} aria-label={`Eliminar variante ${indexVar + 1}`} className="text-red-600 bg-red-100 px-2 py-1 rounded-lg text-xs font-bold"><Icono nombre="trash" className="w-3.5 h-3.5" /></button>
                                         </div>
 
                                         <div className="space-y-1">
                                             {v.subCapas.map((sc, indexSub) => (
                                                 <div key={sc.id || indexSub} className="flex flex-col sm:flex-row items-center gap-2 bg-white p-1.5 rounded-lg border border-amber-200">
-                                                    <input type="file" accept=".svg" onChange={(e) => handleSubCapaFileChange(indexVar, indexSub, e)} className="w-full sm:w-auto text-[9px] file:mr-1 file:py-0.5 file:px-1.5 file:rounded file:border-0 file:text-[9px] file:bg-amber-600 file:text-white cursor-pointer" />
+                                                    <input type="file" accept=".svg" aria-label={`SVG de la subcapa ${indexSub + 1}`} onChange={(e) => handleSubCapaFileChange(indexVar, indexSub, e)} className="w-full sm:w-auto text-[9px] file:mr-1 file:py-0.5 file:px-1.5 file:rounded file:border-0 file:text-[9px] file:bg-amber-600 file:text-white cursor-pointer" />
                                                     <div className="flex gap-1 w-full sm:w-auto justify-end">
                                                         <button type="button" onClick={() => toggleSubCapaEditable(indexVar, indexSub)} className={`px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 ${sc.editable ? 'bg-blue-100 text-blue-900 border border-blue-300' : 'bg-gray-200 text-gray-700 border border-gray-300'}`}>
                                                             {sc.editable ? <><Icono nombre="palette" className="w-3 h-3" /> Base</> : <><Icono nombre="lock" className="w-3 h-3" /> Fijo</>}
                                                         </button>
-                                                        <button type="button" onClick={() => eliminarSubCapa(indexVar, indexSub)} className="text-red-600 bg-red-50 px-2 py-1 rounded-lg text-[10px]">✕</button>
+                                                        <button type="button" onClick={() => eliminarSubCapa(indexVar, indexSub)} aria-label={`Eliminar subcapa ${indexSub + 1}`} className="text-red-600 bg-red-50 px-2 py-1 rounded-lg text-[10px]">✕</button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -642,12 +1140,65 @@ export default function GeneradorDev({ onBack }) {
                             value={generarCodigoJSX()}
                             className="w-full flex-1 min-h-[520px] p-4 bg-[#141414] text-[#9cdcfe] font-mono text-[10px] rounded-2xl shadow-inner resize-none focus:outline-none leading-relaxed border border-gray-800"
                         />
-                        <button type="button" onClick={() => { navigator.clipboard.writeText(generarCodigoJSX()); alert('Código copiado al portapapeles'); }} className="mt-4 w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3.5 rounded-2xl cursor-pointer text-sm flex items-center justify-center gap-2">
-                            Copiar Componente
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                            <button type="button" onClick={() => { navigator.clipboard.writeText(generarCodigoJSX()).then(() => avisar('exito', 'Código copiado al portapapeles.')).catch(() => avisar('error', 'No se pudo copiar el código.')); }} className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-black py-3.5 rounded-2xl cursor-pointer text-sm flex items-center justify-center gap-2">
+                                Copiar Componente
+                            </button>
+                            <button type="button" onClick={copiarJSON} className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-black py-3.5 rounded-2xl cursor-pointer text-sm flex items-center justify-center gap-2">
+                                Copiar JSON
+                            </button>
+                            <button type="button" onClick={descargarJSON} className="flex-1 bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 font-black py-3.5 rounded-2xl cursor-pointer text-sm flex items-center justify-center gap-2">
+                                Descargar JSON
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-3 leading-relaxed font-medium">
+                            Coloca los SVG en <code className="text-amber-300">/public/avatares/{nombrePersonaje}/</code>.
+                            El JSON guarda capas, variantes, costos y paletas para continuar después.
+                        </p>
                     </div>
                 </div>
             </div>
+
+            {nuevoPersonajeAbierto && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[500] flex items-center justify-center p-4">
+                    <div role="dialog" aria-modal="true" aria-labelledby="nuevo-personaje-titulo" className="bg-white rounded-3xl border-2 border-amber-300 p-5 shadow-2xl w-full max-w-sm">
+                        <h3 id="nuevo-personaje-titulo" className="text-lg font-black text-amber-950 mb-1">
+                            Nuevo personaje
+                        </h3>
+                        <p className="text-[11px] text-amber-700 font-medium mb-3">
+                            Se creará una carpeta lógica para organizar sus capas. Después puedes agregar grupos y variantes.
+                        </p>
+                        <label className="block text-[10px] font-black uppercase text-amber-800 mb-1">
+                            Nombre del personaje
+                        </label>
+                        <input
+                            type="text"
+                            value={nombreNuevoPersonaje}
+                            onChange={(evento) => {
+                                setNombreNuevoPersonaje(evento.target.value);
+                                setErrorNuevoPersonaje('');
+                            }}
+                            maxLength={60}
+                            className="w-full bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-xs font-medium text-amber-950 outline-none focus:border-amber-500"
+                            autoFocus
+                        />
+                        {errorNuevoPersonaje && (
+                            <p className="text-[10px] font-bold text-red-700 mt-1">{errorNuevoPersonaje}</p>
+                        )}
+                        <p className="text-[10px] text-amber-700 mt-2">
+                            Carpeta sugerida: <code className="font-bold">/public/avatares/{slugify(nombreNuevoPersonaje) || 'nuevo_personaje'}/</code>
+                        </p>
+                        <div className="flex justify-end gap-2 mt-4">
+                            <button type="button" onClick={() => setNuevoPersonajeAbierto(false)} className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl px-3 py-2 text-[11px] font-bold cursor-pointer">
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={crearNuevoPersonaje} className="bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl px-3 py-2 text-[11px] font-bold cursor-pointer">
+                                Crear personaje
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

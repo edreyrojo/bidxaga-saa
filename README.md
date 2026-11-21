@@ -22,13 +22,39 @@ La pantalla de inicio se organiza en cuatro bloques para que la navegación sea 
   - **Avisos**: crear, editar, duplicar, activar/desactivar, prioridad, programación de publicación, expiración, vista previa, borrado con confirmación y auditoría. Los avisos inactivos, programados a futuro o expirados no se muestran en la app.
   - **Rankings**: Memorama, Trivia, Sopa, Crucigrama y Reto Diario (por fecha); la tabla conserva **un solo récord por jugador** (el mejor), búsqueda, filtro de anomalías, paginación más allá de 100 registros, exportación CSV de lo filtrado o de todo, renombrado, compactación de duplicados históricos y borrado con auditoría.
   - **Sugerencias**: filtros por estado (incluye convertidas) y tipo, búsqueda, paginación, detección de duplicados, acciones masivas de aprobación/rechazo, marcado como convertida, exportación CSV, detalle, copia de datos y nota interna.
-  - **Herramientas**: generador de avatares.
+  - **Herramientas**: generador de avatares con guardado automático, presets de personaje1/personaje2, costos por variante, validación de capas y exportación/importación JSON.
 - Cada acción administrativa relevante se registra en `admin_logs` dentro del mismo lote que la escritura.
 - El panel anterior se retiró: toda la administración vive ahora en esta pantalla.
 - La verificación usa el custom claim `admin` o el campo `usuarios/{uid}.role`.
 - El badge de avisos de la app ahora cuenta **avisos no leídos** y se marca como leído al abrir el panel de avisos.
 - El acceso de administración muestra un contador en tiempo real de **sugerencias pendientes**.
 - Los rankings agrupan por nombre visible y conservan el mejor récord de cada jugador para evitar que una sola persona ocupe toda la tabla. Los datos históricos se pueden limpiar desde **Rankings → Compactar duplicados**, con vista previa y confirmación.
+
+## Niveles de cuenta
+
+El perfil usa **15 niveles** basados en totopos históricos:
+
+1. Recién Llegado · 0
+2. Explorador Istmeño · 100
+3. Estudiante Zapoteco · 300
+4. Conocedor Diidxazá · 600
+5. Maestro Zapoteco · 1 000
+6. Guardián de la Palabra · 2 000
+7. Voz del Istmo · 3 500
+8. Semilla de Binnizá · 5 500
+9. Tejedor de Historias · 8 000
+10. Flor de Guiechachi · 12 000
+11. Sabio de la Laguna · 18 000
+12. Corazón de Tehuantepec · 26 000
+13. Leyenda de Bidxaga Saa · 38 000
+14. Binnizá de Honor · 55 000
+15. Bidxaga Saa · 80 000
+
+Los primeros cinco conservan los umbrales anteriores para no cambiar el nivel de los jugadores actuales. El perfil muestra el nivel actual, el siguiente objetivo y el camino completo con los títulos inspirados en el Istmo.
+
+## Sonidos de interfaz
+
+Los efectos de clic usan **Web Audio API** con buffers decodificados y precargados. Esto reduce el retraso en móvil frente a crear un `HTMLAudioElement` en cada pulsación. El audio se desbloquea con el primer gesto del usuario y se reanuda al volver a la pestaña.
 
 ## Seguridad sin backend
 

@@ -12,6 +12,7 @@ import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
 import { prepararRankingGlobal } from '../utils/rankingGlobal.js';
 import { registrarRespuesta, seleccionarConRepaso } from '../utils/repaso.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
+import { useSonido } from '../hooks/useSonido.js';
 import { useVidasJuego } from '../hooks/useVidasJuego.js';
 import { useTotopos } from '../hooks/useTotopos.js';
 import { useProgresoJuego } from '../hooks/useProgresoJuego.js';
@@ -175,17 +176,7 @@ export default function Crucigrama({
     setControlesJuegoActivo,
     onSetControles 
 }) {
-    const reproducirSonido = (tipo) => {
-        try {
-            let archivo = '/audio/click1.mp3';
-            if (tipo === 2) archivo = '/audio/click2.mp3';
-            if (tipo === 3) archivo = '/audio/click3.mp3';
-            const audio = new Audio(archivo);
-            audio.play().catch(e => console.log("Audio play prevented:", e));
-        } catch (err) {
-            console.log("Error al reproducir sonido:", err);
-        }
-    };
+    const { reproducirSonido } = useSonido();
 
     const [nivel, setNivel] = useState(() => {
         const n = almacen.getItem('crucigramaNivel');

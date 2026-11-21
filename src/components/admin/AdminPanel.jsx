@@ -208,7 +208,8 @@ export default function AdminPanel({
                             <Icono nombre="wrench" className="w-6 h-6 text-amber-700 mb-2" />
                             <h2 className="font-black text-amber-950 text-sm">Generador de avatares</h2>
                             <p className="text-xs text-amber-800 mt-1 mb-3 leading-relaxed">
-                                Herramienta de escritorio para crear y revisar capas de avatares.
+                                Editor de capas para crear y revisar avatares. Incluye guardado automático,
+                                presets de personaje1 y personaje2, costos por variante y exportación/importación JSON.
                             </p>
                             <button
                                 type="button"
