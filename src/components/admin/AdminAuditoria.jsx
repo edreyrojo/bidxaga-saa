@@ -22,6 +22,7 @@ const ACCIONES = [
     { id: 'rol_admin_removido', label: 'Rol admin removido' },
     { id: 'ranking_eliminado', label: 'Ranking eliminado' },
     { id: 'ranking_renombrado', label: 'Ranking renombrado' },
+    { id: 'ranking_compactado', label: 'Ranking compactado' },
     { id: 'password_reset_enviado', label: 'Restablecimiento enviado' },
 ];
 

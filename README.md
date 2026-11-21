@@ -20,7 +20,7 @@ La pantalla de inicio se organiza en cuatro bloques para que la navegación sea 
   - **Auditoría**: últimos 300 registros con filtros por acción, admin, texto y fechas; paginación y exportación CSV.
   - **Usuarios**: búsqueda por correo, nombre o UID; filtro por rol; paginación; detalle con vidas, progreso, logros, repaso espaciado, última actividad y reto/racha; copiar correo/UID; restablecimiento de contraseña; regalo de totopos con motivo y opción de contar para históricos; cambio de rol con protección del último administrador por rol; exportación CSV de la página o de todos los usuarios.
   - **Avisos**: crear, editar, duplicar, activar/desactivar, prioridad, programación de publicación, expiración, vista previa, borrado con confirmación y auditoría. Los avisos inactivos, programados a futuro o expirados no se muestran en la app.
-  - **Rankings**: Memorama, Trivia, Sopa, Crucigrama y Reto Diario (por fecha); búsqueda, filtro de anomalías, paginación más allá de 100 registros, exportación CSV de lo filtrado o de todo, renombrado y borrado con auditoría.
+  - **Rankings**: Memorama, Trivia, Sopa, Crucigrama y Reto Diario (por fecha); la tabla conserva **un solo récord por jugador** (el mejor), búsqueda, filtro de anomalías, paginación más allá de 100 registros, exportación CSV de lo filtrado o de todo, renombrado, compactación de duplicados históricos y borrado con auditoría.
   - **Sugerencias**: filtros por estado (incluye convertidas) y tipo, búsqueda, paginación, detección de duplicados, acciones masivas de aprobación/rechazo, marcado como convertida, exportación CSV, detalle, copia de datos y nota interna.
   - **Herramientas**: generador de avatares.
 - Cada acción administrativa relevante se registra en `admin_logs` dentro del mismo lote que la escritura.
@@ -28,6 +28,7 @@ La pantalla de inicio se organiza en cuatro bloques para que la navegación sea 
 - La verificación usa el custom claim `admin` o el campo `usuarios/{uid}.role`.
 - El badge de avisos de la app ahora cuenta **avisos no leídos** y se marca como leído al abrir el panel de avisos.
 - El acceso de administración muestra un contador en tiempo real de **sugerencias pendientes**.
+- Los rankings agrupan por nombre visible y conservan el mejor récord de cada jugador para evitar que una sola persona ocupe toda la tabla. Los datos históricos se pueden limpiar desde **Rankings → Compactar duplicados**, con vista previa y confirmación.
 
 ## Seguridad sin backend
 

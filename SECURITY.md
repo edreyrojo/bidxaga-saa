@@ -112,6 +112,8 @@ Además:
 - El renombrado de rankings solo puede cambiar el nombre visible; no corrige puntajes ni niveles. Esas anomalías se detectan y se deben borrar.
 - La programación de avisos y la detección de duplicados de sugerencias se evalúan en el cliente; un cambio de reloj puede adelantar o retrasar la visibilidad.
 - Las acciones masivas de sugerencias y el restablecimiento de contraseña quedan auditados, pero dependen del cliente.
+- La compactación de rankings agrupa por nombre visible. Si dos personas distintas usan el mismo nombre, se consideran un solo jugador; el panel muestra una vista previa antes de eliminar y la acción queda auditada.
+- El récord de cada jugador se conserva por juego. Si en el futuro se quieren récords por nivel o temporadas, conviene guardarlos en una subcolección aparte para no volver a llenar la tabla global.
 
 ## Recomendaciones adicionales
 

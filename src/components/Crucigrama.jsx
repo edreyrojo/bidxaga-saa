@@ -9,6 +9,7 @@ import {
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import { almacen } from '../utils/almacen.js';
 import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
+import { prepararRankingGlobal } from '../utils/rankingGlobal.js';
 import { registrarRespuesta, seleccionarConRepaso } from '../utils/repaso.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { useVidasJuego } from '../hooks/useVidasJuego.js';
@@ -273,7 +274,17 @@ export default function Crucigrama({
 
         const scoreToSave = pendingGlobalScore;
         const currentUser = user || auth.currentUser;
-        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
+
+        if (!currentUser) {
+            setFeedbackModal({
+                show: true,
+                title: "Inicia sesión para el ranking",
+                message: "Tu progreso se guarda en este dispositivo. Para aparecer en el ranking global, inicia sesión."
+            });
+            return;
+        }
+
+        const docId = currentUser.uid;
 
         try {
             const docRef = doc(db, "ranking_crucigrama", docId);
@@ -295,6 +306,7 @@ export default function Crucigrama({
 
             if (guardar) {
                 await setDoc(docRef, {
+                    uid: currentUser.uid,
                     name: nombreLimpio,
                     intentos: scoreToSave.intentos,
                     level: scoreToSave.level,
@@ -880,6 +892,7 @@ export default function Crucigrama({
 
             if (guardar) {
                 await setDoc(docRef, {
+                    uid: currentUser.uid,
                     name: nombreLimpio,
                     intentos: scoreToSave.intentos,
                     level: scoreToSave.level,
@@ -1017,14 +1030,14 @@ export default function Crucigrama({
     const cargarRankingGlobal = async () => {
         setCargandoRanking(true);
         try {
-            const q = query(collection(db, "ranking_crucigrama"), orderBy("level", "desc"), orderBy("intentos", "asc"), limit(50));
+            const q = query(collection(db, "ranking_crucigrama"), orderBy("level", "desc"), orderBy("intentos", "asc"), limit(200));
             const querySnapshot = await getDocs(q);
             const docs = [];
             querySnapshot.forEach((docSnap) => {
                 docs.push({ id: docSnap.id, ...docSnap.data() });
             });
             // Los récords con 0 intentos son imposibles en un crucigrama resuelto.
-            setRanking(docs.filter((r) => Number(r.intentos) > 0).slice(0, 10));
+            setRanking(prepararRankingGlobal(docs, 'crucigrama', 10));
         } catch (error) {
             console.error("Error al cargar ranking:", error);
         }

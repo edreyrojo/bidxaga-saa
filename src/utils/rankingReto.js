@@ -1,5 +1,5 @@
 import { auth, db } from '../firebaseConfig';
-import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 
 const rutaRanking = (fecha) => collection(db, 'ranking_reto', fecha, 'jugadores');
 
@@ -25,6 +25,7 @@ export const cargarRankingReto = async (fecha, limite = 10) => {
 
 /**
  * Guarda o actualiza la participación del usuario autenticado.
+ * Conserva el mejor intento del día: no reemplaza un récord por uno peor.
  * Devuelve false si no hay sesión.
  */
 export const guardarRankingReto = async ({ fecha, aciertos, total, racha, nombre }) => {
@@ -35,19 +36,33 @@ export const guardarRankingReto = async ({ fecha, aciertos, total, racha, nombre
         .trim()
         .slice(0, 60);
 
-    await setDoc(
-        doc(db, 'ranking_reto', fecha, 'jugadores', actual.uid),
-        {
-            uid: actual.uid,
-            fecha,
-            nombre: nombreLimpio || 'Jugador',
-            aciertos: Math.max(0, Math.min(5, Number(aciertos) || 0)),
-            total: Math.max(1, Number(total) || 5),
-            racha: Math.max(0, Number(racha) || 0),
-            completadoEn: Date.now(),
-        },
-        { merge: true }
-    );
+    const referencia = doc(db, 'ranking_reto', fecha, 'jugadores', actual.uid);
+    const nuevo = {
+        uid: actual.uid,
+        fecha,
+        nombre: nombreLimpio || 'Jugador',
+        aciertos: Math.max(0, Math.min(5, Number(aciertos) || 0)),
+        total: Math.max(1, Number(total) || 5),
+        racha: Math.max(0, Number(racha) || 0),
+        completadoEn: Date.now(),
+    };
+
+    const existente = await getDoc(referencia);
+
+    if (existente.exists()) {
+        const anterior = existente.data();
+        const ratio = (entrada) => {
+            const totalEntrada = Number(entrada.total) || 1;
+            return (Number(entrada.aciertos) || 0) / totalEntrada;
+        };
+
+        const esMejor = ratio(nuevo) > ratio(anterior)
+            || (ratio(nuevo) === ratio(anterior) && nuevo.racha > (Number(anterior.racha) || 0));
+
+        if (!esMejor) return true;
+    }
+
+    await setDoc(referencia, nuevo, { merge: true });
 
     return true;
 };

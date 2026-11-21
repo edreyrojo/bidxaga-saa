@@ -8,6 +8,7 @@ import {
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import { almacen } from '../utils/almacen.js';
 import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
+import { prepararRankingGlobal } from '../utils/rankingGlobal.js';
 import { registrarRespuesta, seleccionarConRepaso } from '../utils/repaso.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { useSonido } from '../hooks/useSonido.js';
@@ -18,7 +19,6 @@ import { useLogros } from '../hooks/useLogros.js';
 import Icono from './Icono.jsx';
 import { auth, db } from '../firebaseConfig';
 import { collection, setDoc, getDocs, doc, getDoc, updateDoc, query, orderBy, limit } from 'firebase/firestore';
-
 export default function Trivia({ onBack, user, onSetControles, setControlesJuegoActivo }) {
     const { reproducirSonido } = useSonido();
 
@@ -86,7 +86,17 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
         const scoreToSave = pendingGlobalScore;
         const currentUser = user || auth.currentUser;
-        const docId = currentUser ? currentUser.uid : nombreLimpio.toLowerCase().replace(/\s+/g, '_');
+
+        if (!currentUser) {
+            setFeedbackModal({
+                show: true,
+                title: "Inicia sesión para el ranking",
+                message: "Tu progreso se guarda en este dispositivo. Para aparecer en el ranking global, inicia sesión."
+            });
+            return;
+        }
+
+        const docId = currentUser.uid;
 
         try {
             const docRef = doc(db, "ranking_trivia", docId);
@@ -105,6 +115,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
             if (guardar) {
                 await setDoc(docRef, {
+                    uid: currentUser.uid,
                     name: nombreLimpio,
                     errores: scoreToSave.errores,
                     level: scoreToSave.level,
@@ -521,6 +532,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
 
             if (guardar) {
                 await setDoc(docRef, {
+                    uid: currentUser.uid,
                     name: nombreLimpio,
                     errores: scoreToSave.errores,
                     level: scoreToSave.level,
@@ -642,11 +654,11 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     const cargarRankingGlobal = async () => {
         setCargandoRanking(true);
         try {
-            const q = query(collection(db, "ranking_trivia"), orderBy("level", "desc"), orderBy("errores", "asc"), limit(10));
+            const q = query(collection(db, "ranking_trivia"), orderBy("level", "desc"), orderBy("errores", "asc"), limit(200));
             const querySnapshot = await getDocs(q);
             const docs = [];
             querySnapshot.forEach((docSnap) => docs.push({ id: docSnap.id, ...docSnap.data() }));
-            setRanking(docs);
+            setRanking(prepararRankingGlobal(docs, 'trivia', 10));
         } catch (error) {
             console.error("Error al cargar ranking:", error);
         }

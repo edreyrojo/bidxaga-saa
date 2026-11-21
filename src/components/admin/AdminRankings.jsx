@@ -3,10 +3,13 @@ import Icono from '../Icono.jsx';
 import AdminConfirmacion from './AdminConfirmacion.jsx';
 import { generarCSV, descargarArchivo } from '../../utils/csv.js';
 import { esAnomaliaRanking as esAnomalia } from '../../utils/adminHelpers.js';
+import { analizarDuplicadosRanking } from '../../utils/rankingGlobal.js';
 import {
     JUEGOS_RANKING,
+    analizarCompactacionRanking,
     cargarRankingAdmin,
     cargarTodoRankingAdmin,
+    compactarRankingAdmin,
     eliminarRegistroRanking,
     renombrarRegistroRanking,
 } from '../../services/admin/adminRankings.js';
@@ -31,7 +34,7 @@ const metricas = (registro, juego) => {
         return `${registro.aciertos ?? 0}/${registro.total ?? 5} aciertos · Racha ${registro.racha ?? 0}`;
     }
     if (juego === 'memorama') {
-        return `Nivel ${registro.level ?? registro.nivel ?? '—'} · ${registro.score ?? 0} puntos · ${registro.turnos ?? registro.turns ?? 0} turnos`;
+        return `Nivel ${registro.level ?? registro.nivel ?? '—'} · ${registro.score ?? 0} turnos`;
     }
     if (juego === 'trivia') {
         return `Nivel ${registro.level ?? registro.nivel ?? '—'} · ${registro.errores ?? 0} errores`;
@@ -58,6 +61,8 @@ export default function AdminRankings({ user, onToast }) {
     const [porRenombrar, setPorRenombrar] = useState(null);
     const [nuevoNombre, setNuevoNombre] = useState('');
     const [renombrando, setRenombrando] = useState(false);
+    const [compactacion, setCompactacion] = useState(null);
+    const [compactando, setCompactando] = useState(false);
 
     const cargar = async () => {
         if (juego === 'reto' && !fecha) {
@@ -116,6 +121,11 @@ export default function AdminRankings({ user, onToast }) {
         [registros, juego]
     );
 
+    const duplicadosCargados = useMemo(
+        () => analizarDuplicadosRanking(registros, juego).eliminar.length,
+        [registros, juego]
+    );
+
     const exportarFilas = (filas, sufijo = '') => {
         const columnas = [
             { titulo: 'Posición', valor: (_registro, indice) => indice + 1 },
@@ -133,8 +143,7 @@ export default function AdminRankings({ user, onToast }) {
         } else if (juego === 'memorama') {
             columnas.push(
                 { titulo: 'Nivel', valor: (registro) => registro.level ?? registro.nivel ?? '' },
-                { titulo: 'Puntos', valor: (registro) => registro.score ?? 0 },
-                { titulo: 'Turnos', valor: (registro) => registro.turnos ?? registro.turns ?? 0 }
+                { titulo: 'Turnos', valor: (registro) => registro.score ?? 0 }
             );
         } else if (juego === 'trivia') {
             columnas.push(
@@ -183,6 +192,39 @@ export default function AdminRankings({ user, onToast }) {
             onToast?.('No se pudo exportar el ranking completo.', 'error');
         } finally {
             setExportandoTodo(false);
+        }
+    };
+
+    const pedirCompactacion = async () => {
+        setCompactando(true);
+        try {
+            const analisis = await analizarCompactacionRanking({ juego, fecha });
+            if (analisis.eliminar.length === 0) {
+                onToast?.('No hay duplicados que eliminar en este ranking.', 'info');
+                return;
+            }
+            setCompactacion(analisis);
+        } catch (err) {
+            console.error('No se pudo analizar el ranking:', err);
+            onToast?.('No se pudo revisar el ranking.', 'error');
+        } finally {
+            setCompactando(false);
+        }
+    };
+
+    const confirmarCompactacion = async () => {
+        if (!compactacion) return;
+        setCompactando(true);
+        try {
+            const resultado = await compactarRankingAdmin({ juego, fecha, actor: user });
+            onToast?.(`Se eliminaron ${resultado.eliminados} registros duplicados.`, 'exito');
+            setCompactacion(null);
+            await cargar();
+        } catch (err) {
+            console.error('No se pudo compactar el ranking:', err);
+            onToast?.('No se pudo compactar el ranking.', 'error');
+        } finally {
+            setCompactando(false);
         }
     };
 
@@ -245,11 +287,14 @@ export default function AdminRankings({ user, onToast }) {
                         <Icono nombre="trophy" className="w-5 h-5 text-amber-700" /> Rankings
                     </h2>
                     <p className="text-[11px] text-amber-700 font-medium">
-                        {registros.length} cargados · {filtrados.length} visibles · {anomalias} anomalías
+                        {registros.length} cargados · {filtrados.length} visibles · {duplicadosCargados} duplicados · {anomalias} anomalías
                     </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={pedirCompactacion} disabled={compactando} className="bg-orange-100 hover:bg-orange-200 disabled:opacity-60 text-orange-950 border border-orange-300 rounded-xl px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer">
+                        <Icono nombre="users" className="w-4 h-4" /> {compactando ? 'Revisando…' : 'Compactar duplicados'}
+                    </button>
                     <button type="button" onClick={exportar} className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer">
                         <Icono nombre="clipboard" className="w-4 h-4" /> CSV
                     </button>
@@ -398,6 +443,62 @@ export default function AdminRankings({ user, onToast }) {
                             </button>
                             <button type="button" onClick={confirmarRenombrar} disabled={renombrando || !nuevoNombre.trim()} className="bg-amber-700 hover:bg-amber-800 disabled:opacity-60 text-white rounded-xl px-3 py-2 text-[11px] font-bold cursor-pointer">
                                 {renombrando ? 'Guardando…' : 'Guardar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {compactacion && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
+                    <div role="dialog" aria-modal="true" aria-labelledby="compactar-ranking" className="bg-white rounded-3xl border-2 border-orange-300 p-5 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                        <h2 id="compactar-ranking" className="text-lg font-black text-amber-950 mb-1">Compactar ranking</h2>
+                        <p className="text-[11px] text-amber-700 font-medium">
+                            Se conservará un solo registro por nombre: el de mayor nivel y mejor desempate. Esta acción elimina los demás documentos y no se puede deshacer.
+                        </p>
+
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-2 text-center">
+                                <p className="text-lg font-black text-amber-950">{compactacion.grupos}</p>
+                                <p className="text-[10px] font-bold text-amber-700">Jugadores</p>
+                            </div>
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2 text-center">
+                                <p className="text-lg font-black text-emerald-800">{compactacion.conservar.length}</p>
+                                <p className="text-[10px] font-bold text-emerald-700">Se conservan</p>
+                            </div>
+                            <div className="bg-red-50 border border-red-200 rounded-xl p-2 text-center">
+                                <p className="text-lg font-black text-red-800">{compactacion.eliminar.length}</p>
+                                <p className="text-[10px] font-bold text-red-700">Se eliminan</p>
+                            </div>
+                        </div>
+
+                        <p className="text-[10px] text-orange-800 bg-orange-50 border border-orange-200 rounded-xl p-2 mt-3">
+                            Revisa la lista. Si dos personas distintas comparten el mismo nombre, se considerarán un solo jugador. Cancela y renómbralas antes de compactar.
+                        </p>
+
+                        <div className="mt-3 max-h-56 overflow-y-auto custom-scrollbar space-y-1">
+                            {compactacion.duplicados.map((grupo) => (
+                                <div key={grupo.clave} className="bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5 flex items-center justify-between gap-2">
+                                    <span className="text-[11px] font-bold text-amber-950 truncate">{grupo.nombre}</span>
+                                    <span className="text-[10px] font-black text-orange-800 shrink-0">
+                                        {grupo.total} docs → 1
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {compactacion.sinValidos.length > 0 && (
+                            <p className="text-[10px] font-bold text-red-700 mt-2">
+                                {compactacion.sinValidos.length} grupos no tienen ningún registro válido y no se modificarán.
+                            </p>
+                        )}
+
+                        <div className="flex justify-end gap-2 mt-4">
+                            <button type="button" onClick={() => setCompactacion(null)} disabled={compactando} className="bg-amber-50 hover:bg-amber-100 disabled:opacity-60 text-amber-900 border border-amber-200 rounded-xl px-3 py-2 text-[11px] font-bold cursor-pointer">
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={confirmarCompactacion} disabled={compactando || compactacion.eliminar.length === 0} className="bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-xl px-3 py-2 text-[11px] font-bold cursor-pointer">
+                                {compactando ? 'Eliminando…' : `Eliminar ${compactacion.eliminar.length} duplicados`}
                             </button>
                         </div>
                     </div>

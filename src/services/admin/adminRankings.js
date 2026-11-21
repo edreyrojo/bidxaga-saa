@@ -12,6 +12,7 @@ import {
 import { db } from '../../firebaseConfig';
 import { crearLogAdmin } from './adminLogs';
 import { ordenarRegistros } from '../../utils/ordenRankings.js';
+import { analizarDuplicadosRanking } from '../../utils/rankingGlobal.js';
 
 export const COLECCIONES_RANKING = {
     memorama: 'ranking',
@@ -126,4 +127,57 @@ export const eliminarRegistroRanking = async ({ juego, fecha, id, nombre, actor 
     });
     if (log) batch.set(doc(collection(db, 'admin_logs')), log);
     await batch.commit();
+};
+
+/**
+ * Analiza cuántos documentos se conservarían y cuántos se eliminarían al
+ * dejar un solo récord por jugador. No modifica nada.
+ */
+export const analizarCompactacionRanking = async ({ juego, fecha, limiteTotal = 2000 }) => {
+    const registros = await cargarTodoRankingAdmin({ juego, fecha, limiteTotal });
+    return analizarDuplicadosRanking(registros, juego);
+};
+
+/**
+ * Elimina los documentos sobrantes de cada jugador y conserva el mejor.
+ * Se ejecuta en lotes de 400 para respetar el límite de Firestore.
+ */
+export const compactarRankingAdmin = async ({ juego, fecha, actor, limiteTotal = 2000 }) => {
+    const analisis = await analizarCompactacionRanking({ juego, fecha, limiteTotal });
+
+    if (analisis.eliminar.length === 0) {
+        return { ...analisis, eliminados: 0 };
+    }
+
+    const referencia = referenciaRanking(juego, fecha);
+
+    for (let inicio = 0; inicio < analisis.eliminar.length; inicio += 400) {
+        const lote = analisis.eliminar.slice(inicio, inicio + 400);
+        const batch = writeBatch(db);
+        lote.forEach((registro) => {
+            batch.delete(doc(referencia, registro.id));
+        });
+        await batch.commit();
+    }
+
+    const log = crearLogAdmin({
+        user: actor,
+        accion: 'ranking_compactado',
+        objetivo: juego === 'reto' ? `ranking_reto/${fecha}` : COLECCIONES_RANKING[juego],
+        detalle: {
+            juego,
+            fecha: juego === 'reto' ? fecha : null,
+            eliminados: analisis.eliminar.length,
+            conservados: analisis.conservar.length,
+            gruposDuplicados: analisis.duplicados.length,
+        },
+    });
+
+    if (log) {
+        const batch = writeBatch(db);
+        batch.set(doc(collection(db, 'admin_logs')), log);
+        await batch.commit();
+    }
+
+    return { ...analisis, eliminados: analisis.eliminar.length };
 };

@@ -9,6 +9,7 @@ import {
 import { calcularNivelCuenta } from '../utils/Nivelcuenta.js';
 import { almacen } from '../utils/almacen.js';
 import { VIDAS_POR_JUEGO } from '../utils/vidas.js';
+import { prepararRankingGlobal } from '../utils/rankingGlobal.js';
 import { registrarRespuesta, seleccionarConRepaso } from '../utils/repaso.js';
 import SelectorCategorias from './SelectorCategorias.jsx';
 import { useSonido } from '../hooks/useSonido';
@@ -276,6 +277,7 @@ export default function Tablero({
                 }
 
                 await setDoc(rankingRef, {
+                    uid: currentUser.uid,
                     name: nombreAUsar.trim(),
                     score: scoreToSave.turns,
                     level: scoreToSave.level,
@@ -341,7 +343,7 @@ export default function Tablero({
                 collection(db, "ranking"),
                 orderBy("level", "desc"),
                 orderBy("score", "asc"),
-                limit(50)
+                limit(200)
             );
             const querySnapshot = await getDocs(q);
 
@@ -350,8 +352,8 @@ export default function Tablero({
                 datosRanking.push({ id: docSnap.id, ...docSnap.data() });
             });
 
-            // Un nivel completado no puede tener 0 turnos.
-            setRanking(datosRanking.filter((r) => Number(r.score) > 0).slice(0, 10));
+            // Un jugador puede tener documentos antiguos; la tabla muestra solo su mejor récord.
+            setRanking(prepararRankingGlobal(datosRanking, 'memorama', 10));
         } catch (error) {
             console.error("Error al cargar el ranking desde Firebase:", error);
         } finally {
@@ -608,6 +610,7 @@ export default function Tablero({
             }
 
             await setDoc(rankingRef, {
+                uid: currentUser.uid,
                 name: nombreLimpio,
                 score: scoreToSave.turns,
                 level: scoreToSave.level,

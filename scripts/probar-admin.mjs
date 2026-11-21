@@ -7,6 +7,11 @@ const {
     detectarSugerenciasDuplicadas,
     esAnomaliaRanking,
 } = await import('../src/utils/adminHelpers.js');
+const {
+    analizarDuplicadosRanking,
+    deduplicarRanking,
+    esMejorRegistroRanking,
+} = await import('../src/utils/rankingGlobal.js');
 
 let fallos = 0;
 
@@ -47,7 +52,7 @@ const memorama = ordenarRegistros([
     { id: 'c', level: 3, score: 50, turnos: 5 },
     { id: 'd', level: 3, score: 120, turnos: 12 },
 ], 'memorama');
-comprobar('Memorama ordena por nivel, puntos y turnos', memorama.map((r) => r.id).join(',') === 'd,c,b,a', memorama.map((r) => r.id).join(','));
+comprobar('Memorama ordena por nivel y menos turnos', memorama.map((r) => r.id).join(',') === 'c,b,d,a', memorama.map((r) => r.id).join(','));
 
 const trivia = ordenarRegistros([
     { id: 'a', level: 2, errores: 1 },
@@ -95,6 +100,45 @@ comprobar('Ignora palabras vacías', !duplicadas.has('4') && !duplicadas.has('5'
 
 const sinDuplicados = detectarSugerenciasDuplicadas([{ id: 'x', palabra: 'Niza' }]);
 comprobar('Sin duplicados devuelve un conjunto vacío', sinDuplicados.size === 0);
+
+const memoramaDuplicado = deduplicarRanking([
+    { id: 'a', uid: 'u1', name: 'Efra', level: 5, score: 20 },
+    { id: 'b', uid: 'u2', name: 'Efra', level: 6, score: 30 },
+    { id: 'c', uid: 'u3', name: 'Efra', level: 6, score: 18 },
+    { id: 'd', uid: 'u4', name: 'Tina', level: 4, score: 10 },
+    { id: 'e', uid: 'u5', name: 'Invalido', level: 9, score: 0 },
+], 'memorama');
+comprobar('Memorama conserva un solo Efra', memoramaDuplicado.filter((r) => r.name === 'Efra').length === 1);
+comprobar('Memorama conserva el mejor turno', memoramaDuplicado.find((r) => r.name === 'Efra')?.id === 'c');
+comprobar('Memorama descarta turnos imposibles', !memoramaDuplicado.some((r) => r.name === 'Invalido'));
+
+const triviaDuplicada = deduplicarRanking([
+    { id: 'a', name: 'Dian', level: 10, errores: 4 },
+    { id: 'b', name: 'Dian', level: 10, errores: 1 },
+    { id: 'c', name: 'Dian', level: 9, errores: 0 },
+], 'trivia');
+comprobar('Trivia conserva el mejor intento', triviaDuplicada.length === 1 && triviaDuplicada[0].id === 'b');
+
+const sopaDuplicada = deduplicarRanking([
+    { id: 'a', name: 'Nanixhe', level: 3, intentos: 20 },
+    { id: 'b', name: 'Nanixhe', level: 4, intentos: 18 },
+    { id: 'c', name: 'Nanixhe', level: 4, intentos: 12 },
+], 'sopa');
+comprobar('Sopa conserva el mejor intento', sopaDuplicada.length === 1 && sopaDuplicada[0].id === 'c');
+
+const retoMejor = [
+    { id: 'a', name: 'Ana', aciertos: 4, total: 5, racha: 2, completadoEn: 100 },
+    { id: 'b', name: 'Ana', aciertos: 4, total: 5, racha: 5, completadoEn: 200 },
+];
+comprobar('Reto prefiere más racha con los mismos aciertos', esMejorRegistroRanking(retoMejor[1], retoMejor[0], 'reto'));
+
+const analisis = analizarDuplicadosRanking([
+    { id: 'a', name: 'Efra', level: 5, score: 20 },
+    { id: 'b', name: 'Efra', level: 6, score: 30 },
+    { id: 'c', name: 'Tina', level: 4, score: 10 },
+], 'memorama');
+comprobar('El análisis conserva un registro por jugador', analisis.conservar.length === 2);
+comprobar('El análisis elimina los sobrantes', analisis.eliminar.length === 1 && analisis.eliminar[0].id === 'a');
 
 if (fallos > 0) {
     console.error(`\n${fallos} prueba(s) fallaron.`);

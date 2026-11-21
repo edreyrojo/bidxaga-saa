@@ -1,4 +1,5 @@
 const numero = (valor) => Number(valor) || 0;
+const nombre = (registro) => String(registro.name ?? registro.nombre ?? '').toLowerCase();
 
 /**
  * Ordena registros de ranking según las reglas de cada juego.
@@ -12,6 +13,7 @@ export const ordenarRegistros = (registros, juego) => {
             numero(b.aciertos) - numero(a.aciertos)
             || numero(b.racha) - numero(a.racha)
             || numero(a.completadoEn) - numero(b.completadoEn)
+            || nombre(a).localeCompare(nombre(b))
         ));
     }
 
@@ -20,15 +22,18 @@ export const ordenarRegistros = (registros, juego) => {
         if (nivel !== 0) return nivel;
 
         if (juego === 'memorama') {
-            const score = numero(b.score) - numero(a.score);
+            // En Memorama `score` guarda los turnos: menos turnos es mejor.
+            const score = numero(a.score) - numero(b.score);
             if (score !== 0) return score;
-            return numero(a.turnos ?? a.turns) - numero(b.turnos ?? b.turns);
+            const turnos = numero(a.turnos ?? a.turns) - numero(b.turnos ?? b.turns);
+            if (turnos !== 0) return turnos;
+            return nombre(a).localeCompare(nombre(b));
         }
 
         if (juego === 'trivia') {
-            return numero(a.errores) - numero(b.errores);
+            return numero(a.errores) - numero(b.errores) || nombre(a).localeCompare(nombre(b));
         }
 
-        return numero(a.intentos) - numero(b.intentos);
+        return numero(a.intentos) - numero(b.intentos) || nombre(a).localeCompare(nombre(b));
     });
 };

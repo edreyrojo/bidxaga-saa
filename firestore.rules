@@ -143,7 +143,8 @@ service cloud.firestore {
         && request.resource.data.level >= 1
         && request.resource.data.score is number
         && request.resource.data.score > 0
-        && request.resource.data.completado == true;
+        && request.resource.data.completado == true
+        && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid);
       allow update: if (
         signedIn()
         && docId == request.auth.uid
@@ -154,6 +155,7 @@ service cloud.firestore {
         && request.resource.data.score is number
         && request.resource.data.score > 0
         && request.resource.data.completado == true
+        && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid)
       ) || (
         isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
@@ -173,7 +175,8 @@ service cloud.firestore {
         && request.resource.data.level >= 1
         && request.resource.data.errores is number
         && request.resource.data.errores >= 0
-        && request.resource.data.completado == true;
+        && request.resource.data.completado == true
+        && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid);
       allow update: if (
         signedIn()
         && docId == request.auth.uid
@@ -184,6 +187,7 @@ service cloud.firestore {
         && request.resource.data.errores is number
         && request.resource.data.errores >= 0
         && request.resource.data.completado == true
+        && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid)
       ) || (
         isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
@@ -203,7 +207,8 @@ service cloud.firestore {
         && request.resource.data.level >= 1
         && request.resource.data.intentos is number
         && request.resource.data.intentos > 0
-        && request.resource.data.completado == true;
+        && request.resource.data.completado == true
+        && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid);
       allow update: if (
         signedIn()
         && docId == request.auth.uid
@@ -214,6 +219,7 @@ service cloud.firestore {
         && request.resource.data.intentos is number
         && request.resource.data.intentos > 0
         && request.resource.data.completado == true
+        && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid)
       ) || (
         isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
@@ -233,7 +239,8 @@ service cloud.firestore {
         && request.resource.data.level >= 1
         && request.resource.data.intentos is number
         && request.resource.data.intentos > 0
-        && request.resource.data.completado == true;
+        && request.resource.data.completado == true
+        && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid);
       allow update: if (
         signedIn()
         && docId == request.auth.uid
@@ -244,6 +251,7 @@ service cloud.firestore {
         && request.resource.data.intentos is number
         && request.resource.data.intentos > 0
         && request.resource.data.completado == true
+        && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid)
       ) || (
         isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
