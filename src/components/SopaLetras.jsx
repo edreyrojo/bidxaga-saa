@@ -17,6 +17,7 @@ import { useVidasJuego } from '../hooks/useVidasJuego.js';
 import { useTotopos } from '../hooks/useTotopos.js';
 import { useProgresoJuego } from '../hooks/useProgresoJuego.js';
 import { useLogros } from '../hooks/useLogros.js';
+import Icono from './Icono.jsx';
 import { db, auth } from '../firebaseConfig';
 import { collection, getDocs, query, orderBy, limit, doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -979,7 +980,7 @@ export default function SopaLetras({
         >
             <header className="text-center mb-3">
                 <h2 className="text-2xl sm:text-3xl font-bold text-amber-950 flex items-center justify-center gap-2">
-                    🔎 Sopa de Letras
+                    <Icono nombre="search" className="w-6 h-6" /> Sopa de Letras
                 </h2>
                 <div className="text-xs sm:text-sm text-amber-800 font-medium mt-1 flex flex-wrap justify-center items-center gap-2.5">
                     <span className="text-red-600 font-bold inline-flex items-center gap-1">
@@ -1001,7 +1002,7 @@ export default function SopaLetras({
                     onClick={() => { try { reproducirSonido('click1'); } catch(e){} setShowSelectorCategorias(true); }}
                     className="mt-2 inline-flex items-center gap-1.5 bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs px-3 py-1 rounded-full border-2 border-amber-300 shadow-sm transition-colors cursor-pointer"
                 >
-                    📚 Categorias
+                    <span className="inline-flex items-center gap-1.5"><Icono nombre="book" className="w-3.5 h-3.5" /> Categorias</span>
                     <span className="bg-amber-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                         {tipoContenido === 'flora'
                             ? categoriasFloraActivas.length
@@ -1038,7 +1039,7 @@ export default function SopaLetras({
                     </p>
                     <div className="flex gap-3 justify-center">
                         <button type="button" onClick={siguienteNivel} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg shadow-md text-sm transition-transform active:scale-95 cursor-pointer">
-                            Siguiente Nivel ➡️
+                            Siguiente Nivel <Icono nombre="arrowRight" className="w-4 h-4 inline-block" />
                         </button>
                     </div>
                 </div>
@@ -1083,7 +1084,7 @@ export default function SopaLetras({
                 <div className="flex flex-col gap-6 w-full max-w-md lg:max-w-none">
                     <div className="flex flex-col gap-3 w-full bg-white/60 p-4 rounded-2xl border border-amber-200 shadow-sm">
                         <h3 className="font-bold text-amber-900 border-b border-amber-200 pb-1.5 text-sm sm:text-base flex items-center justify-between">
-                            <span>📋 Ocultos:</span>
+                            <span className="inline-flex items-center gap-1.5"><Icono nombre="clipboard" className="w-4 h-4" /> Ocultos:</span>
                             <span className="text-amber-700 font-extrabold">{palabrasEncontradas.length}/{animalesObjetivo.length}</span>
                         </h3>
 
@@ -1093,7 +1094,7 @@ export default function SopaLetras({
                                 return (
                                     <div key={animal.id} className={`flex items-center gap-2.5 p-2 rounded-xl border transition-all shadow-sm bg-white ${encontrado ? 'border-green-400 bg-green-50/60 opacity-60' : 'border-amber-200'}`}>
                                         <div className="w-9 h-9 bg-orange-100/50 rounded-lg overflow-hidden flex items-center justify-center border border-amber-100 flex-shrink-0">
-                                            <img src={animal.image} alt={animal.spanish} className="max-w-full max-h-full object-contain" onError={(e) => { e.target.src = "🔍"; }} />
+                                            <img src={animal.image} alt={animal.spanish} className="max-w-full max-h-full object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
                                         </div>
                                         <div className="text-left overflow-hidden">
                                             <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider truncate">{animal.spanish}</p>
@@ -1118,7 +1119,7 @@ export default function SopaLetras({
                                     if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
                                 }}
                             />
-                            <span style={{ display: 'none' }}>🏆</span>
+                            <span style={{ display: 'none' }}><Icono nombre="trophy" className="w-4 h-4" /></span>
                             Ranking Sopa
                         </h3>
                         {cargandoRanking ? (
@@ -1145,7 +1146,7 @@ export default function SopaLetras({
             {showComprarVidasModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-red-300 w-full max-w-sm flex flex-col items-center text-center">
-                        <div className="text-4xl mb-2">💔</div>
+                        <div className="mb-2 flex justify-center"><Icono nombre="heartCrack" className="w-9 h-9 text-red-600" /></div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¡Sin vidas!</h3>
                         <p className="text-xs text-amber-800 mb-4 inline-flex items-center justify-center gap-1 flex-wrap">
                             Recupera 3 vidas por {costoActualVidas}
@@ -1177,7 +1178,7 @@ export default function SopaLetras({
             {showGuardarModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <form onSubmit={confirmarGuardadoGlobal} className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center relative">
-                        <h3 className="text-xl font-bold text-amber-950 mb-2">💾 Guardar Record</h3>
+                        <h3 className="text-xl font-bold text-amber-950 mb-2 inline-flex items-center gap-2"><Icono nombre="save" className="w-5 h-5" /> Guardar Record</h3>
                         <p className="text-xs text-amber-800 text-center mb-4">Ingresa tu nombre para registrarte en el ranking.</p>
 
                         <input
@@ -1211,7 +1212,7 @@ export default function SopaLetras({
             {showMenuModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
-                        <div className="text-3xl mb-2">⚠️</div>
+                        <div className="mb-2 flex justify-center"><Icono nombre="alert" className="w-8 h-8 text-amber-600" /></div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menu?</h3>
                         <p className="text-xs text-amber-800 mb-5">Guarda tu progreso antes de salir para no perderlo.</p>
 
@@ -1238,7 +1239,7 @@ export default function SopaLetras({
             {showConfirmRestartModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center text-center">
-                        <div className="text-3xl mb-2">🔄</div>
+                        <div className="mb-2 flex justify-center"><Icono nombre="refresh" className="w-8 h-8 text-amber-600" /></div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Reiniciar Progreso?</h3>
                         <p className="text-xs text-amber-800 mb-5">Volveras al Nivel 1. ¿Deseas continuar?</p>
 

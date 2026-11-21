@@ -4,6 +4,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { CATALOGO_AVATARES, CATALOGO_ACCESORIOS } from '../data/catalogoActivos.js';
 import { VIDAS_POR_JUEGO, agregarVidasATodos, normalizarVidas, totalVidas } from '../utils/vidas.js';
 import SeccionColapsable from './SeccionColapsable.jsx';
+import Icono from './Icono.jsx';
 
 const CATALOGO_VIDAS = [
     { id: 'vida_1', costo: 15, cantidad: 1 },
@@ -215,7 +216,7 @@ export default function SeccionTienda({
                                                     }}
                                                 />
                                             ) : (
-                                                <span className="text-4xl" aria-hidden="true">{avatar.emoji || '🌴'}</span>
+                                                <Icono nombre={avatar.icono || 'palm'} className="w-9 h-9 text-amber-700" />
                                             )}
                                         </div>
 

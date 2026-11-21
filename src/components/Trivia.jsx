@@ -15,6 +15,7 @@ import { useVidasJuego } from '../hooks/useVidasJuego.js';
 import { useTotopos } from '../hooks/useTotopos.js';
 import { useProgresoJuego } from '../hooks/useProgresoJuego.js';
 import { useLogros } from '../hooks/useLogros.js';
+import Icono from './Icono.jsx';
 import { auth, db } from '../firebaseConfig';
 import { collection, setDoc, getDocs, doc, getDoc, updateDoc, query, orderBy, limit } from 'firebase/firestore';
 
@@ -655,7 +656,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
     return (
         <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-4 flex flex-col items-center select-none w-full pb-[env(safe-area-inset-bottom)]">
             <header className="text-center mb-3">
-                <h2 className="text-2xl sm:text-3xl font-black text-amber-950">⚡ Reto Trivia Diidxazá</h2>
+                <h2 className="text-2xl sm:text-3xl font-black text-amber-950 flex items-center justify-center gap-2"><Icono nombre="zap" className="w-6 h-6" /> Reto Trivia Diidxazá</h2>
                 <p className="text-xs sm:text-sm text-amber-800 font-medium mt-1 flex items-center justify-center gap-2 flex-wrap">
                     <span>Nivel {nivel}</span>
                     <span>•</span>
@@ -683,7 +684,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                     onClick={() => { try { reproducirSonido('click1'); } catch (e) {} setShowSelectorCategorias(true); }}
                     className="mt-2 inline-flex items-center gap-1.5 bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs px-3 py-1.5 rounded-full border-2 border-amber-300 shadow-sm transition-colors cursor-pointer"
                 >
-                    📚 Categorías
+                    <span className="inline-flex items-center gap-1.5"><Icono nombre="book" className="w-3.5 h-3.5" /> Categorías</span>
                     <span className="bg-amber-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                         {categoriasFaunaActivas.length}
                     </span>
@@ -694,7 +695,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 
                 <div className="hidden lg:flex flex-col gap-3 w-full">
                     <h3 className="font-black text-amber-900 border-b-2 border-amber-200 pb-1.5 text-center lg:text-left text-sm sm:text-base">
-                        📊 Estado del Nivel
+                        <span className="inline-flex items-center justify-center gap-1.5"><Icono nombre="chart" className="w-4 h-4" /> Estado del Nivel</span>
                     </h3>
                     <div className="bg-white rounded-2xl p-4 shadow-md border border-amber-200 flex flex-col gap-3 w-full">
                         <div className="flex justify-between items-center text-sm font-bold text-amber-950 border-b border-amber-100 pb-2">
@@ -738,14 +739,14 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 <div className="w-full flex flex-col items-center">
                     {aciertosNivel === PREGUNTAS_POR_NIVEL ? (
                         <div className="w-full bg-amber-50 border-4 border-amber-600 rounded-3xl p-6 text-center animate-fade-in shadow-xl">
-                            <h3 className="text-2xl font-black text-amber-950 mb-2">🎉 ¡Nivel Superado!</h3>
+                            <h3 className="text-2xl font-black text-amber-950 mb-2 flex items-center justify-center gap-2"><Icono nombre="party" className="w-6 h-6 text-amber-600" /> ¡Nivel Superado!</h3>
                             <p className="text-amber-800 mb-6 font-medium text-sm inline-flex items-center justify-center gap-1 flex-wrap">
                                 Has superado las 5 preguntas y ganado +{TOTOPOS_POR_NIVEL} 
                                 <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
                                 totopos.
                             </p>
                             <button type="button" onClick={siguienteNivel} className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-8 rounded-2xl shadow-md text-sm transition-transform active:scale-95 cursor-pointer">
-                                Siguiente Nivel ➡️
+                                Siguiente Nivel <Icono nombre="arrowRight" className="w-4 h-4 inline-block" />
                             </button>
                         </div>
                     ) : (
@@ -753,7 +754,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                             <div className="w-full flex flex-col items-center bg-white p-6 rounded-3xl shadow-xl border-2 border-amber-200">
                                 {!modoDificil && (
                                     <div className="w-48 h-48 sm:w-56 sm:h-56 bg-orange-50 rounded-2xl overflow-hidden flex items-center justify-center border-4 border-amber-200 mb-4 shadow-inner">
-                                        <img src={preguntaActual.image} alt={preguntaActual.spanish} className="max-w-[80%] max-h-[80%] object-contain drop-shadow-md" onError={(e) => { e.target.src = "❓"; }} />
+                                        <img src={preguntaActual.image} alt={preguntaActual.spanish} className="max-w-[80%] max-h-[80%] object-contain drop-shadow-md" onError={(e) => { e.target.style.display = 'none'; }} />
                                     </div>
                                 )}
                                 <h3 className="text-2xl sm:text-3xl font-black text-amber-950 uppercase tracking-wide mb-6 text-center">
@@ -799,7 +800,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                                 if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
                             }}
                         />
-                        <span style={{ display: 'none' }}>🏆</span>
+                        <span style={{ display: 'none' }}><Icono nombre="trophy" className="w-4 h-4" /></span>
                         Ranking Global
                     </h3>
                     <div className="bg-white rounded-2xl p-4 shadow-md border border-amber-200 w-full max-h-[440px] lg:max-h-none overflow-y-auto lg:overflow-y-visible custom-scrollbar">
@@ -826,7 +827,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             {isGameOver && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center animate-fade-in">
-                        <div className="text-4xl mb-2">💔</div>
+                        <div className="mb-2 flex justify-center"><Icono nombre="heartCrack" className="w-9 h-9 text-red-600" /></div>
                         <h3 className="text-2xl font-black text-amber-950 mb-1">¡Sin Vidas!</h3>
                         <p className="text-xs text-amber-700 mb-5 font-medium">Te has quedado sin corazones. Puedes reiniciar este nivel o usar tus totopos para revivir.</p>
                         
@@ -852,7 +853,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                                     }} 
                                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer flex items-center justify-center gap-1.5"
                                 >
-                                    ❤️ Comprar 3 Vidas ({COSTO_VIDAS} 
+                                    <Icono nombre="heart" className="w-4 h-4" /> Comprar 3 Vidas ({COSTO_VIDAS}
                                     <img src="/totopo.png" alt="totopo" className="w-4 h-4 object-contain inline-block align-middle" onError={(e)=>{e.target.style.display='none'}} />
                                     )
                                 </button>
@@ -862,7 +863,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                                 onClick={confirmarReiniciar} 
                                 className="w-full bg-amber-950 hover:bg-black text-white py-3 rounded-2xl font-bold text-xs shadow-md cursor-pointer"
                             >
-                                🔄 Reiniciar Nivel {nivel} (3 Vidas)
+                                <Icono nombre="refresh" className="w-4 h-4" /> Reiniciar Nivel {nivel} (3 Vidas)
                             </button>
                         </div>
                     </div>
@@ -873,7 +874,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <form onSubmit={confirmarGuardadoGlobal} className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center animate-fade-in relative">
                         <div className="w-12 h-12 bg-amber-600 rounded-full flex items-center justify-center text-white text-xl shadow-md border-2 border-white mb-3">
-                            💾
+                            <Icono nombre="save" className="w-6 h-6" />
                         </div>
                         <h3 className="text-xl font-black text-amber-950 mb-1">Guardar Récord</h3>
                         <p className="text-xs text-amber-700 text-center mb-4 font-medium">Ingresa tu nombre para el ranking global.</p>
@@ -896,7 +897,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
             {showMenuModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center animate-fade-in">
-                        <div className="text-3xl mb-2">⚠️</div>
+                        <div className="mb-2 flex justify-center"><Icono nombre="alert" className="w-8 h-8 text-amber-600" /></div>
                         <h3 className="text-xl font-black text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
                         <p className="text-xs text-amber-700 mb-5 font-medium">Si sales ahora, asegúrate de haber guardado tu progreso. ¿Estás seguro?</p>
                         <div className="flex gap-3 w-full">
@@ -922,7 +923,7 @@ export default function Trivia({ onBack, user, onSetControles, setControlesJuego
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-amber-600 w-full max-w-sm flex flex-col items-center text-center">
                         <div className="w-12 h-12 bg-amber-600 rounded-full flex items-center justify-center text-white text-xl shadow-md border-2 border-white mb-3">
-                            🔄
+                            <Icono nombre="refresh" className="w-6 h-6" />
                         </div>
                         <h3 className="text-xl font-black text-amber-950 mb-1">¿Reiniciar Nivel {nivel}?</h3>
                         <p className="text-xs text-amber-700 mb-5 font-medium">Reiniciarás el Nivel {nivel} con 3 vidas restauradas. ¿Estás seguro?</p>

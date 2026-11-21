@@ -7,49 +7,49 @@ export const CATALOGO_LOGROS = [
         juego: 'Memorama',
         nombre: 'Memoria de Rayo',
         desc: 'Completa cualquier nivel de Memorama sin fallar.',
-        emoji: '🧠'
+        icono: 'brain'
     },
     {
         id: 'logro_crucigrama_5',
         juego: 'Crucigrama',
         nombre: 'Erudito del Crucigrama',
         desc: 'Alcanza el Nivel 5 o superior en Crucigrama.',
-        emoji: '🧩'
+        icono: 'puzzle'
     },
     {
         id: 'logro_sopa_10',
         juego: 'Sopa de Letras',
         nombre: 'Ojo de Águila',
         desc: 'Llega al Nivel 10 en Sopa de Letras.',
-        emoji: '🔍'
+        icono: 'search'
     },
     {
         id: 'logro_trivia_maestro',
         juego: 'Trivia',
         nombre: 'Sabio Zapoteco',
         desc: 'Termina un nivel de Trivia en Modo Difícil sin errores.',
-        emoji: '🌟'
+        icono: 'star'
     },
     {
         id: 'logro_reto_diario',
         juego: 'Reto Diario',
         nombre: 'Constancia Istmeña',
         desc: 'Completa tu primer reto diario.',
-        emoji: '🔥'
+        icono: 'flame'
     },
     {
         id: 'logro_racha_7',
         juego: 'Reto Diario',
         nombre: 'Semana Zapoteca',
         desc: 'Completa el reto diario 7 días seguidos.',
-        emoji: '📅'
+        icono: 'calendar'
     },
     {
         id: 'logro_racha_30',
         juego: 'Reto Diario',
         nombre: 'Luna Completa',
         desc: 'Completa el reto diario 30 días seguidos.',
-        emoji: '🌕'
+        icono: 'moon'
     }
 ];
 

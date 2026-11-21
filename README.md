@@ -80,12 +80,30 @@ Consulta `SECURITY.md` antes de desplegar: las reglas asumen que los administrad
 ```text
 public/            Assets estáticos, iconos, audio, manifest y service worker
 scripts/           Auditoría de assets y optimización de imágenes/audio
-src/components/    Pantallas, juegos y modales
-src/hooks/         Totopos, vidas, progreso, logros y repaso
+src/components/    Pantallas, juegos y modales; Icono.jsx centraliza los SVG
+src/hooks/         Totopos, vidas, progreso, logros, repaso, reto y panel
 src/data/          Vocabulario, catálogo de logros y activos
-src/utils/         Almacenamiento con espacio de nombres y utilidades
+src/utils/         Almacenamiento, fechas, repaso, reto y utilidades
 firestore.rules    Reglas de seguridad de Firestore
 ```
+
+## Iconos SVG
+
+- La interfaz usa **iconos SVG** de `lucide-react` a través del componente `src/components/Icono.jsx`.
+- Las categorías y los logros guardan un nombre de icono (`icono: 'dog'`, `icono: 'trophy'`, etc.) en lugar de emojis.
+- Para añadir un icono nuevo, se registra en el mapa de `Icono.jsx` y se usa con `<Icono nombre="..." />`.
+- Los iconos decorativos se marcan como `aria-hidden`; los botones sin texto conservan su `aria-label`.
+
+## Panel de progreso
+
+Accesible desde **Mi progreso** en el menú principal:
+
+- Palabras practicadas, dominadas, por reforzar y precisión.
+- Actividad de los últimos 7 días (respuestas de los juegos y del reto diario).
+- Niveles actuales de Memorama, Trivia, Crucigrama y Sopa.
+- Dominio por categoría de fauna y flora.
+- Progreso de logros y estado del reto diario.
+- La actividad diaria se guarda por usuario/dispositivo y conserva los últimos 90 días.
 
 ## Palabra del día y compartir
 

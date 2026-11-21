@@ -6,6 +6,7 @@ import { useSonido } from '../hooks/useSonido.js';
 import { generarRetoDiario } from '../utils/retoDiario.js';
 import { registrarRespuesta } from '../utils/repaso.js';
 import { compartirTexto } from '../utils/compartir.js';
+import Icono from './Icono.jsx';
 
 const formatearFecha = (fechaISO) => {
     const [anio, mes, dia] = fechaISO.split('-').map(Number);
@@ -76,7 +77,7 @@ export default function RetoDiario({ user, onBack }) {
         try { reproducirSonido('click1'); } catch (e) {}
         const resultadoCompartir = await compartirTexto({
             titulo: 'Reto Diario - Bidxaga Saa',
-            texto: `🔥 Hice ${datos.aciertos}/${preguntas.length} en el Reto Diario de Bidxaga Saa. Racha: ${datos.racha} ${datos.racha === 1 ? 'día' : 'días'}.`,
+            texto: `Hice ${datos.aciertos}/${preguntas.length} en el Reto Diario de Bidxaga Saa. Racha: ${datos.racha} ${datos.racha === 1 ? 'día' : 'días'}.`,
         });
 
         if (resultadoCompartir === 'cancelado') return;
@@ -176,13 +177,16 @@ export default function RetoDiario({ user, onBack }) {
                     ← Menú
                 </button>
 
-                <span className="bg-orange-100 text-orange-900 border border-orange-300 rounded-full px-3 py-1 text-xs font-black flex items-center gap-1">
-                    🔥 {rachaActual} {rachaActual === 1 ? 'día' : 'días'}
+                <span className="bg-orange-100 text-orange-900 border border-orange-300 rounded-full px-3 py-1 text-xs font-black inline-flex items-center gap-1">
+                    <Icono nombre="flame" className="w-3.5 h-3.5" />
+                    {rachaActual} {rachaActual === 1 ? 'día' : 'días'}
                 </span>
             </div>
 
             <header className="text-center mb-4">
-                <div className="text-4xl mb-1">🔥</div>
+                <div className="flex justify-center mb-1">
+                    <Icono nombre="flame" className="w-9 h-9 text-orange-600" />
+                </div>
                 <h1 className="text-2xl sm:text-3xl font-black text-amber-950 tracking-tight">Reto Diario</h1>
                 <p className="text-xs sm:text-sm text-amber-700 font-medium capitalize">{formatearFecha(hoy)}</p>
                 <p className="text-[11px] text-amber-700 font-medium mt-1">
@@ -192,7 +196,9 @@ export default function RetoDiario({ user, onBack }) {
 
             {mostrarResumenHoy ? (
                 <div className="bg-white rounded-3xl border-2 border-emerald-300 shadow-xl p-6 text-center animate-fade-in">
-                    <div className="text-5xl mb-2">🎉</div>
+                    <div className="flex justify-center mb-2">
+                        <Icono nombre="party" className="w-10 h-10 text-emerald-600" />
+                    </div>
                     <h2 className="text-xl font-black text-emerald-900">¡Reto de hoy completado!</h2>
                     <p className="text-sm text-amber-800 font-medium mt-1">
                         Acertaste {reto?.aciertos ?? 0} de {reto?.total ?? preguntas.length}.
@@ -208,7 +214,7 @@ export default function RetoDiario({ user, onBack }) {
                         </div>
                         <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3">
                             <p className="text-[10px] font-bold text-orange-700 uppercase tracking-wide">Racha</p>
-                            <p className="text-lg font-black text-orange-900">{rachaActual} {rachaActual === 1 ? 'día' : 'días'} 🔥</p>
+                            <p className="text-lg font-black text-orange-900">{rachaActual} {rachaActual === 1 ? 'día' : 'días'} <Icono nombre="flame" className="w-4 h-4 inline-block" /></p>
                         </div>
                     </div>
 
@@ -218,9 +224,9 @@ export default function RetoDiario({ user, onBack }) {
                         <button
                             type="button"
                             onClick={() => compartirResultado({ aciertos: reto?.aciertos ?? 0, racha: rachaActual })}
-                            className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-2xl shadow-md text-sm cursor-pointer"
+                            className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-2xl shadow-md text-sm cursor-pointer inline-flex items-center justify-center gap-1.5"
                         >
-                            📤 Compartir resultado
+                            <Icono nombre="share" className="w-4 h-4" /> Compartir resultado
                         </button>
                         {mensajeCompartir && (
                             <p className="text-[11px] font-bold text-emerald-700">{mensajeCompartir}</p>
@@ -243,7 +249,11 @@ export default function RetoDiario({ user, onBack }) {
                 </div>
             ) : terminado && resultado ? (
                 <div className="bg-white rounded-3xl border-2 border-amber-300 shadow-xl p-6 text-center animate-fade-in">
-                    <div className="text-5xl mb-2">{resultado.practica ? '📚' : '🏁'}</div>
+                    <div className="flex justify-center mb-2">
+                        {resultado.practica
+                            ? <Icono nombre="book" className="w-10 h-10 text-amber-600" />
+                            : <Icono nombre="flag" className="w-10 h-10 text-amber-600" />}
+                    </div>
                     <h2 className="text-xl font-black text-amber-950">
                         {resultado.practica ? 'Práctica completada' : 'Reto completado'}
                     </h2>
@@ -263,7 +273,7 @@ export default function RetoDiario({ user, onBack }) {
                         </div>
                         <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3">
                             <p className="text-[10px] font-bold text-orange-700 uppercase tracking-wide">Racha</p>
-                            <p className="text-lg font-black text-orange-900">{resultado.racha} {resultado.racha === 1 ? 'día' : 'días'} 🔥</p>
+                            <p className="text-lg font-black text-orange-900">{resultado.racha} {resultado.racha === 1 ? 'día' : 'días'} <Icono nombre="flame" className="w-4 h-4 inline-block" /></p>
                         </div>
                     </div>
 
@@ -277,9 +287,9 @@ export default function RetoDiario({ user, onBack }) {
                         <button
                             type="button"
                             onClick={() => compartirResultado(resultado)}
-                            className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-2xl shadow-md text-sm cursor-pointer"
+                            className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-2xl shadow-md text-sm cursor-pointer inline-flex items-center justify-center gap-1.5"
                         >
-                            📤 Compartir resultado
+                            <Icono nombre="share" className="w-4 h-4" /> Compartir resultado
                         </button>
                         {mensajeCompartir && (
                             <p className="text-[11px] font-bold text-emerald-700">{mensajeCompartir}</p>
@@ -305,7 +315,11 @@ export default function RetoDiario({ user, onBack }) {
                     <div className="flex items-center justify-between text-[11px] font-bold text-amber-800 mb-2">
                         <span>Pregunta {indice + 1} de {preguntas.length}</span>
                         <span className="bg-amber-100 border border-amber-300 rounded-full px-2 py-0.5">
-                            {pregunta?.tipo === 'flora' ? '🌿 Flora' : '🐾 Fauna'}
+                            {pregunta?.tipo === 'flora' ? (
+                                <span className="inline-flex items-center gap-1"><Icono nombre="leaf" className="w-3.5 h-3.5" /> Flora</span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1"><Icono nombre="paw" className="w-3.5 h-3.5" /> Fauna</span>
+                            )}
                         </span>
                     </div>
 

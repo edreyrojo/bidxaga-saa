@@ -13,10 +13,12 @@ const SopaLetras = lazy(() => import('./components/SopaLetras'));
 const Crucigrama = lazy(() => import('./components/Crucigrama'));
 const Trivia = lazy(() => import('./components/Trivia'));
 const RetoDiario = lazy(() => import('./components/RetoDiario'));
+const PanelProgreso = lazy(() => import('./components/PanelProgreso'));
 const GeneradorDev = lazy(() => import('./components/GeneradorDev'));
 import LoginModal from './components/LoginModal';
 import PerfilModal from './components/PerfilModal';
 import ConfiguracionModal from './components/ConfiguracionModal';
+import Icono from './components/Icono';
 
 const RUTA_MERCADO_ACCESORIOS = '/avatares/mercado/';
 
@@ -415,7 +417,7 @@ function App() {
               }}
             />
             <span style={{ display: 'none' }} className="w-full h-full items-center justify-center text-xs font-bold">
-              💾
+              <Icono nombre="save" className="w-5 h-5" />
             </span>
           </button>
         )}
@@ -453,7 +455,7 @@ function App() {
                   }}
                   className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-100 text-sm font-bold text-amber-950 flex items-center justify-between gap-2 cursor-pointer"
                 >
-                  <span>📢 Avisos</span>
+                  <span className="inline-flex items-center gap-2"><Icono nombre="megaphone" className="w-4 h-4" /> Avisos</span>
                   {listaAvisos.length > 0 && (
                     <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                       {listaAvisos.length}
@@ -468,7 +470,7 @@ function App() {
                   }}
                   className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-100 text-sm font-bold text-amber-950 flex items-center gap-2 cursor-pointer"
                 >
-                  ❓ Ayuda
+                  <span className="inline-flex items-center gap-2"><Icono nombre="help" className="w-4 h-4" /> Ayuda</span>
                 </button>
                 <button
                   type="button"
@@ -478,7 +480,7 @@ function App() {
                   }}
                   className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-100 text-sm font-bold text-amber-950 flex items-center gap-2 cursor-pointer"
                 >
-                  ⚙️ Configuración
+                  <span className="inline-flex items-center gap-2"><Icono nombre="settings" className="w-4 h-4" /> Configuración</span>
                 </button>
               </div>
             </>
@@ -491,7 +493,7 @@ function App() {
           title="Avisos"
           aria-label={listaAvisos.length > 0 ? `Avisos (${listaAvisos.length})` : 'Avisos'}
         >
-          <span className="text-lg">📢</span>
+          <Icono nombre="megaphone" className="w-5 h-5" />
           {listaAvisos.length > 0 && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
               {listaAvisos.length}
@@ -505,7 +507,7 @@ function App() {
           title="Ayuda y Tutoriales"
           aria-label="Ayuda y tutoriales"
         >
-          <span className="text-lg">❓</span>
+          <Icono nombre="help" className="w-5 h-5" />
         </button>
 
         <button
@@ -528,7 +530,7 @@ function App() {
             }}
           />
           <span style={{ display: 'none' }} className="w-full h-full items-center justify-center text-lg">
-            ⚙️
+            <Icono nombre="settings" className="w-5 h-5" />
           </span>
         </button>
 
@@ -550,6 +552,16 @@ function App() {
 
         {vistaActual === 'reto' && (
           <RetoDiario
+            user={user}
+            onBack={() => {
+              setControlesJuegoActivo(null);
+              setVistaActual('menu');
+            }}
+          />
+        )}
+
+        {vistaActual === 'progreso' && (
+          <PanelProgreso
             user={user}
             onBack={() => {
               setControlesJuegoActivo(null);
@@ -648,7 +660,7 @@ function App() {
       {showAvisosModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-md flex flex-col relative animate-fade-in max-h-[80vh] overflow-y-auto">
-            <h3 className="text-xl font-black text-amber-950 mb-4 text-center">📢 Avisos y Novedades</h3>
+            <h3 className="text-xl font-black text-amber-950 mb-4 text-center flex items-center justify-center gap-2"><Icono nombre="megaphone" className="w-5 h-5" /> Avisos y Novedades</h3>
             {listaAvisos.length === 0 ? (
               <p className="text-sm text-amber-800 text-center py-6">No hay avisos disponibles por el momento.</p>
             ) : (
@@ -674,7 +686,7 @@ function App() {
       {showAyudaModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-md flex flex-col relative animate-fade-in max-h-[80vh] overflow-y-auto">
-            <h3 className="text-xl font-black text-amber-950 mb-4 text-center">❓ Centro de Ayuda</h3>
+            <h3 className="text-xl font-black text-amber-950 mb-4 text-center flex items-center justify-center gap-2"><Icono nombre="help" className="w-5 h-5" /> Centro de Ayuda</h3>
             
             {!juegoAyudaSeleccionado && vistaActual === 'menu' ? (
               <div className="flex flex-col gap-2.5 mb-6">
@@ -686,7 +698,7 @@ function App() {
                     className="w-full text-left bg-amber-50 hover:bg-amber-100 p-3 rounded-2xl border border-amber-200 font-bold text-amber-950 text-sm flex items-center justify-between cursor-pointer"
                   >
                     <span>{val.titulo}</span>
-                    <span>➡️</span>
+                    <Icono nombre="arrowRight" className="w-4 h-4" />
                   </button>
                 ))}
               </div>
@@ -698,8 +710,8 @@ function App() {
                 <p className="text-xs text-amber-800 leading-relaxed bg-amber-50 p-4 rounded-2xl border border-amber-200">
                   {TUTORIALES_JUEGOS[juegoAyudaSeleccionado || vistaActual]?.desc || "Instrucciones generales de la actividad."}
                 </p>
-                <div className="bg-amber-100/50 p-4 rounded-2xl border border-amber-200 text-center text-xs text-amber-900 font-bold">
-                  🎥 Próximamente: Video tutorial disponible para este juego.
+                <div className="bg-amber-100/50 p-4 rounded-2xl border border-amber-200 text-center text-xs text-amber-900 font-bold flex items-center justify-center gap-2">
+                  <Icono nombre="video" className="w-4 h-4" /> Próximamente: Video tutorial disponible para este juego.
                 </div>
                 {vistaActual === 'menu' && (
                   <button
@@ -740,7 +752,9 @@ function App() {
 
       {logroToast && (
         <div className="fixed bottom-[calc(1rem_+_env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[300] w-[calc(100%-2rem)] max-w-sm bg-amber-950 text-white rounded-2xl shadow-2xl border-2 border-amber-400 p-4 flex items-center gap-3">
-          <span className="text-3xl flex-shrink-0" aria-hidden="true">{logroToast.emoji}</span>
+          <span className="flex-shrink-0 flex items-center justify-center" aria-hidden="true">
+            <Icono nombre={logroToast.icono || 'trophy'} className="w-8 h-8 text-amber-300" />
+          </span>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-wider text-amber-300 font-black">¡Logro desbloqueado!</p>
             <p className="font-black text-sm truncate">{logroToast.nombre}</p>

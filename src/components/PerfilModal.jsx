@@ -157,7 +157,7 @@ function RenderAvatarVisual({ avatar }) {
                         maskPosition: 'center'
                     }}
                 />
-                {/* 8. Capa de Accesorio (Hasta el frente) — 🆕 antes faltaba por completo aquí */}
+                {/* 8. Capa de Accesorio (Hasta el frente) — antes faltaba por completo aquí */}
                 {varAccesorio && (
                     <div
                         className="absolute inset-0 pointer-events-none"

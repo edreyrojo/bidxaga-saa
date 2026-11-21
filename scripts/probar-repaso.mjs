@@ -20,8 +20,11 @@ const {
     obtenerResumenRepaso,
     seleccionarConRepaso,
     fusionarRepasoNube,
+    obtenerActividadDiaria,
     borrarRepaso,
 } = await import('../src/utils/repaso.js');
+
+const { obtenerFechaLocal } = await import('../src/utils/fechas.js');
 
 let fallos = 0;
 
@@ -45,6 +48,13 @@ const resumenTrasAcierto = obtenerResumenRepaso();
 const registroA = resumenTrasAcierto.palabras.find((p) => p.id === 901);
 comprobar('un acierto sube la caja a 1', registroA?.caja === 1, JSON.stringify(registroA));
 comprobar('un acierto no queda pendiente hoy', resumenTrasAcierto.pendientes === 0, `pendientes=${resumenTrasAcierto.pendientes}`);
+
+const actividadHoy = obtenerActividadDiaria()[obtenerFechaLocal()];
+comprobar(
+    'las respuestas alimentan la actividad diaria',
+    (actividadHoy?.respuestas || 0) >= 1 && (actividadHoy?.aciertos || 0) >= 1,
+    JSON.stringify(actividadHoy)
+);
 
 for (let i = 0; i < 3; i += 1) registrarRespuesta(itemB, false);
 const resumenTrasErrores = obtenerResumenRepaso();

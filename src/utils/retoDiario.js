@@ -1,5 +1,8 @@
 import { listaAnimales } from '../data/animales.js';
 import { listaFlora } from '../data/flora.js';
+import { fechaAnterior, obtenerFechaLocal } from './fechas.js';
+
+export { fechaAnterior, obtenerFechaLocal };
 
 const TOTAL_PREGUNTAS = 5;
 
@@ -7,21 +10,6 @@ const TODAS_LAS_PALABRAS = [
     ...listaAnimales.map((item) => ({ ...item, tipo: 'fauna' })),
     ...listaFlora.map((item) => ({ ...item, tipo: 'flora' })),
 ];
-
-/** Fecha local en formato YYYY-MM-DD. */
-export const obtenerFechaLocal = (fecha = new Date()) => {
-    const anio = fecha.getFullYear();
-    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-    const dia = String(fecha.getDate()).padStart(2, '0');
-    return `${anio}-${mes}-${dia}`;
-};
-
-export const fechaAnterior = (fechaISO) => {
-    const [anio, mes, dia] = fechaISO.split('-').map(Number);
-    const fecha = new Date(anio, mes - 1, dia);
-    fecha.setDate(fecha.getDate() - 1);
-    return obtenerFechaLocal(fecha);
-};
 
 export const calcularRecompensa = (aciertos) => {
     if (aciertos >= 5) return 50;

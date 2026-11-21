@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { CATALOGO_ACCESORIOS } from '../data/catalogoActivos.js';
+import Icono from './Icono.jsx';
 
 // 🗂️ Los accesorios viven en la carpeta compartida del mercado, NO dentro de la
 // carpeta de cada personaje (esa era la causa de que el accesorio nunca se viera).
@@ -401,7 +402,7 @@ export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, in
                         <CapaSVG src={`/avatares/${personajeBase}/${varianteOjos}`} color={colorOjos} />
                         {/* 7. Cabello (Dinámica) */}
                         <CapaSVG src={`/avatares/${personajeBase}/${varianteCabello}`} color={colorCabello} />
-                        {/* 8. Accesorio (Hasta el frente) — 🛠️ ahora sí apunta a la carpeta correcta */}
+                        {/* 8. Accesorio (Hasta el frente) — ahora sí apunta a la carpeta correcta */}
                         {varianteAccesorio && (
                             <CapaSVG src={`${RUTA_MERCADO}${varianteAccesorio}`} color={colorAccesorio} />
                         )}
@@ -414,7 +415,7 @@ export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, in
                             onClick={handleAleatorizar}
                             className="flex-1 bg-white hover:bg-amber-100 text-amber-900 font-bold py-2 rounded-xl text-xs shadow-sm border border-amber-300 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                         >
-                            🎲 Aleatorizar
+                            <Icono nombre="dice" className="w-4 h-4" /> Aleatorizar
                         </button>
                         <button
                             type="button"
@@ -539,7 +540,7 @@ export default function CreadorAvatar({ onClose, onGuardar, onOpenInventario, in
                 {showConfirmClose && (
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10 flex items-center justify-center p-4">
                         <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-xs flex flex-col items-center text-center animate-fade-in">
-                            <div className="text-3xl mb-2">⚠️</div>
+                            <div className="mb-2 flex justify-center"><Icono nombre="alert" className="w-8 h-8 text-amber-600" /></div>
                             <h3 className="text-lg font-bold text-amber-950 mb-1">¿Descartar cambios?</h3>
                             <p className="text-xs text-amber-800 mb-5">
                                 Tienes cambios sin guardar en tu avatar. Si sales ahora se perderán.

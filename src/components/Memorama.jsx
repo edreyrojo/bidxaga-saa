@@ -16,6 +16,7 @@ import { useVidasJuego } from '../hooks/useVidasJuego.js';
 import { useTotopos } from '../hooks/useTotopos.js';
 import { useProgresoJuego } from '../hooks/useProgresoJuego.js';
 import { useLogros } from '../hooks/useLogros.js';
+import Icono from './Icono.jsx';
 
 import { auth, db } from '../firebaseConfig.js';
 import { collection, getDocs, query, orderBy, limit, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
@@ -908,12 +909,12 @@ export default function Tablero({
                     <span>Turnos: {turns}</span> •
                     <span className="text-orange-700 font-bold inline-flex items-center gap-1">
                         <img src="/totopo.png" alt="Totopos" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none' }} />
-                        <span style={{ display: 'none' }}>🏆</span>
+                        <span style={{ display: 'none' }}><Icono nombre="trophy" className="w-4 h-4" /></span>
                         {totopos} Totopos
                     </span> •
                     <span className="text-red-600 font-bold inline-flex items-center gap-1">
                         <img src="/tuna-vida.png" alt="Vidas" className="w-4 h-4 object-contain inline-block" onError={(e) => { e.target.style.display = 'none' }} />
-                        <span style={{ display: 'none' }}>❤️</span>
+                        <span style={{ display: 'none' }}><Icono nombre="heart" className="w-4 h-4" /></span>
                         {vidas} Vidas
                     </span>
                 </p>
@@ -925,7 +926,7 @@ export default function Tablero({
                     }}
                     className="mt-2 inline-flex items-center gap-1.5 bg-white hover:bg-amber-100 text-amber-900 font-bold text-xs px-3 py-1.5 rounded-full border-2 border-amber-300 shadow-sm transition-colors cursor-pointer"
                 >
-                    📚 Categorías
+                    <span className="inline-flex items-center gap-1.5"><Icono nombre="book" className="w-3.5 h-3.5" /> Categorías</span>
                     <span className="bg-amber-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                         {tipoContenido === 'flora'
                             ? categoriasFloraActivas.length
@@ -978,7 +979,7 @@ export default function Tablero({
                                     if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
                                 }}
                             />
-                            <span style={{ display: 'none' }}>🏆</span>
+                            <span style={{ display: 'none' }}><Icono nombre="trophy" className="w-4 h-4" /></span>
                             Ranking Global - Memorama
                         </h3>
                         {cargandoRanking ? (
@@ -1006,7 +1007,7 @@ export default function Tablero({
             {showSinVidasModal && (
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
                     <div className="bg-amber-50 rounded-3xl p-6 shadow-2xl border-4 border-red-500 w-full max-w-sm flex flex-col items-center text-center animate-fade-in relative">
-                        <div className="text-5xl mb-2 animate-bounce">💔</div>
+                        <div className="mb-2 animate-bounce flex justify-center"><Icono nombre="heartCrack" className="w-11 h-11 text-red-600" /></div>
                         <h3 className="text-2xl font-black text-red-700 mb-1">¡Te has quedado sin vidas!</h3>
                         <p className="text-xs text-amber-900 mb-5 font-medium">
                             Has agotado tus corazones. Puedes gastar totopos para rellenar tus vidas y continuar o reiniciar el progreso.
@@ -1079,7 +1080,7 @@ export default function Tablero({
             {showMenuModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
-                        <div className="text-3xl mb-2">⚠️</div>
+                        <div className="mb-2 flex justify-center"><Icono nombre="alert" className="w-8 h-8 text-amber-600" /></div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menú Principal?</h3>
                         <p className="text-xs text-amber-800 mb-5">Si sales ahora, asegúrate de haber guardado tu progreso. ¿Estás seguro?</p>
 
@@ -1111,7 +1112,7 @@ export default function Tablero({
             {showConfirmRestartModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
-                        <div className="text-3xl mb-2">🔄</div>
+                        <div className="mb-2 flex justify-center"><Icono nombre="refresh" className="w-8 h-8 text-amber-600" /></div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Reiniciar Progreso?</h3>
                         <p className="text-xs text-amber-800 mb-5">Se borrará tu nivel actual y volverás al Nivel 1. ¿Estás seguro?</p>
 

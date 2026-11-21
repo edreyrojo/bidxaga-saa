@@ -3,12 +3,13 @@ import { useSonido } from '../hooks/useSonido';
 import { useRepaso } from '../hooks/useRepaso';
 import { useRetoDiario } from '../hooks/useRetoDiario';
 import SeccionRepaso from './SeccionRepaso';
+import Icono from './Icono';
 import { generarPalabraDelDia } from '../utils/retoDiario';
 import { compartirTexto } from '../utils/compartir';
 
 export default function MenuPrincipal({ setVistaActual, user }) {
     const { reproducirSonido } = useSonido();
-    const { pendientes } = useRepaso(user);
+    const { pendientes, total: palabrasTotal, dominadas } = useRepaso(user);
     const { completadoHoy, reto, rachaActual, hoy } = useRetoDiario(user);
     const palabraDelDia = useMemo(() => generarPalabraDelDia(hoy), [hoy]);
     const [estadoCompartir, setEstadoCompartir] = useState(null);
@@ -47,7 +48,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
         try { reproducirSonido('click1'); } catch (e) {}
         const resultado = await compartirTexto({
             titulo: 'Palabra del día - Bidxaga Saa',
-            texto: `🌿 Palabra del día en diidxazá: «${palabraDelDia.diidxaza}» significa «${palabraDelDia.spanish}».`,
+            texto: `Palabra del día en diidxazá: «${palabraDelDia.diidxaza}» significa «${palabraDelDia.spanish}».`,
         });
 
         if (resultado === 'cancelado') return;
@@ -84,7 +85,9 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                 }}
                 className="w-full mb-4 bg-gradient-to-r from-amber-700 to-orange-800 hover:from-amber-800 hover:to-orange-900 active:scale-[0.99] text-white rounded-2xl p-4 shadow-lg border-2 border-amber-500 flex items-center gap-3 transition-transform cursor-pointer"
             >
-                <span className="text-3xl bg-white/15 rounded-2xl p-2 leading-none">🔥</span>
+                <span className="w-12 h-12 bg-white/15 rounded-2xl flex items-center justify-center shrink-0">
+                    <Icono nombre="flame" className="w-7 h-7" />
+                </span>
                 <div className="flex-1 text-left min-w-0">
                     <span className="block font-black text-lg leading-tight">Reto Diario</span>
                     <span className="block text-[11px] font-medium text-amber-100">
@@ -94,8 +97,13 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                     </span>
                 </div>
                 <div className="text-right shrink-0">
-                    <span className="block text-sm font-black">
-                        {rachaActual > 0 ? `🔥 ${rachaActual} ${rachaActual === 1 ? 'día' : 'días'}` : 'Hoy'}
+                    <span className="text-sm font-black inline-flex items-center gap-1">
+                        {rachaActual > 0 ? (
+                            <>
+                                <Icono nombre="flame" className="w-3.5 h-3.5" />
+                                {rachaActual} {rachaActual === 1 ? 'día' : 'días'}
+                            </>
+                        ) : 'Hoy'}
                     </span>
                     <span className="block text-[10px] text-amber-100">
                         {completadoHoy ? 'Vuelve mañana' : 'Empezar'}
@@ -122,9 +130,9 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                     <button
                         type="button"
                         onClick={compartirPalabraDelDia}
-                        className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl px-2.5 py-1.5 text-[11px] font-bold cursor-pointer"
+                        className="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl px-2.5 py-1.5 text-[11px] font-bold cursor-pointer inline-flex items-center gap-1"
                     >
-                        📤 Compartir
+                        <Icono nombre="share" className="w-3.5 h-3.5" /> Compartir
                     </button>
                     {mensajeCompartir && (
                         <span className="text-[10px] font-bold text-emerald-700">{mensajeCompartir}</span>
@@ -135,7 +143,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
             {/* SECCION DE JUEGOS CON NIVELES VERTICALES EN EL LATERAL */}
             {pendientes > 0 && (
                 <div className="w-full mb-4 flex items-center justify-center gap-2 bg-amber-100/90 border-2 border-amber-300 rounded-2xl px-4 py-2.5 text-xs font-bold text-amber-900 shadow-sm">
-                    <span className="text-base">🔁</span>
+                    <Icono nombre="repeat" className="w-4 h-4" />
                     <span>
                         {pendientes === 1
                             ? 'Tienes 1 palabra para reforzar'
@@ -156,7 +164,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                 >
                     <span className={`${estiloNivelVertical} bg-amber-500 text-amber-950/80`}>Inicial</span>
                     <div className="flex items-center gap-4 pl-2">
-                        <span className="text-3xl p-3 bg-amber-100/80 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">🎴</span>
+                        <span className="p-3 bg-amber-100/80 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300"><Icono nombre="layers" className="w-7 h-7 text-amber-800" /></span>
                         <div className="text-left">
                             <span className="text-lg sm:text-xl block font-black text-amber-950 tracking-tight">Memorama</span>
                             <span className="text-xs font-medium text-amber-800/80">Encuentra los pares y haz memoria</span>
@@ -177,7 +185,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                 >
                     <span className={`${estiloNivelVertical} bg-yellow-500 text-yellow-950/80`}>Intermedio</span>
                     <div className="flex items-center gap-4 pl-2">
-                        <span className="text-3xl p-3 bg-yellow-100/80 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">⚡</span>
+                        <span className="p-3 bg-yellow-100/80 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300"><Icono nombre="zap" className="w-7 h-7 text-yellow-800" /></span>
                         <div className="text-left">
                             <span className="text-lg sm:text-xl block font-black text-amber-950 tracking-tight">Reto Trivia</span>
                             <span className="text-xs font-medium text-amber-800/80">Pon a prueba tu velocidad mental</span>
@@ -198,7 +206,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                 >
                     <span className={`${estiloNivelVertical} bg-orange-500 text-orange-950`}>Avanzado</span>
                     <div className="flex items-center gap-4 pl-2">
-                        <span className="text-3xl p-3 bg-orange-100/80 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">✏️</span>
+                        <span className="p-3 bg-orange-100/80 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300"><Icono nombre="pencil" className="w-7 h-7 text-orange-800" /></span>
                         <div className="text-left">
                             <span className="text-lg sm:text-xl block font-black text-orange-950 tracking-tight">Crucigrama</span>
                             <span className="text-xs font-medium text-orange-800/80">Completa los nombres con pistas</span>
@@ -219,7 +227,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                 >
                     <span className={`${estiloNivelVertical} bg-emerald-500 text-emerald-950`}>Experto</span>
                     <div className="flex items-center gap-4 pl-2">
-                        <span className="text-3xl p-3 bg-emerald-100/80 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">🔎</span>
+                        <span className="p-3 bg-emerald-100/80 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300"><Icono nombre="search" className="w-7 h-7 text-emerald-800" /></span>
                         <div className="text-left">
                             <span className="text-lg sm:text-xl block font-black text-emerald-950 tracking-tight">Sopa de Letras</span>
                             <span className="text-xs font-medium text-emerald-800/80">Busca las palabras ocultas</span>
@@ -231,6 +239,27 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                 </button>
 
             </div>
+
+            {/* MI PROGRESO */}
+            <button
+                type="button"
+                onClick={() => {
+                    reproducirSonido('click1');
+                    setVistaActual('progreso');
+                }}
+                className="w-full mb-4 bg-white hover:bg-amber-50 border-2 border-amber-200 hover:border-amber-400 rounded-2xl p-3 shadow-sm flex items-center gap-3 transition-colors cursor-pointer"
+            >
+                <span className="w-11 h-11 bg-amber-100 rounded-xl flex items-center justify-center shrink-0"><Icono nombre="chart" className="w-6 h-6 text-amber-800" /></span>
+                <div className="flex-1 text-left min-w-0">
+                    <p className="font-black text-amber-950 text-sm">Mi progreso</p>
+                    <p className="text-[11px] text-amber-700 font-medium truncate">
+                        {palabrasTotal > 0
+                            ? `${palabrasTotal} palabras · ${dominadas} dominadas · ${rachaActual} ${rachaActual === 1 ? 'día' : 'días'} de racha`
+                            : 'Empieza a registrar tu avance'}
+                    </p>
+                </div>
+                <span className="text-amber-800 font-black">→</span>
+            </button>
 
             {/* REPASO INTELIGENTE */}
             <div className="w-full mb-4">
@@ -252,7 +281,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                     }}
                     className="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 active:scale-98 text-white font-bold py-3.5 px-4 rounded-xl border border-emerald-800 flex items-center justify-center gap-2.5 transition-all shadow-md text-sm cursor-pointer"
                 >
-                    <span className="text-base">📱</span> ¿Cómo instalar esta App en tu celular?
+                    <Icono nombre="smartphone" className="w-4 h-4" /> ¿Cómo instalar esta App en tu celular?
                 </button>
 
                 {/* Boton de Apoyo */}
@@ -263,7 +292,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                     }}
                     className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 active:scale-98 text-white font-bold py-3.5 px-4 rounded-xl border border-orange-700 flex items-center justify-center gap-2.5 transition-all shadow-md text-sm cursor-pointer"
                 >
-                    <span className="text-base">☕</span> Invítame un café / Apoya el proyecto
+                    <Icono nombre="coffee" className="w-4 h-4" /> Invítame un café / Apoya el proyecto
                 </button>
 
                 {/* Boton de Creditos */}
@@ -274,7 +303,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                     }}
                     className="w-full bg-amber-200/80 hover:bg-amber-300/90 active:scale-98 text-amber-950 font-extrabold py-3 px-4 rounded-xl border border-amber-300 flex items-center justify-center gap-2 transition-all shadow-xs text-xs tracking-wide uppercase cursor-pointer"
                 >
-                    <span>✨</span> Ver Créditos y Propósito Cultural
+                    <Icono nombre="sparkles" className="w-4 h-4" /> Ver Créditos y Propósito Cultural
                 </button>
             </div>
 
@@ -293,7 +322,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                         </button>
 
                         <div className="text-center mb-4">
-                            <span className="text-3xl">📱</span>
+                            <Icono nombre="smartphone" className="w-9 h-9 text-amber-700" />
                             <h3 className="text-xl font-bold text-amber-950 mt-1">Instala la App en tu Dispositivo</h3>
                             <p className="text-xs text-amber-800 mt-1">
                                 Lleva el Diidxazá siempre contigo como si fuera una aplicación normal de tu teléfono.
@@ -311,7 +340,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                                     : 'text-amber-900 hover:text-amber-950'
                                     }`}
                             >
-                                🤖 Android (Chrome)
+                                <Icono nombre="bot" className="w-4 h-4" /> Android (Chrome)
                             </button>
                             <button
                                 onClick={() => {
@@ -323,7 +352,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                                     : 'text-amber-900 hover:text-amber-950'
                                     }`}
                             >
-                                🍏 iPhone (Safari)
+                                <Icono nombre="apple" className="w-4 h-4" /> iPhone (Safari)
                             </button>
                         </div>
 
@@ -375,7 +404,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                         </button>
 
                         <div className="text-center mb-5">
-                            <span className="text-3xl">☕</span>
+                            <Icono nombre="coffee" className="w-9 h-9 text-amber-700" />
                             <h3 className="text-xl font-bold text-amber-950 mt-1">Apoya este Proyecto Cultural</h3>
                             <p className="text-xs text-amber-800 mt-1">
                                 ¡Gracias por ayudar a mantener vivo y difundir el Diidxazá de Unión Hidalgo, Oaxaca! Tu apoyo impulsa la creación de más contenido y herramientas educativas.
@@ -385,7 +414,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
                             <div className="flex items-center justify-between mb-2">
                                 <h4 className="font-bold text-amber-950 text-sm flex items-center gap-1.5">
-                                    <span>💳</span> Datos para Depósito / Transferencia
+                                    <Icono nombre="card" className="w-4 h-4" /> Datos para Depósito / Transferencia
                                 </h4>
                                 {copiadoTexto && (
                                     <span className="text-[10px] bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-full animate-bounce">
@@ -408,7 +437,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                                         <strong className="block text-[10px] text-amber-800 uppercase">CLABE Interbancaria (Click para copiar):</strong>
                                         <span className="text-gray-700 font-mono tracking-wide">012180015626844417</span>
                                     </div>
-                                    <span className="text-xs bg-amber-100 text-amber-900 px-2 py-1 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors">📋</span>
+                                    <span className="text-xs bg-amber-100 text-amber-900 px-2 py-1 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors"><Icono nombre="clipboard" className="w-3.5 h-3.5" /></span>
                                 </div>
 
                                 <div
@@ -423,7 +452,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                                         <strong className="block text-[10px] text-amber-800 uppercase">Número de Tarjeta (Click para copiar):</strong>
                                         <span className="text-gray-700 font-mono tracking-wide">4152 3142 1669 1959</span>
                                     </div>
-                                    <span className="text-xs bg-amber-100 text-amber-900 px-2 py-1 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors">📋</span>
+                                    <span className="text-xs bg-amber-100 text-amber-900 px-2 py-1 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors"><Icono nombre="clipboard" className="w-3.5 h-3.5" /></span>
                                 </div>
 
                                 <div
@@ -438,14 +467,14 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                                         <strong className="block text-[10px] text-amber-800 uppercase">A nombre de (Click para copiar):</strong>
                                         <span className="text-gray-700 font-bold">EDREY MANZO MATUS</span>
                                     </div>
-                                    <span className="text-xs bg-amber-100 text-amber-900 px-2 py-1 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors">📋</span>
+                                    <span className="text-xs bg-amber-100 text-amber-900 px-2 py-1 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors"><Icono nombre="clipboard" className="w-3.5 h-3.5" /></span>
                                 </div>
                             </div>
                         </div>
 
                         <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6">
                             <h4 className="font-bold text-orange-950 text-sm mb-2 flex items-center gap-1.5">
-                                <span>🌐</span> Redes Sociales y Contacto
+                                <Icono nombre="globe" className="w-4 h-4" /> Redes Sociales y Contacto
                             </h4>
                             <div className="flex flex-col gap-2 text-xs font-semibold text-amber-900">
                                 <a
@@ -455,7 +484,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                                     onClick={() => reproducirSonido('click1')}
                                     className="flex items-center justify-between hover:bg-orange-100 transition-colors bg-white p-2.5 rounded-xl border border-orange-100 shadow-sm"
                                 >
-                                    <span className="flex items-center gap-2"><span>📸</span> Instagram: <span className="font-normal text-gray-600">@edreyngasi</span></span>
+                                    <span className="flex items-center gap-2"><Icono nombre="camera" className="w-4 h-4" /> Instagram: <span className="font-normal text-gray-600">@edreyngasi</span></span>
                                     <span className="text-orange-700 font-bold">Ir →</span>
                                 </a>
 
@@ -466,7 +495,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                                     onClick={() => reproducirSonido('click1')}
                                     className="flex items-center justify-between hover:bg-orange-100 transition-colors bg-white p-2.5 rounded-xl border border-orange-100 shadow-sm"
                                 >
-                                    <span className="flex items-center gap-2"><span>📘</span> Facebook: <span className="font-normal text-gray-600">Ver Perfil</span></span>
+                                    <span className="flex items-center gap-2"><Icono nombre="book" className="w-4 h-4" /> Facebook: <span className="font-normal text-gray-600">Ver Perfil</span></span>
                                     <span className="text-orange-700 font-bold">Ir →</span>
                                 </a>
 
@@ -478,8 +507,8 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                                     className="group flex items-center justify-between hover:bg-orange-100 transition-colors bg-white p-2.5 rounded-xl border border-orange-100 shadow-sm cursor-pointer"
                                     title="Click para copiar correo"
                                 >
-                                    <span className="flex items-center gap-2"><span>📧</span> Correo: <span className="font-normal text-gray-600">zamna.ed@gmail.com</span></span>
-                                    <span className="text-xs bg-orange-100 text-orange-900 px-2 py-1 rounded-lg group-hover:bg-orange-600 group-hover:text-white transition-colors">📋</span>
+                                    <span className="flex items-center gap-2"><Icono nombre="mail" className="w-4 h-4" /> Correo: <span className="font-normal text-gray-600">zamna.ed@gmail.com</span></span>
+                                    <span className="text-xs bg-orange-100 text-orange-900 px-2 py-1 rounded-lg group-hover:bg-orange-600 group-hover:text-white transition-colors"><Icono nombre="clipboard" className="w-3.5 h-3.5" /></span>
                                 </div>
                             </div>
                         </div>
@@ -512,7 +541,7 @@ export default function MenuPrincipal({ setVistaActual, user }) {
                         </button>
 
                         <div className="text-center mb-4">
-                            <span className="text-3xl">🐾</span>
+                            <Icono nombre="paw" className="w-9 h-9 text-amber-700" />
                             <h3 className="text-xl font-bold text-amber-950 mt-1">Créditos y Propósito Cultural</h3>
                             <p className="text-xs text-amber-800 font-medium">Proyecto Bidxaga Saa</p>
                         </div>

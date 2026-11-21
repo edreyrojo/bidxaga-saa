@@ -3,6 +3,7 @@ import { db } from '../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
 import { CATALOGO_AVATARES, CATALOGO_ACCESORIOS } from '../data/catalogoActivos.js';
 import SeccionColapsable from './SeccionColapsable.jsx';
+import Icono from './Icono.jsx';
 
 // Catálogo general de elementos disponibles en la plataforma (Avatares y Accesorios de Mercado)
 // 🔧 Se construye a partir del catálogo único compartido, así nunca vuelve a desincronizarse
@@ -14,7 +15,7 @@ const CATALOGO_COMPLETO = [
         tipo: 'avatar',
         archivo: a.archivo,
         disponible: a.disponible !== false,
-        emoji: a.emoji
+        icono: a.icono
     })),
     ...CATALOGO_ACCESORIOS.map(a => ({
         id: a.id,
@@ -34,8 +35,8 @@ export default function SeccionInventario({
     avatarActual,
     setAvatarActual,
     setMensaje,
-    onAbrirCreador = null, // 🆕 Permite saltar directo al Creador de Avatar al pulsar "Usar" en un accesorio
-    inventarioAbierto,     // 🛠️ Antes llegaba pero nunca se usaba: el inventario jamás se podía colapsar
+    onAbrirCreador = null, // Permite saltar directo al Creador de Avatar al pulsar "Usar" en un accesorio
+    inventarioAbierto,     // Antes llegaba pero nunca se usaba: el inventario jamás se podía colapsar
     setInventarioAbierto
 }) {
     const [filtroTipo, setFiltroTipo] = useState('todos'); // 'todos', 'avatar', 'accesorio'
@@ -144,7 +145,7 @@ export default function SeccionInventario({
                                 >
                                     <div className="w-16 h-16 flex items-center justify-center mb-2 bg-white rounded-xl shadow-inner border border-amber-100 overflow-hidden">
                                         {item.disponible === false ? (
-                                            <span className="text-3xl" aria-hidden="true">{item.emoji || '🌴'}</span>
+                                            <Icono nombre={item.icono || 'palm'} className="w-8 h-8 text-amber-700" />
                                         ) : item.tipo === 'avatar' ? (
                                             <img
                                                 src={`/avatares/${item.archivo}.png`}

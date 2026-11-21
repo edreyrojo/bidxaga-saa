@@ -15,6 +15,7 @@ import { useVidasJuego } from '../hooks/useVidasJuego.js';
 import { useTotopos } from '../hooks/useTotopos.js';
 import { useProgresoJuego } from '../hooks/useProgresoJuego.js';
 import { useLogros } from '../hooks/useLogros.js';
+import Icono from './Icono.jsx';
 import { auth, db } from '../firebaseConfig';
 import { collection, getDocs, query, orderBy, limit, doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -1169,7 +1170,7 @@ export default function Crucigrama({
                                 >
                                     <div className="w-11 h-11 bg-orange-100/50 rounded-lg overflow-hidden flex items-center justify-center border border-amber-100 flex-shrink-0 relative">
                                         <span className="absolute top-0.5 left-1 text-[9px] font-black text-amber-700 bg-white/80 px-1 rounded">{p.number}</span>
-                                        <img src={p.animal.image} alt={p.animal.spanish} className="max-w-[80%] max-h-[80%] object-contain" onError={(e) => { e.target.src = "🐾"; }} />
+                                        <img src={p.animal.image} alt={p.animal.spanish} className="max-w-[80%] max-h-[80%] object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{direccion}</p>
@@ -1199,7 +1200,7 @@ export default function Crucigrama({
                                 if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline';
                             }}
                         />
-                        <span style={{ display: 'none' }}>🏆</span>
+                        <span style={{ display: 'none' }}><Icono nombre="trophy" className="w-4 h-4" /></span>
                         Ranking Global
                     </h3>
                     <div className="bg-white rounded-xl p-3 shadow-md border border-amber-200 w-full max-h-[440px] lg:max-h-none overflow-y-auto lg:overflow-y-visible custom-scrollbar">
@@ -1345,7 +1346,7 @@ export default function Crucigrama({
             {showGameOverModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
-                        <div className="text-4xl mb-2">💔</div>
+                        <div className="mb-2 flex justify-center"><Icono nombre="heartCrack" className="w-9 h-9 text-red-600" /></div>
                         <h3 className="text-xl font-bold text-amber-950 mb-1">¡Te has quedado sin vidas!</h3>
                         <p className="text-xs text-amber-800 mb-4">
                             Estas en el Nivel {nivel}. Elige una opcion para continuar:
@@ -1443,7 +1444,7 @@ export default function Crucigrama({
             {showConfirmRestartModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
-                        <div className="text-3xl mb-2">🔄</div>
+                        <div className="mb-2 flex justify-center"><Icono nombre="refresh" className="w-8 h-8 text-amber-600" /></div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">Opcion de Reinicio</h3>
                         <p className="text-xs text-amber-800 mb-5">
                             ¿Deseas reiniciar unicamente el Nivel {nivel} o comenzar de nuevo desde el Nivel 1?
@@ -1481,7 +1482,7 @@ export default function Crucigrama({
             {showMenuModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-2 border-amber-300 w-full max-w-sm flex flex-col items-center animate-fade-in text-center">
-                        <div className="text-3xl mb-2">🏠</div>
+                        <div className="mb-2 flex justify-center"><Icono nombre="home" className="w-8 h-8 text-amber-600" /></div>
                         <h3 className="text-xl font-bold text-amber-950 mb-2">¿Volver al Menu Principal?</h3>
                         <p className="text-xs text-amber-800 mb-5">Si sales ahora, asegurate de haber guardado tu progreso en esta partida.</p>
                         

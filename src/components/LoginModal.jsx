@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { crearVidasIniciales } from '../utils/vidas.js';
+import Icono from './Icono.jsx';
 
 export default function LoginModal({ user, onClose }) {
     const [isRegistering, setIsRegistering] = useState(false);
@@ -151,7 +152,7 @@ export default function LoginModal({ user, onClose }) {
 
                         <div className="bg-amber-100 rounded-xl p-4 mb-6 border border-amber-300">
                             <p className="text-amber-800 font-semibold">Tus Totopos acumulados:</p>
-                            <p className="text-3xl font-black text-amber-600 mt-1">🌽 0</p>
+                            <p className="text-3xl font-black text-amber-600 mt-1 flex items-center gap-1"><Icono nombre="corn" className="w-6 h-6" /> 0</p>
                             <p className="text-xs text-amber-600 mt-1">(Próximamente tienda de avatares y colores)</p>
                         </div>
 
@@ -164,12 +165,14 @@ export default function LoginModal({ user, onClose }) {
                     </div>
                 ) : (
                     <div>
-                        <h2 className="text-2xl font-black text-amber-900 text-center mb-2">
-                            {isResetting
-                                ? 'Recuperar Contraseña 🔑'
-                                : isRegistering
-                                ? 'Crear Cuenta 🌽'
-                                : 'Iniciar Sesión 🌽'}
+                        <h2 className="text-2xl font-black text-amber-900 text-center mb-2 flex items-center justify-center gap-2">
+                            {isResetting ? (
+                                <><Icono nombre="key" className="w-6 h-6" /> Recuperar Contraseña</>
+                            ) : isRegistering ? (
+                                <><Icono nombre="corn" className="w-6 h-6" /> Crear Cuenta</>
+                            ) : (
+                                <><Icono nombre="corn" className="w-6 h-6" /> Iniciar Sesión</>
+                            )}
                         </h2>
                         <p className="text-amber-700 text-center text-sm mb-6">
                             {isResetting
@@ -191,7 +194,7 @@ export default function LoginModal({ user, onClose }) {
                             </div>
                         )}
 
-                        {/* 🌟 BOTÓN DE GOOGLE */}
+                        {/* BOTÓN DE GOOGLE */}
                         {!isResetting && (
                             <div className="mb-4">
                                 <button

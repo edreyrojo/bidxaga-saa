@@ -1,7 +1,9 @@
 import { almacen } from './almacen.js';
+import { obtenerFechaLocal } from './fechas.js';
 
 const CLAVE = 'repasoPalabras';
 const CLAVE_BORRADO = 'repasoBorradoEn';
+const CLAVE_ACTIVIDAD = 'actividadDiaria';
 const EVENTO = 'bidxaga:repaso-actualizado';
 const DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -30,6 +32,41 @@ const guardarTodo = (datos) => {
 };
 
 const puedeSincronizarNube = () => typeof window !== 'undefined' && !globalThis.__BIDXAGA_SIN_NUBE__;
+
+const leerActividad = () => {
+    try {
+        const crudo = almacen.getItem(CLAVE_ACTIVIDAD);
+        if (!crudo) return {};
+        const datos = JSON.parse(crudo);
+        return datos && typeof datos === 'object' ? datos : {};
+    } catch {
+        return {};
+    }
+};
+
+const registrarActividadDiaria = (correcto) => {
+    try {
+        const fecha = obtenerFechaLocal();
+        const datos = leerActividad();
+        const dia = datos[fecha] || { respuestas: 0, aciertos: 0 };
+
+        dia.respuestas = (dia.respuestas || 0) + 1;
+        if (correcto) dia.aciertos = (dia.aciertos || 0) + 1;
+        datos[fecha] = dia;
+
+        // Conserva como máximo los últimos 90 días.
+        const fechas = Object.keys(datos).sort();
+        while (fechas.length > 90) {
+            delete datos[fechas.shift()];
+        }
+
+        almacen.setItem(CLAVE_ACTIVIDAD, JSON.stringify(datos));
+    } catch {
+        // Si no hay almacenamiento, el panel simplemente no muestra actividad.
+    }
+};
+
+export const obtenerActividadDiaria = () => leerActividad();
 
 const publicarEnNube = (clave, registro) => {
     if (!puedeSincronizarNube()) return;
@@ -80,6 +117,7 @@ export const registrarRespuesta = (item, correcto) => {
     };
 
     guardarTodo(datos);
+    registrarActividadDiaria(correcto);
     publicarEnNube(clave, datos[clave]);
 };
 

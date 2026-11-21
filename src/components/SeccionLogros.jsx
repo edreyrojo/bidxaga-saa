@@ -1,6 +1,7 @@
 import React from 'react';
 import SeccionColapsable from './SeccionColapsable.jsx';
 import { CATALOGO_LOGROS } from '../data/logros.js';
+import Icono from './Icono.jsx';
 
 export default function SeccionLogros({ 
     logrosAbiertos, 
@@ -28,8 +29,8 @@ export default function SeccionLogros({
                                     : 'bg-gray-50 border-gray-200 opacity-60 grayscale'
                             }`}
                         >
-                            <div className="w-12 h-12 text-xl font-bold bg-amber-100 rounded-xl border border-amber-200 flex items-center justify-center shrink-0 shadow-inner">
-                                {logro.emoji || '🏆'}
+                            <div className="w-12 h-12 bg-amber-100 rounded-xl border border-amber-200 flex items-center justify-center shrink-0 shadow-inner">
+                                <Icono nombre={logro.icono || 'trophy'} className="w-6 h-6 text-amber-800" />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-0.5">
@@ -38,8 +39,8 @@ export default function SeccionLogros({
                                     }`}>
                                         {logro.juego}
                                     </span>
-                                    <span className={`text-[11px] font-bold ${conseguido ? 'text-green-700' : 'text-gray-500'}`}>
-                                        {conseguido ? '¡Conseguido! ✅' : 'Bloqueado'}
+                                    <span className={`text-[11px] font-bold inline-flex items-center gap-1 ${conseguido ? 'text-green-700' : 'text-gray-500'}`}>
+                                        {conseguido ? <><Icono nombre="checkCircle" className="w-3.5 h-3.5" /> ¡Conseguido!</> : 'Bloqueado'}
                                     </span>
                                 </div>
                                 <h4 className={`font-black text-sm truncate ${conseguido ? 'text-amber-950' : 'text-gray-600'}`}>

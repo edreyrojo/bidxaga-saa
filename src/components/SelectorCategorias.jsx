@@ -1,5 +1,6 @@
 import React from 'react';
 import { obtenerCategoriasPorTipo } from '../data/Categoriascontenido.js';
+import Icono from './Icono.jsx';
 
 function BloqueCategoria({ tipoLabel, tipoDataset, data, totopos, nivelCuenta }) {
     const { desbloqueadas = [], activas = [], onToggleActiva, onDesbloquear } = data;
@@ -27,7 +28,7 @@ function BloqueCategoria({ tipoLabel, tipoDataset, data, totopos, nivelCuenta })
                                     : 'bg-white border-amber-200 hover:border-amber-400'
                             }`}
                         >
-                            <span className="text-2xl flex-shrink-0">{cat.emoji}</span>
+                            <Icono nombre={cat.icono || 'paw'} className="w-6 h-6 text-amber-800 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                                 <span className="block font-bold text-sm text-amber-950 truncate">{cat.nombre}</span>
                                 <span className="text-[10px] font-bold text-amber-700">
@@ -51,7 +52,7 @@ function BloqueCategoria({ tipoLabel, tipoDataset, data, totopos, nivelCuenta })
                         key={cat.id}
                         className="w-full flex items-center gap-3 p-3 rounded-2xl border-2 border-amber-100 bg-amber-50/60"
                     >
-                        <span className="text-2xl flex-shrink-0 grayscale opacity-60">{cat.emoji}</span>
+                        <span className="flex-shrink-0 grayscale opacity-60"><Icono nombre={cat.icono || 'paw'} className="w-6 h-6 text-amber-800" /></span>
                         <div className="flex-1 min-w-0">
                             <span className="block font-bold text-sm text-amber-900/70 truncate">{cat.nombre}</span>
                             <span className="text-[10px] font-bold text-amber-700/80">

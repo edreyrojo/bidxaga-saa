@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import SeccionColapsable from './SeccionColapsable.jsx';
 import { useRepaso } from '../hooks/useRepaso.js';
 import { borrarRepaso } from '../utils/repaso.js';
+import Icono from './Icono.jsx';
 
 const CAJAS_VISIBLES = 5;
 
@@ -69,7 +70,7 @@ export default function SeccionRepaso({ abierto, setAbierto, user }) {
 
                 {visibles.length === 0 ? (
                     <div className="bg-white/70 border border-dashed border-amber-300 rounded-xl p-4 text-center">
-                        <p className="text-2xl mb-1">🌱</p>
+                        <div className="flex justify-center mb-1"><Icono nombre="sprout" className="w-8 h-8 text-emerald-600" /></div>
                         <p className="text-xs font-bold text-amber-900">Aún no hay palabras registradas.</p>
                         <p className="text-[11px] text-amber-700 mt-1">Juega un nivel y aquí aparecerán las palabras que necesitan repaso.</p>
                     </div>
